@@ -9,7 +9,7 @@ import { successResponse, errorResponse, serverErrorResponse } from "@/lib/respo
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { clubId: string } }
+  { params }: { params: Promise<{ clubId: string }> }
 ) {
   try {
     const { user, error } = await getAuthUser(req);
@@ -19,7 +19,7 @@ export async function GET(
     const roleCheck = requireRole(user, ["OWNER", "ADMIN"]);
     if (roleCheck) return roleCheck;
 
-    const { clubId } = params;
+    const { clubId } = await params;
 
     const customers = await getClubCustomers(clubId, user.userId);
     
