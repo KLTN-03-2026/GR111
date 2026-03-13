@@ -10,7 +10,7 @@ import { successResponse, errorResponse, serverErrorResponse } from "@/lib/respo
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { clubId: string; userId: string } }
+  { params }: { params: Promise<{ clubId: string; userId: string }> }
 ) {
   try {
     const { user, error } = await getAuthUser(req);
@@ -19,7 +19,7 @@ export async function PATCH(
     const roleCheck = requireRole(user, ["OWNER", "ADMIN"]);
     if (roleCheck) return roleCheck;
 
-    const { clubId, userId } = params;
+    const { clubId, userId } = await params;
     const body = await req.json();
 
     // Validate data
