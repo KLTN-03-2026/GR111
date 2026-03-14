@@ -1,1 +1,0 @@
-// club list of owner 
