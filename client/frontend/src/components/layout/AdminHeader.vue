@@ -12,7 +12,7 @@
                 </svg></a>
 
             <div class="nav-logo align-self-center">
-                <a class="navbar-brand mt-2" href="index.html"><img class="ms-4 mt-1" alt="logo" src="../../assets/assets/img/90x90.jpg"> <h1
+                <a class="navbar-brand mt-2" href="index.html"><img class="ms-4 mt-1" alt="logo" src="../../assets/logo.png" style="width: 35px; height: 35px; object-fit: contain;"> <h1
                         class="navbar-brand-name">CORK</h1></a>
             </div>
 
