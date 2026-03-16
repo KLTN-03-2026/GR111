@@ -17,6 +17,11 @@ const routes = [
     name: "venue-detail",
     component: () => import("../views/client/VenueDetailView.vue"),
   },
+  {
+    path: "/search",
+    name: "search",
+    component: () => import("../views/client/SearchingView.vue"),
+  },
 
   // Auth Group
   {

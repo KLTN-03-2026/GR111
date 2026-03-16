@@ -2,7 +2,13 @@
   <nav class="navbar">
     <div class="navbar-left">
       <router-link to="/" class="logo">
-        <img src="../../assets/logo.png" alt="Logo" width="40" height="40" style="object-fit: contain;" />
+        <img
+          src="../../assets/logo.png"
+          alt="Logo"
+          width="40"
+          height="40"
+          style="object-fit: contain"
+        />
         <span>SPORTS BOOKING</span>
       </router-link>
 
@@ -11,7 +17,7 @@
         <router-link to="/booking" class="nav-menu-link">ĐẶT SÂN</router-link>
         <router-link to="/contact" class="nav-menu-link">BẢN ĐỒ</router-link>
         <router-link to="/about" class="nav-menu-link">GIỚI THIỆU</router-link>
-        <button class="nav-search-btn">
+        <router-link to="/search" class="nav-search-btn">
           <svg
             width="16"
             height="16"
@@ -24,7 +30,7 @@
             <path d="m21 21-4.35-4.35" />
           </svg>
           TÌM KIẾM
-        </button>
+        </router-link>
       </div>
     </div>
 
@@ -116,21 +122,16 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
   color: #e0e0e0;
-  font-family: "Barlow", sans-serif;
+  text-decoration: none;
   font-weight: 600;
   font-size: 13px;
   letter-spacing: 0.5px;
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: background 0.2s;
+  transition: color 0.2s;
 }
 
 .nav-search-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  color: #4ade80;
 }
 
 .navbar-right {
@@ -150,7 +151,9 @@ export default {
   letter-spacing: 0.5px;
   padding: 8px 16px;
   border-radius: 4px;
-  transition: background 0.2s, color 0.2s;
+  transition:
+    background 0.2s,
+    color 0.2s;
 }
 
 .nav-link:hover {
