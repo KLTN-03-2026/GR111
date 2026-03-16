@@ -7,6 +7,16 @@ const routes = [
     name: "home",
     component: () => import("../views/client/HomeView.vue"),
   },
+  {
+    path: "/booking",
+    name: "booking",
+    component: () => import("../views/client/BookingView.vue"),
+  },
+  {
+    path: "/venue/:id",
+    name: "venue-detail",
+    component: () => import("../views/client/VenueDetailView.vue"),
+  },
 
   // Auth Group
   {
