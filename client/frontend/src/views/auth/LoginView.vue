@@ -1,704 +1,546 @@
 <template>
-   <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <h2>Welcome Back</h2>
-                <p>Sign in to your account</p>
-            </div>
+  <div class="login-page">
 
-            <form class="login-form" id="loginForm" novalidate>
-                <div class="form-group">
-                    <div class="input-wrapper">
-                        <input type="email" id="email" name="email" required autocomplete="email">
-                        <label for="email">Email Address</label>
-                        <span class="focus-border"></span>
-                    </div>
-                    <span class="error-message" id="emailError"></span>
-                </div>
+    <!-- Card -->
+    <div class="login-wrapper">
+      <div class="login-card">
 
-                <div class="form-group">
-                    <div class="input-wrapper password-wrapper">
-                        <input type="password" id="password" name="password" required autocomplete="current-password">
-                        <label for="password">Password</label>
-                        <button type="button" class="password-toggle" id="passwordToggle"
-                            aria-label="Toggle password visibility">
-                            <span class="eye-icon"></span>
-                        </button>
-                        <span class="focus-border"></span>
-                    </div>
-                    <span class="error-message" id="passwordError"></span>
-                </div>
-
-                <div class="form-options">
-                    <label class="remember-wrapper">
-                        <input type="checkbox" id="remember" name="remember">
-                        <span class="checkbox-label">
-                            <span class="checkmark"></span>
-                            Remember me
-                        </span>
-                    </label>
-                    <router-link to="/client/forgot-password">
-                       <span href="/client/forgot-password" class="forgot-password">Forgot password?</span>
-                    </router-link>
-                    
-                </div>
-
-                <button type="submit" class="login-btn btn">
-                    <span class="btn-text">Sign In</span>
-                    <span class="btn-loader"></span>
-                </button>
-            </form>
-
-            <div class="divider">
-                <span>or continue with</span>
-            </div>
-
-            <div class="social-login">
-                <button type="button" class="social-btn google-btn">
-                    <span class="social-icon google-icon"></span>
-                    Google
-                </button>
-                <button type="button" class="social-btn github-btn">
-                    <span class=" fa-brands fa-facebook"></span>
-                     Facebook
-                    <!-- <i class="fa-brands fa-facebook">Facebook</i> -->
-                
-                    
-                </button>
-            </div>
-
-            <div class="signup-link">
-                <router-link to="/client/register">
-                    <p>Don't have an account? <a href="/client/register">Sign up</a></p>
-                </router-link>
-               
-            </div>
-
-            <div class="success-message" id="successMessage">
-                <div class="success-icon">✓</div>
-                <h3>Login Successful!</h3>
-                <p>Redirecting to your dashboard...</p>
-            </div>
+        <!-- Header row -->
+        <div class="card-header">
+          <h1 class="card-title">ĐĂNG NHẬP</h1>
+          <div class="register-wrap">
+            <span class="register-hint">Chưa có tài khoản?</span>
+            <button class="btn-register" @click="goRegister">ĐĂNG KÝ</button>
+          </div>
         </div>
+
+        <!-- Role selector -->
+        <div class="role-group">
+          <label
+            class="role-option"
+            :class="{ 'role-option--active': role === 'customer' }"
+            @click="role = 'customer'"
+          >
+            <span class="role-checkbox" :class="{ 'role-checkbox--checked': role === 'customer' }">
+              <svg v-if="role === 'customer'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            Khách hàng
+          </label>
+
+          <label
+            class="role-option"
+            :class="{ 'role-option--active': role === 'owner' }"
+            @click="role = 'owner'"
+          >
+            <span class="role-checkbox" :class="{ 'role-checkbox--checked': role === 'owner' }">
+              <svg v-if="role === 'owner'" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            Chủ sân
+          </label>
+        </div>
+
+        <!-- Email field -->
+        <div class="input-field" :class="{ 'input-field--focus': focusEmail, 'input-field--error': errors.email }">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="2" y="4" width="20" height="16" rx="2"/>
+            <path d="m2 7 10 7 10-7"/>
+          </svg>
+          <input
+            v-model="form.email"
+            type="email"
+            placeholder="Địa chỉ email"
+            @focus="focusEmail = true"
+            @blur="focusEmail = false; validateEmail()"
+          />
+        </div>
+        <p v-if="errors.email" class="field-error">{{ errors.email }}</p>
+
+        <!-- Password field -->
+        <div class="input-field" :class="{ 'input-field--focus': focusPass, 'input-field--error': errors.password }">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          <input
+            v-model="form.password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Mật khẩu"
+            @focus="focusPass = true"
+            @blur="focusPass = false; validatePassword()"
+          />
+          <button class="toggle-pass" @click="showPassword = !showPassword" type="button" tabindex="-1">
+            <svg v-if="!showPassword" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <p v-if="errors.password" class="field-error">{{ errors.password }}</p>
+
+        <!-- Forgot password -->
+        <div class="forgot-row">
+          <a href="/client/forgot-password" class="forgot-link">Quên mật khẩu?</a>
+        </div>
+
+        <!-- Submit button -->
+        <button class="btn-login" @click="handleLogin" :disabled="loading">
+          <span v-if="loading" class="spinner"></span>
+          <span v-else>ĐĂNG NHẬP BẰNG MẬT KHẨU</span>
+        </button>
+
+        <!-- Divider OR -->
+        <div class="divider">
+          <span class="divider__line"></span>
+          <span class="divider__text">HOẶC</span>
+          <span class="divider__line"></span>
+        </div>
+
+        <!-- Social buttons -->
+        <button class="btn-social" @click="signInGoogle">
+          <!-- Google G icon -->
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.13 0 5.95 1.08 8.17 2.85l6.1-6.1C34.36 3.07 29.45 1 24 1 14.82 1 7.03 6.48 3.36 14.27l7.2 5.59C12.29 13.65 17.67 9.5 24 9.5z"/>
+            <path fill="#4285F4" d="M46.1 24.55c0-1.64-.15-3.22-.42-4.75H24v9h12.42c-.54 2.87-2.2 5.3-4.67 6.93l7.19 5.59C42.99 37.24 46.1 31.36 46.1 24.55z"/>
+            <path fill="#FBBC05" d="M10.56 28.62A14.57 14.57 0 0 1 9.5 24c0-1.6.27-3.16.75-4.63l-7.2-5.59A22.95 22.95 0 0 0 1 24c0 3.73.89 7.26 2.46 10.37l7.1-5.75z"/>
+            <path fill="#34A853" d="M24 47c5.45 0 10.02-1.8 13.36-4.9l-7.19-5.59C28.22 38.01 26.22 38.5 24 38.5c-6.33 0-11.7-4.15-13.44-9.88l-7.1 5.75C7.03 42.52 14.82 47 24 47z"/>
+          </svg>
+          <span>Đăng nhập bằng Google</span>
+        </button>
+
+        <button class="btn-social" @click="signInMicrosoft">
+          <!-- Microsoft icon -->
+          <svg width="20" height="20" viewBox="0 0 21 21">
+            <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+            <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+            <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+          </svg>
+          <span>Đăng nhập bằng Microsoft</span>
+        </button>
+
+      </div>
     </div>
+
+  </div>
 </template>
 
 <script>
-
+export default {
+  name: 'LoginPage',
+  data() {
+    return {
+      role: 'customer',
+      form: {
+        email: '',
+        password: '',
+      },
+      errors: {
+        email: '',
+        password: '',
+      },
+      showPassword: false,
+      focusEmail: false,
+      focusPass: false,
+      loading: false,
+    }
+  },
+  methods: {
+    validateEmail() {
+      if (!this.form.email) {
+        this.errors.email = 'Vui lòng nhập địa chỉ email.'
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.form.email)) {
+        this.errors.email = 'Địa chỉ email không hợp lệ.'
+      } else {
+        this.errors.email = ''
+      }
+    },
+    validatePassword() {
+      if (!this.form.password) {
+        this.errors.password = 'Vui lòng nhập mật khẩu.'
+      } else if (this.form.password.length < 6) {
+        this.errors.password = 'Mật khẩu phải có ít nhất 6 ký tự.'
+      } else {
+        this.errors.password = ''
+      }
+    },
+    async handleLogin() {
+      this.validateEmail()
+      this.validatePassword()
+      if (this.errors.email || this.errors.password) return
+      this.loading = true
+      await new Promise(r => setTimeout(r, 1200))
+      this.loading = false
+      alert(`Đăng nhập với vai trò: ${this.role === 'customer' ? 'Khách hàng' : 'Chủ sân'}`)
+    },
+    goRegister() {
+      this.$router.push('/client/register');
+    },
+    signInGoogle() {
+      alert('Đăng nhập bằng Google')
+    },
+    signInMicrosoft() {
+      alert('Đăng nhập bằng Microsoft')
+    },
+  },
+}
 </script>
 
-<style>
-        /* Glassmorphism Login Form - Complete & Self-Contained */
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            line-height: 1.6;
-        }
-
-        .login-container {
-            width: 100%;
-            max-width: 420px;
-            perspective: 1000px;
-        }
-
-        /* Form Group & Input Styles */
-        .form-group {
-            margin-bottom: 24px;
-            position: relative;
-        }
-
-        .input-wrapper {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .input-wrapper input {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 16px 16px 8px 16px;
-            color: white;
-            font-size: 16px;
-            font-weight: 400;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 100%;
-            outline: none;
-            backdrop-filter: blur(10px);
-        }
-
-        .input-wrapper input::placeholder {
-            color: transparent;
-        }
-
-        .input-wrapper label {
-            position: absolute;
-            left: 16px;
-            top: 16px;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 16px;
-            font-weight: 400;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none;
-            transform-origin: left top;
-        }
-
-        .input-wrapper input:focus,
-        .input-wrapper input:valid {
-            border-color: #06b6d4;
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(6, 182, 212, 0.2);
-        }
-
-        .input-wrapper input:focus+label,
-        .input-wrapper input:valid+label {
-            transform: translateY(-8px) scale(0.85);
-            color: #06b6d4;
-            font-weight: 500;
-        }
-
-        .focus-border {
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            width: 0;
-            height: 2px;
-            background: linear-gradient(90deg, #06b6d4, #6366f1);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateX(-50%);
-            border-radius: 2px;
-        }
-
-        .input-wrapper input:focus~.focus-border {
-            width: 100%;
-        }
-
-        /* Error States */
-        .error-message {
-            display: block;
-            color: #ef4444;
-            font-size: 12px;
-            font-weight: 500;
-            margin-top: 6px;
-            margin-left: 4px;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: rgba(239, 68, 68, 0.1);
-            padding: 4px 8px;
-            border-radius: 6px;
-            backdrop-filter: blur(10px);
-        }
-
-        .error-message.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .form-group.error .input-wrapper input {
-            border-color: #ef4444;
-            background: rgba(239, 68, 68, 0.1);
-            animation: shake 0.5s ease-in-out;
-        }
-
-        /* Button Styles */
-        .btn {
-            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
-            border: none;
-            border-radius: 12px;
-            padding: 16px 24px;
-            color: white;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-            transform: translateY(0);
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        .btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
-        }
-
-        .btn:hover::before {
-            left: 100%;
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        /* Loading State */
-        .btn.loading {
-            pointer-events: none;
-        }
-
-        .btn-text {
-            transition: opacity 0.3s ease;
-        }
-
-        .btn-loader {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 20px;
-            height: 20px;
-            border: 2px solid transparent;
-            border-top: 2px solid white;
-            border-radius: 50%;
-            opacity: 0;
-            animation: spin 1s linear infinite;
-            transition: opacity 0.3s ease;
-        }
-
-        .btn.loading .btn-text {
-            opacity: 0;
-        }
-
-        .btn.loading .btn-loader {
-            opacity: 1;
-        }
-
-        /* Checkbox Styles */
-        .remember-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-
-        .remember-wrapper input[type="checkbox"] {
-            display: none;
-        }
-
-        .checkbox-label {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 14px;
-            cursor: pointer;
-            user-select: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .checkmark {
-            width: 18px;
-            height: 18px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            flex-shrink: 0;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-        }
-
-        .remember-wrapper input[type="checkbox"]:checked~.checkbox-label .checkmark {
-            background: #06b6d4;
-            border-color: #06b6d4;
-            transform: scale(1.1);
-        }
-
-        .remember-wrapper input[type="checkbox"]:checked~.checkbox-label .checkmark::after {
-            content: '✓';
-            color: white;
-            font-size: 11px;
-            font-weight: bold;
-            animation: checkmarkPop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        /* Success Message */
-        .success-message {
-            display: none;
-            text-align: center;
-            padding: 40px 20px;
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .success-message.show {
-            display: block;
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .success-icon {
-            width: 60px;
-            height: 60px;
-            background: #22c55e;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-            margin: 0 auto 20px;
-            animation: successPulse 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-        }
-
-        .success-message h3 {
-            color: white;
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-        }
-
-        .success-message p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 1rem;
-        }
-
-        /* Animations */
-        @keyframes spin {
-            0% {
-                transform: translate(-50%, -50%) rotate(0deg);
-            }
-
-            100% {
-                transform: translate(-50%, -50%) rotate(360deg);
-            }
-        }
-
-        @keyframes shake {
-
-            0%,
-            100% {
-                transform: translateX(0);
-            }
-
-            25% {
-                transform: translateX(-5px);
-            }
-
-            75% {
-                transform: translateX(5px);
-            }
-        }
-
-        @keyframes checkmarkPop {
-            0% {
-                transform: scale(0);
-            }
-
-            50% {
-                transform: scale(1.3);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        @keyframes successPulse {
-            0% {
-                transform: scale(0);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
-
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .login-card {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 24px;
-            padding: 40px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transform: translateY(0);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .login-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #06b6d4, transparent);
-            transition: left 0.5s ease;
-        }
-
-        .login-card:hover::before {
-            left: 100%;
-        }
-
-        .login-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
-        }
-
-        .login-header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .login-header h2 {
-            color: white;
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-            background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .login-header p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 1rem;
-            font-weight: 400;
-        }
-
-        /* Password Toggle Specific Styles */
-        .password-wrapper {
-            position: relative;
-        }
-
-        .password-wrapper input {
-            padding-right: 48px;
-        }
-
-        .password-toggle {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            color: rgba(255, 255, 255, 0.6);
-            transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 2;
-        }
-
-        .password-toggle:hover {
-            color: rgba(255, 255, 255, 0.9);
-        }
-
-        .eye-icon {
-            display: block;
-            width: 20px;
-            height: 20px;
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.6)' stroke-width='1.5'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M15 12a3 3 0 11-6 0 3 3 0 016 0z'/%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'/%3e%3c/svg%3e");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            transition: background-image 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .eye-icon.show-password {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(255,255,255,0.6)' stroke-width='1.5'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 11-4.243-4.243m4.242 4.242L9.88 9.88'/%3e%3c/svg%3e");
-        }
-
-        /* Form Options */
-        .form-options {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 32px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-
-        .forgot-password {
-            color: #06b6d4;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-        }
-
-        .forgot-password::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 0;
-            height: 1px;
-            background: #06b6d4;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .forgot-password:hover::after {
-            width: 100%;
-        }
-
-        .forgot-password:hover {
-            color: white;
-        }
-
-        /* Login Button */
-        .login-btn {
-            width: 100%;
-            margin-bottom: 24px;
-        }
-
-        /* Divider */
-        .divider {
-            text-align: center;
-            margin: 24px 0;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .divider::before {
-            margin-right: 16px;
-        }
-
-        .divider::after {
-            margin-left: 16px;
-        }
-
-        .divider span {
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
-            white-space: nowrap;
-        }
-
-        /* Social Login */
-        .social-login {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .social-btn {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
-            padding: 12px 16px;
-            color: white;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .social-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .social-icon {
-            width: 20px;
-            height: 20px;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-
-        .google-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3e%3cpath fill='%23ea4335' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3e%3cpath fill='%2334a853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3e%3cpath fill='%23fbbc05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3e%3cpath fill='%23ea4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3e%3c/svg%3e");
-        }
-
-        /* .github-icon {
-            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z'/%3e%3c/svg%3e");
-        } */
-
-        /* Signup Link */
-        .signup-link {
-            text-align: center;
-        }
-
-        .signup-link p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 14px;
-        }
-
-        .signup-link a {
-            color: #06b6d4;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .signup-link a:hover {
-            color: white;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 480px) {
-            .login-card {
-                padding: 24px;
-                margin: 10px;
-                border-radius: 20px;
-            }
-
-            .login-header h2 {
-                font-size: 1.75rem;
-            }
-
-            .password-wrapper input {
-                padding-right: 44px;
-            }
-
-            .social-login {
-                flex-direction: column;
-            }
-
-            .form-options {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 16px;
-            }
-        }
-    </style>
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@700;800;900&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+.login-page {
+  font-family: 'Barlow', sans-serif;
+  min-height: 100vh;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── TOP BAR ─── */
+.top-bar {
+  background: #4ade80;
+  padding: 18px 24px 22px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  color: #1a1a2e;
+  letter-spacing: 1px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+/* ─── WRAPPER ─── */
+.login-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px 48px;
+}
+
+/* ─── CARD ─── */
+.login-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 32px 36px 28px;
+  width: 100%;
+  max-width: 640px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+/* ─── CARD HEADER ─── */
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.card-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: 1px;
+  color: #1a1a2e;
+}
+
+.register-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.register-hint {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.btn-register {
+  background: #1e2a4a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 1px;
+  padding: 10px 18px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-register:hover { background: #162039; }
+
+/* ─── ROLE SELECTOR ─── */
+.role-group {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #475569;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+  user-select: none;
+  background: #fafafa;
+}
+
+.role-option--active {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.role-option svg {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+.role-checkbox {
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: white;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.role-checkbox--checked {
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+/* ─── INPUT FIELDS ─── */
+.input-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 5px;
+  padding: 0 14px;
+  margin-bottom: 10px;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.input-field svg { color: #9ca3af; flex-shrink: 0; }
+
+.input-field--focus { border-color: #16a34a; }
+.input-field--focus svg { color: #16a34a; }
+
+.input-field--error { border-color: #ef4444; }
+.input-field--error svg { color: #ef4444; }
+
+.input-field input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: 'Barlow', sans-serif;
+  font-size: 15px;
+  color: #1e293b;
+  background: transparent;
+  padding: 14px 0;
+}
+.input-field input::placeholder { color: #9ca3af; }
+
+.toggle-pass {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+.toggle-pass:hover { color: #475569; }
+
+.field-error {
+  font-size: 12px;
+  color: #ef4444;
+  margin-top: -6px;
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+/* Forgot password */
+.forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 18px;
+  margin-top: -2px;
+}
+
+.forgot-link {
+  font-size: 13px;
+  color: #16a34a;
+  text-decoration: none;
+  font-weight: 500;
+}
+.forgot-link:hover { text-decoration: underline; }
+
+/* ─── LOGIN BUTTON ─── */
+.btn-login {
+  width: 100%;
+  background: #6b7280;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 1.5px;
+  padding: 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 28px;
+  min-height: 52px;
+}
+
+.btn-login:not(:disabled):hover { background: #4b5563; }
+.btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* Spinner */
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── DIVIDER ─── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.divider__line {
+  flex: 1;
+  height: 1px;
+  background: #1a1a2e;
+}
+
+.divider__text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+/* ─── SOCIAL BUTTONS ─── */
+.btn-social {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: white;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 16px 0;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'Barlow', sans-serif;
+}
+
+.btn-social:last-child { border-bottom: none; }
+
+.btn-social:hover { background: #f8fafc; }
+
+.btn-social svg {
+  flex-shrink: 0;
+}
+
+.btn-social span {
+  font-size: 15px;
+  font-weight: 600;
+  color: #9ca3af;
+  letter-spacing: 0.2px;
+}
+
+/* ─── BOTTOM NOTE ─── */
+.bottom-note {
+  margin-top: 28px;
+  font-size: 14px;
+  color: #64748b;
+  text-align: center;
+}
+
+.bottom-link {
+  color: #1a1a2e;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.bottom-link:hover { color: #16a34a; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 560px) {
+  .login-card {
+    padding: 24px 18px 20px;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .role-group {
+    flex-direction: column;
+  }
+
+  .register-wrap {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+</style>
