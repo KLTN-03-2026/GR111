@@ -233,6 +233,8 @@ export default {
     return {
       searchQuery: "",
       locationQuery: "",
+      searchQueryOverride: null,
+      locationQueryOverride: null,
       activeSport: "",
       showFilters: true,
       showMap: false,
@@ -428,13 +430,24 @@ export default {
       ],
     };
   },
+  mounted() {
+    window.addEventListener("resize", this.handleResize);
+    this.handleResize();
+  },
+  beforeUnmount() {
+    window.removeEventListener("resize", this.handleResize);
+  },
   computed: {
     filteredVenues() {
       let venues = [...this.allVenues];
 
+      const effectiveSearchQuery = this.searchQueryOverride ?? this.searchQuery;
+      const effectiveLocationQuery =
+        this.locationQueryOverride ?? this.locationQuery;
+
       // Text search
-      if (this.searchQuery) {
-        const query = this.searchQuery.toLowerCase();
+      if (effectiveSearchQuery) {
+        const query = effectiveSearchQuery.toLowerCase();
         venues = venues.filter(
           (venue) =>
             venue.name.toLowerCase().includes(query) ||
@@ -443,8 +456,8 @@ export default {
       }
 
       // Location search
-      if (this.locationQuery) {
-        const location = this.locationQuery.toLowerCase();
+      if (effectiveLocationQuery) {
+        const location = effectiveLocationQuery.toLowerCase();
         venues = venues.filter((venue) =>
           venue.address.toLowerCase().includes(location),
         );
@@ -513,12 +526,27 @@ export default {
       return this.filteredVenues.length > this.displayedCount;
     },
   },
+  watch: {
+    searchQuery() {
+      this.searchQueryOverride = null;
+    },
+    locationQuery() {
+      this.locationQueryOverride = null;
+    },
+  },
   methods: {
-    performSearch() {
+    performSearch({ queryOverride = null, locationOverride = null } = {}) {
+      this.searchQueryOverride = queryOverride;
+      this.locationQueryOverride = locationOverride;
+
       this.hasSearched = true;
       this.displayedCount = 12;
-      // Here you would typically make an API call
-      console.log("Searching for:", this.searchQuery, "in", this.locationQuery);
+      console.log(
+        "Searching for:",
+        queryOverride ?? this.searchQuery,
+        "in",
+        locationOverride ?? this.locationQuery,
+      );
     },
     quickSearch(sport) {
       this.activeSport = sport;
@@ -527,12 +555,22 @@ export default {
       this.displayedCount = 12;
     },
     popularSearch(item) {
-      this.searchQuery = item.title.split(" ").slice(1).join(" "); // Extract sport/location
-      this.locationQuery = item.title.split(" ").slice(-1)[0]; // Extract location
-      this.performSearch();
+      const query = item.title.split(" ").slice(1).join(" "); // Extract sport/location
+      const location = item.title.split(" ").slice(-1)[0]; // Extract location
+
+      this.performSearch({
+        queryOverride: query,
+        locationOverride: location,
+      });
     },
     toggleFilters() {
       this.showFilters = !this.showFilters;
+    },
+    handleResize() {
+      // Ensure filters are always visible on wider screens
+      if (window.innerWidth >= 768 && !this.showFilters) {
+        this.showFilters = true;
+      }
     },
     toggleMapView() {
       this.showMap = !this.showMap;
@@ -733,7 +771,19 @@ export default {
   gap: 1rem;
 }
 
-.filter-toggle-btn,
+.filter-toggle-btn {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #e5e7eb;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
 .map-toggle-btn {
   display: flex;
   align-items: center;
@@ -968,6 +1018,11 @@ export default {
 
   .results-actions {
     justify-content: center;
+  }
+
+  /* Show filter toggle button on narrow screens */
+  .filter-toggle-btn {
+    display: flex;
   }
 
   .results-grid {
