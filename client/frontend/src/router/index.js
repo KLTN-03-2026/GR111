@@ -3,7 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 const routes = [
   // Page Client
   {
-    path: "/home",
+    path: "/",
     component: () => import("../components/Client/Home/index.vue"),
   },
 
