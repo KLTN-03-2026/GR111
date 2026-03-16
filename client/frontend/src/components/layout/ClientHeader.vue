@@ -1,152 +1,177 @@
 <template>
-  <header>
-    <nav
-      class="navbar navbar-expand-lg navbar-dark py-0"
-      style="background-color: #000957"
-    >
-      <a class="navbar-brand fs-4 fw-bold" href="#"
-        ><span class="text-warning ms-3">SPORTS</span>Bookings</a
-      >
-      <button
-        class="navbar-toggler"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#navbarSupportedContent1"
-        aria-controls="navbarSupportedContent1"
-        aria-expanded="false"
-        aria-label="Toggle navigation"
-      >
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarSupportedContent1">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0"></ul>
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <router-link to="/">
-            <li class="nav-item">
-              <a class="nav-link text-light fs-6" aria-current="page" href="/"
-                >Trang Chủ</a
-              >
-            </li>
-          </router-link>
-          <li class="nav-item dropdown">
-            <a
-              class="nav-link dropdown-toggle text-light fs-6"
-              href="#"
-              role="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              Sân đặt
-            </a>
-            <ul class="dropdown-menu">
-              <router-link to="/san/dang-hoat-dong">
-                <li>
-                  <a class="dropdown-item" href="/san/dang-hoat-dong"
-                    >Sân Đang Hoạt Động</a
-                  >
-                </li>
-              </router-link>
-              <router-link to="/san/sap-mo">
-                <a class="dropdown-item" href="/san/sap-mo">Sân Sắp Mở</a>
-              </router-link>
-              <li></li>
-            </ul>
-          </li>
-          <router-link to="/bai-viet">
-            <li class="nav-item">
-              <a class="nav-link text-light fs-6" href="/bai-viet">Bài Viết</a>
-            </li>
-          </router-link>
-          <router-link to="/about">
-            <li class="nav-item">
-              <a class="nav-link text-light fs-6" href="/about">Về chúng tôi</a>
-            </li>
-          </router-link>
-        </ul>
-        <div class="dropdown my-3 me-5">
-  <a
-    class="d-flex align-items-center nav-link dropdown-toggle"
-    href="#"
-    role="button"
-    data-bs-toggle="dropdown"
-  >
-    <img
-      src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png"
-      class="user-img"
-    />
-  </a>
-
-  <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
-
-    <li>
-      <router-link class="dropdown-item d-flex align-items-center" to="/client/register">
-        <i class="bx bx-user me-2"></i> Đăng ký
+  <nav class="navbar">
+    <div class="navbar-left">
+      <router-link to="/" class="logo">
+        <img src="../../assets/logo.png" alt="Logo" width="40" height="40" style="object-fit: contain;" />
+        <span>SPORTS BOOKING</span>
       </router-link>
-    </li>
 
-    <li>
-      <router-link class="dropdown-item d-flex align-items-center" to="/client/login">
-        <i class="bx bx-log-in-circle me-2"></i> Đăng nhập
-      </router-link>
-    </li>
-
-  </ul>
-</div>
-        <!-- <div class="dropdown my-3 me-5">
-          <a
-            class="d-flex align-items-center nav-link dropdown-toggle dropdown-toggle-nocaret"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
+      <div class="nav-menu">
+        <router-link to="/" class="nav-menu-link">TRANG CHỦ</router-link>
+        <router-link to="/booking" class="nav-menu-link">ĐẶT SÂN</router-link>
+        <router-link to="/contact" class="nav-menu-link">BẢN ĐỒ</router-link>
+        <router-link to="/about" class="nav-menu-link">GIỚI THIỆU</router-link>
+        <button class="nav-search-btn">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
           >
-            <img
-              src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png"
-              class="user-img"
-              style="height: 35px; object-fit: cover"
-            />
-          </a>
-          <ul class="dropdown-menu">
-            <router-link to="/client/dang-ky">
-              <li>
-                <a class="dropdown-item "
-                  ><span><i class="bx bx-user me-1"  href="/client/dang-ky"></i> Đăng Ký</span></a
-                >
-              </li>
-            </router-link>
-            <router-link to="/client/dang-nhap">
-              <li>
-                <a class="dropdown-item"
-                  ><i class="bx bx-log-in-circle " href="/client/dang-nhap"></i> <span>Đăng Nhập</span></a
-                >
-              </li>
-            </router-link>
-          </ul>
-        </div> -->
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          TÌM KIẾM
+        </button>
       </div>
-    </nav>
-  </header>
+    </div>
+
+    <div class="navbar-right">
+      <router-link to="/client/login" class="nav-link">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+        </svg>
+        QUẢN LÝ ĐẶT CHỖ
+      </router-link>
+      <router-link to="/owner" class="nav-link nav-link--cta"
+        >LIỆT KÊ ĐỊA ĐIỂM CỦA BẠN</router-link
+      >
+    </div>
+  </nav>
 </template>
 
 <script>
-export default {};
+export default {
+  name: "ClientHeader",
+};
 </script>
 
 <style scoped>
-header {
-  width: 100vw !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap");
+
 .navbar {
-  width: 100vw !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  font-family: "Barlow", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1a1a2e;
+  padding: 0 40px;
+  height: 80px;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  width: 100%;
+  margin: 0;
 }
-.navbar-brand {
-  padding-left: 1rem !important;
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 48px;
 }
-.navbar-toggler {
-  padding-right: 1rem !important;
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 800;
+  font-size: 26px;
+  color: white;
+  letter-spacing: 1.5px;
+  text-decoration: none;
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-menu-link {
+  color: #e0e0e0;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  transition: color 0.2s;
+}
+
+.nav-menu-link:hover {
+  color: #4ade80;
+}
+
+.nav-search-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #e0e0e0;
+  font-family: "Barlow", sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.nav-search-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e0e0e0;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.nav-link--cta {
+  background: #16a34a;
+  color: white;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.nav-link--cta:hover {
+  background: #15803d;
+}
+
+@media (max-width: 768px) {
+  .nav-menu {
+    display: none;
+  }
 }
 </style>

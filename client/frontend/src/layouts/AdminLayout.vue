@@ -40,6 +40,5 @@ export default {
 @import '../assets/assets/css/plugins.css';
 @import '../assets/plugins/apex/apexcharts.css';
 @import '../assets/assets/css/dashboard/dash_1.css';
-@import url('https://fonts.googleapis.com/css?family=Quicksand:400,500,600,700&display=swap');
 /* @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"); */
 </style>
