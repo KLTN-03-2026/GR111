@@ -469,7 +469,8 @@ export default {
         openNow:         item.openNow          ?? null,
         closeTime:       item.closeTime        ?? null,
         sportType:       item.sportType        ?? this.filters.sport,
-        availableSlots:  item.availableSlots   ?? 0,
+        latitude:        item.latitude,
+        longitude:       item.longitude,
         pricingLabel:    item.pricingLabel     ?? null,
       }));
     },
