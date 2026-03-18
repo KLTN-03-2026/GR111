@@ -92,64 +92,64 @@
 </template>
 
 <script>
-// export default {
-//   name: "ClientHeader",
-//   data() {
-//     return {
-//       isMenuOpen: false,
-//       isInternalSearchActive: false,
-//       selectedSportSearch: "Basketball",
-//       locationSearch: ""
-//     };
-//   },
-//   computed: {
-//     user() {
-//       const userData = localStorage.getItem("user");
-//       return userData ? JSON.parse(userData) : null;
-//     }
-//   },
-//   methods: {
-//     toggleMenu() {
-//       this.isMenuOpen = !this.isMenuOpen;
-//       if (this.isMenuOpen) {
-//         document.body.style.overflow = 'hidden';
-//       } else {
-//         document.body.style.overflow = '';
-//       }
-//     },
-//     closeMenu() {
-//       this.isMenuOpen = false;
-//       document.body.style.overflow = '';
-//     },
-//     toggleSearch() {
-//       console.log("Toggle Search triggered. Previous state:", this.isInternalSearchActive);
-//       this.isInternalSearchActive = !this.isInternalSearchActive;
-//       if (this.isInternalSearchActive) {
-//         this.isMenuOpen = false;
-//         console.log("Search is now OPENED via toggleSearch");
-//       } else {
-//         console.log("Search is now CLOSED via toggleSearch");
-//       }
-//     },
-//     closeSearch() {
-//       console.warn("closeSearch CALLED! Stack:", new Error().stack);
-//       this.isInternalSearchActive = false;
-//     },
-//     handleSearch() {
-//       console.log("handleSearch triggered for:", this.selectedSportSearch, this.locationSearch);
-//       // Temporarily disabled auto-close to debug persistent visibility
-//       // this.closeSearch();
-//     },
-//     handleLogout() {
-//       localStorage.removeItem("token");
-//       localStorage.removeItem("user");
-//       window.location.href = "/";
-//     }
-//   },
-//   beforeUnmount() {
-//     document.body.style.overflow = '';
-//   }
-// };
+export default {
+  name: "ClientHeader",
+  data() {
+    return {
+      isMenuOpen: false,
+      isInternalSearchActive: false,
+      selectedSportSearch: "Basketball",
+      locationSearch: ""
+    };
+  },
+  computed: {
+    user() {
+      const userData = localStorage.getItem("user");
+      return userData ? JSON.parse(userData) : null;
+    }
+  },
+  methods: {
+    toggleMenu() {
+      this.isMenuOpen = !this.isMenuOpen;
+      if (this.isMenuOpen) {
+        document.body.style.overflow = 'hidden';
+      } else {
+        document.body.style.overflow = '';
+      }
+    },
+    closeMenu() {
+      this.isMenuOpen = false;
+      document.body.style.overflow = '';
+    },
+    toggleSearch() {
+      console.log("Toggle Search triggered. Previous state:", this.isInternalSearchActive);
+      this.isInternalSearchActive = !this.isInternalSearchActive;
+      if (this.isInternalSearchActive) {
+        this.isMenuOpen = false;
+        console.log("Search is now OPENED via toggleSearch");
+      } else {
+        console.log("Search is now CLOSED via toggleSearch");
+      }
+    },
+    closeSearch() {
+      console.warn("closeSearch CALLED! Stack:", new Error().stack);
+      this.isInternalSearchActive = false;
+    },
+    handleSearch() {
+      console.log("handleSearch triggered for:", this.selectedSportSearch, this.locationSearch);
+      // Temporarily disabled auto-close to debug persistent visibility
+      // this.closeSearch();
+    },
+    handleLogout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/";
+    }
+  },
+  beforeUnmount() {
+    document.body.style.overflow = '';
+  }
+};
 </script>
 
 <style scoped>
