@@ -19,5 +19,13 @@ export const clubService = {
      */
     getClubBySlug(slug) {
         return api.get(`/clubs/${slug}`);
+    },
+
+    /**
+     * Tìm kiếm danh sách các sân (venues) với bộ lọc
+     * @param {Object} filters 
+     */
+    searchVenues(filters) {
+        return api.get('/clubs', { params: filters });
     }
 };
