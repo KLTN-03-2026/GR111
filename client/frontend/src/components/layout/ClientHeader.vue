@@ -79,13 +79,13 @@
   <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
 
     <li>
-      <router-link class="dropdown-item d-flex align-items-center" to="/client/register">
+      <router-link class="dropdown-item d-flex align-items-center" to="/sign-up">
         <i class="bx bx-user me-2"></i> Đăng ký
       </router-link>
     </li>
 
     <li>
-      <router-link class="dropdown-item d-flex align-items-center" to="/client/login">
+      <router-link class="dropdown-item d-flex align-items-center" to="/sign-in">
         <i class="bx bx-log-in-circle me-2"></i> Đăng nhập
       </router-link>
     </li>

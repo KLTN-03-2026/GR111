@@ -10,19 +10,19 @@ const routes = [
 
   // Auth Group
   {
-    path: "/client/login",
+    path: "/sign-in",
     name: "login",
     component: () => import("../views/auth/LoginView.vue"),
     meta: { layout: "nocore" },
   },
   {
-    path: "/client/register",
+    path: "/sign-up",
     name: "register",
     component: () => import("../views/auth/RegisterView.vue"),
     meta: { layout: "nocore" },
   },
   {
-    path: "/client/forgot-password",
+    path: "/forgot-password",
     name: "forgot-password",
     component: () => import("../views/auth/ForgotPasswordView.vue"),
     meta: { layout: "nocore" },
@@ -47,6 +47,12 @@ const routes = [
     path: "/dashboard/owner",
     name: "owner-dashboard",
     component: () => import("../views/owner/DashboardView.vue"),
+    meta: { layout: "owner" },
+  },
+  {
+    path: "/managecoursetypes/owner",
+    name: "Manage Course Types",
+    component: () => import("../views/owner/ManageCourseTypesView.vue"),
     meta: { layout: "owner" },
   },
 ];
