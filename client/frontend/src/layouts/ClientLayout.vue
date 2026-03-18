@@ -1,6 +1,6 @@
 <template>
-  <div class="wrapper">
-    <header>
+  <div class="wrapper client-wrapper">
+    <header class="header">
       <ClientHeader></ClientHeader>
     </header>
     <router-view></router-view>
@@ -34,7 +34,6 @@ export default {
 };
 </script>
 <style>
-@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap");
 @import "../assets/assets/plugins/simplebar/css/simplebar.css";
 @import "../assets/assets/plugins/perfect-scrollbar/css/perfect-scrollbar.css";
 @import "../assets/assets/css/bootstrap.min.css";
@@ -44,4 +43,14 @@ export default {
 @import "../assets/assets/css/dark-theme.css";
 @import "../assets/assets/css/semi-dark.css";
 @import "../assets/assets/css/header-colors.css";
+.client-wrapper {
+  margin-left: 0 !important;
+  padding-left: 0 !important;
+  width: 100% !important;
+}
+.header {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
 </style>

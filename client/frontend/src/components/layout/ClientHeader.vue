@@ -1,152 +1,753 @@
 <template>
-  <header>
-    <nav
-      class="navbar navbar-expand-lg navbar-dark py-0"
-      style="background-color: #000957"
-    >
-      <a class="navbar-brand fs-4 fw-bold" href="#"
-        ><span class="text-warning ms-3">SPORTS</span>Bookings</a
-      >
-      <button
-        class="navbar-toggler"
-        type="button"
-        data-bs-toggle="collapse"
-        data-bs-target="#navbarSupportedContent1"
-        aria-controls="navbarSupportedContent1"
-        aria-expanded="false"
-        aria-label="Toggle navigation"
-      >
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarSupportedContent1">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0"></ul>
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <router-link to="/">
-            <li class="nav-item">
-              <a class="nav-link text-light fs-6" aria-current="page" href="/"
-                >Trang Chủ</a
-              >
-            </li>
-          </router-link>
-          <li class="nav-item dropdown">
-            <a
-              class="nav-link dropdown-toggle text-light fs-6"
-              href="#"
-              role="button"
-              data-bs-toggle="dropdown"
-              aria-expanded="false"
-            >
-              Sân đặt
-            </a>
-            <ul class="dropdown-menu">
-              <router-link to="/san/dang-hoat-dong">
-                <li>
-                  <a class="dropdown-item" href="/san/dang-hoat-dong"
-                    >Sân Đang Hoạt Động</a
-                  >
-                </li>
-              </router-link>
-              <router-link to="/san/sap-mo">
-                <a class="dropdown-item" href="/san/sap-mo">Sân Sắp Mở</a>
-              </router-link>
-              <li></li>
-            </ul>
-          </li>
-          <router-link to="/bai-viet">
-            <li class="nav-item">
-              <a class="nav-link text-light fs-6" href="/bai-viet">Bài Viết</a>
-            </li>
-          </router-link>
-          <router-link to="/about">
-            <li class="nav-item">
-              <a class="nav-link text-light fs-6" href="/about">Về chúng tôi</a>
-            </li>
-          </router-link>
-        </ul>
-        <div class="dropdown my-3 me-5">
-  <a
-    class="d-flex align-items-center nav-link dropdown-toggle"
-    href="#"
-    role="button"
-    data-bs-toggle="dropdown"
-  >
-    <img
-      src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png"
-      class="user-img"
-    />
-  </a>
+  <nav class="navbar" :class="{ 'navbar--mobile-open': isMenuOpen }">
+    <div class="navbar-container">
+      <div class="navbar-left">
+        <router-link to="/" class="logo">
+          <img
+            src="../../assets/logo.png"
+            alt="Logo"
+            width="40"
+            height="40"
+            style="object-fit: contain"
+          />
+          <span>SPORTS BOOKING</span>
+        </router-link>
 
-  <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0">
-
-    <li>
-      <router-link class="dropdown-item d-flex align-items-center" to="/sign-up">
-        <i class="bx bx-user me-2"></i> Đăng ký
-      </router-link>
-    </li>
-
-    <li>
-      <router-link class="dropdown-item d-flex align-items-center" to="/sign-in">
-        <i class="bx bx-log-in-circle me-2"></i> Đăng nhập
-      </router-link>
-    </li>
-
-  </ul>
-</div>
-        <!-- <div class="dropdown my-3 me-5">
-          <a
-            class="d-flex align-items-center nav-link dropdown-toggle dropdown-toggle-nocaret"
-            href="#"
-            role="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
+        <div class="nav-menu desktop-only">
+          <router-link to="/" class="nav-menu-link">TRANG CHỦ</router-link>
+          <router-link to="/booking" class="nav-menu-link">ĐẶT SÂN</router-link>
+          <router-link to="/contact" class="nav-menu-link">BẢN ĐỒ</router-link>
+          <router-link to="/contact" class="nav-menu-link">TÌM BẠN</router-link>
+          <router-link to="/about" class="nav-menu-link"
+            >GIỚI THIỆU</router-link
           >
-            <img
-              src="https://cdn-icons-png.flaticon.com/512/9187/9187604.png"
-              class="user-img"
-              style="height: 35px; object-fit: cover"
-            />
-          </a>
-          <ul class="dropdown-menu">
-            <router-link to="/client/dang-ky">
-              <li>
-                <a class="dropdown-item "
-                  ><span><i class="bx bx-user me-1"  href="/client/dang-ky"></i> Đăng Ký</span></a
-                >
-              </li>
-            </router-link>
-            <router-link to="/client/dang-nhap">
-              <li>
-                <a class="dropdown-item"
-                  ><i class="bx bx-log-in-circle " href="/client/dang-nhap"></i> <span>Đăng Nhập</span></a
-                >
-              </li>
-            </router-link>
-          </ul>
-        </div> -->
+          <button
+            class="nav-search-btn"
+            :class="{ 'nav-search-btn--active': isInternalSearchActive }"
+            @click.stop.prevent="toggleSearch"
+            @mousedown.stop
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+            <span>TÌM KIẾM</span>
+          </button>
+        </div>
+        <!-- close nav-menu -->
       </div>
-    </nav>
-  </header>
+      <!-- close navbar-left -->
+
+      <div class="navbar-right desktop-only">
+        <template v-if="user">
+          <span class="welcome-text">Chào, {{ user.fullName }}</span>
+          <router-link to="/booking" class="nav-link">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+            QUẢN LÝ ĐẶT CHỖ
+          </router-link>
+          <button @click="handleLogout" class="nav-link btn-logout">
+            ĐĂNG XUẤT
+          </button>
+        </template>
+
+        <template v-else>
+          <router-link to="/client/login" class="nav-link">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+            ĐĂNG NHẬP
+          </router-link>
+        </template>
+        <router-link to="/owner" class="nav-link nav-link--cta">
+          LIỆT KÊ ĐỊA ĐIỂM CỦA BẠN
+        </router-link>
+      </div>
+    </div>
+  </nav>
 </template>
 
 <script>
-export default {};
+// export default {
+//   name: "ClientHeader",
+//   data() {
+//     return {
+//       isMenuOpen: false,
+//       isInternalSearchActive: false,
+//       selectedSportSearch: "Basketball",
+//       locationSearch: ""
+//     };
+//   },
+//   computed: {
+//     user() {
+//       const userData = localStorage.getItem("user");
+//       return userData ? JSON.parse(userData) : null;
+//     }
+//   },
+//   methods: {
+//     toggleMenu() {
+//       this.isMenuOpen = !this.isMenuOpen;
+//       if (this.isMenuOpen) {
+//         document.body.style.overflow = 'hidden';
+//       } else {
+//         document.body.style.overflow = '';
+//       }
+//     },
+//     closeMenu() {
+//       this.isMenuOpen = false;
+//       document.body.style.overflow = '';
+//     },
+//     toggleSearch() {
+//       console.log("Toggle Search triggered. Previous state:", this.isInternalSearchActive);
+//       this.isInternalSearchActive = !this.isInternalSearchActive;
+//       if (this.isInternalSearchActive) {
+//         this.isMenuOpen = false;
+//         console.log("Search is now OPENED via toggleSearch");
+//       } else {
+//         console.log("Search is now CLOSED via toggleSearch");
+//       }
+//     },
+//     closeSearch() {
+//       console.warn("closeSearch CALLED! Stack:", new Error().stack);
+//       this.isInternalSearchActive = false;
+//     },
+//     handleSearch() {
+//       console.log("handleSearch triggered for:", this.selectedSportSearch, this.locationSearch);
+//       // Temporarily disabled auto-close to debug persistent visibility
+//       // this.closeSearch();
+//     },
+//     handleLogout() {
+//       localStorage.removeItem("token");
+//       localStorage.removeItem("user");
+//       window.location.href = "/";
+//     }
+//   },
+//   beforeUnmount() {
+//     document.body.style.overflow = '';
+//   }
+// };
 </script>
 
 <style scoped>
-header {
-  width: 100vw !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@600;700;800&display=swap");
+
 .navbar {
-  width: 100vw !important;
-  margin: 0 !important;
-  padding: 0 !important;
+  font-family: "Barlow", sans-serif;
+  background: #1a1a2e;
+  height: 80px;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  width: 100%;
+  margin: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
-.navbar-brand {
-  padding-left: 1rem !important;
+
+.navbar-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  height: 100%;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
 }
-.navbar-toggler {
-  padding-right: 1rem !important;
+
+.navbar-left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 800;
+  font-size: 22px; /* Slightly smaller base */
+  color: white;
+  letter-spacing: 1.2px;
+  text-decoration: none;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.logo:hover {
+  transform: translateY(-1px);
+}
+
+.nav-menu {
+  display: flex;
+  align-items: center;
+  gap: 16px; /* Reduced gap */
+  flex-shrink: 0;
+}
+
+.nav-menu-link {
+  color: #e0e0e0;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+  padding: 8px 0;
+  position: relative;
+  white-space: nowrap;
+}
+
+.nav-menu-link::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #4ade80;
+  transition: width 0.2s ease;
+}
+
+.nav-menu-link:hover {
+  color: #4ade80;
+}
+
+.nav-menu-link:hover::after {
+  width: 100%;
+}
+
+.nav-search-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  font-family: "Barlow", sans-serif;
+  font-weight: 600;
+  font-size: 12px; /* Uniform with links */
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.nav-search-btn:hover,
+.nav-search-btn--active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.navbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Reduced gap */
+  flex-shrink: 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #e0e0e0;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.nav-link--cta {
+  background: #16a34a;
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
+}
+
+.nav-link--cta:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.3);
+}
+
+.welcome-text {
+  color: #4ade80;
+  font-weight: 700;
+  font-size: 13px;
+  margin-right: 12px;
+}
+
+.btn-logout {
+  background: transparent;
+  border: 1px solid rgba(255, 77, 79, 0.3);
+  cursor: pointer;
+  color: #ff4d4f;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 77, 79, 0.1);
+  border-color: #ff4d4f;
+}
+
+/* Hamburger Styles */
+.hamburger-btn {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  z-index: 1001;
+}
+
+.hamburger-icon {
+  width: 24px;
+  height: 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger-icon span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: white;
+  border-radius: 2px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hamburger-icon.open span:nth-child(1) {
+  transform: translateY(8px) rotate(45deg);
+}
+
+.hamburger-icon.open span:nth-child(2) {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.hamburger-icon.open span:nth-child(3) {
+  transform: translateY(-8px) rotate(-45deg);
+}
+
+/* Mobile Menu Overlay Styles */
+.mobile-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 26, 0.95);
+  backdrop-filter: blur(10px);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-menu-content {
+  width: 100%;
+  height: 100%;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-menu-header {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 24px;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 32px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.mobile-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mobile-nav-item {
+  color: #fff;
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.mobile-nav-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #4ade80;
+  padding-left: 24px;
+}
+
+.mobile-nav-item--cta {
+  background: #16a34a;
+  color: white;
+  text-align: center;
+  margin-top: 16px;
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.3);
+}
+
+.divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 16px 0;
+}
+
+.user-info-mobile {
+  padding: 0 16px;
+  margin-bottom: 8px;
+}
+
+.btn-logout-mobile {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.1);
+}
+
+/* Search Dropdown Styles */
+.search-overlay {
+  position: fixed !important;
+  top: 80px !important;
+  left: 0 !important;
+  width: 100% !important;
+  background: white !important;
+  padding: 32px 0 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
+  z-index: 9999 !important; /* Extremely high to be above everything */
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #e2e8f0 !important;
+  animation: slideDown 0.3s ease-out !important;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.search-bar-container {
+  width: 100%;
+  max-width: 1100px;
+  padding: 0 24px;
+}
+
+.search-hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: #555;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.search-inputs {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.search-field {
+  flex: 1;
+  height: 52px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.search-field:focus-within {
+  border-color: #1a1a2e;
+}
+
+.search-field__icon {
+  padding: 0 14px;
+  color: #999;
+  display: flex;
+  align-items: center;
+}
+
+.search-input--hidden {
+  flex: 1;
+  height: 100%;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  padding-right: 40px;
+  appearance: none;
+  cursor: pointer;
+  outline: none;
+}
+
+.search-chevron {
+  position: absolute;
+  right: 14px;
+  color: #999;
+  pointer-events: none;
+}
+
+.search-text-input {
+  flex: 1;
+  height: 100%;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: #333;
+  background: transparent;
+}
+
+.search-text-input::placeholder {
+  color: #999;
+  font-weight: 400;
+}
+
+.search-locate-btn {
+  background: transparent;
+  border: none;
+  padding: 0 14px;
+  color: #999;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.search-locate-btn:hover {
+  color: #16a34a;
+}
+
+.search-cta-btn {
+  background: #1a1a2e;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0 24px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 180px;
+}
+
+.search-cta-btn:hover {
+  background: #2a2a4e;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 26, 46, 0.2);
+}
+
+.cta-accent {
+  color: #4ade80;
+  margin-right: 6px;
+}
+
+/* Dropdown Transition */
+.search-dropdown-enter-active,
+.search-dropdown-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.search-dropdown-enter-from,
+.search-dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Transitions */
+.mobile-menu-enter-active,
+.mobile-menu-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-menu-enter-from,
+.mobile-menu-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* Media Queries */
+@media (max-width: 1440px) {
+  .navbar-container {
+    padding: 0 32px;
+  }
+  .navbar-left {
+    gap: 20px;
+  }
+  .nav-menu {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 1366px) {
+  .navbar-container {
+    padding: 0 24px;
+  }
+  .navbar-left {
+    gap: 16px;
+  }
+  .nav-menu {
+    gap: 10px;
+  }
+  .nav-menu-link {
+    font-size: 12px;
+  }
+  .logo span {
+    font-size: 19px;
+  }
+  .nav-link {
+    padding: 8px 12px;
+  }
+  .nav-search-btn {
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .navbar-container {
+    padding: 0 20px;
+  }
+  .navbar-left {
+    gap: 12px;
+  }
+  .nav-menu {
+    gap: 8px;
+  }
+  .nav-menu-link {
+    font-size: 12px;
+  }
+  .welcome-text {
+    display: none;
+  } /* Hide greeting when space is tight */
+  .logo span {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .navbar-container {
+    padding: 0 16px;
+  }
+  .nav-link {
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+  .nav-menu-link {
+    font-size: 11px;
+  }
+  .nav-search-btn span {
+    display: none;
+  } /* Optional: hide text only, keep icon */
+}
+
+@media (max-width: 900px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .hamburger-btn {
+    display: block;
+  }
+
+  .logo span {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .search-overlay {
+    top: 80px;
+    padding: 16px 0;
+  }
+  .search-inputs {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .search-cta-btn {
+    width: 100%;
+    height: 52px;
+  }
+  .search-hint {
+    font-size: 13px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .logo span {
+    font-size: 16px; /* Keep title but make it smaller on very small screens */
+  }
+  .navbar-container {
+    padding: 0 16px;
+  }
 }
 </style>

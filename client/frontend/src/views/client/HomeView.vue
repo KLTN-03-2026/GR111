@@ -1,742 +1,481 @@
 <template>
   <div>
-    <!-- Hero Carousel -->
-    <div id="carouselExampleCaptions" class="carousel slide">
-      <div class="carousel-indicators">
-        <button
-          type="button"
-          data-bs-target="#carouselExampleCaptions"
-          data-bs-slide-to="0"
-          class="active"
-          aria-current="true"
-          aria-label="Slide 1"
-        ></button>
-        <button
-          type="button"
-          data-bs-target="#carouselExampleCaptions"
-          data-bs-slide-to="1"
-          aria-label="Slide 2"
-        ></button>
-        <button
-          type="button"
-          data-bs-target="#carouselExampleCaptions"
-          data-bs-slide-to="2"
-          aria-label="Slide 3"
-        ></button>
-      </div>
-      <div class="carousel-inner">
-        <div class="carousel-item active">
-          <img
-            src="https://golfbooking.com.vn/images/slideshow/2026/02/13/original/z7531562292224_6d6a7e6283e06bcefe65f27652943f94_1770978712.webp"
-            class="d-block w-100"
-            alt="Sân bóng đá"
-          />
-        </div>
-        <div class="carousel-item">
-          <img
-            src="https://golfbooking.com.vn/images/slideshow/2026/02/27/original/z7569511046253_0a3ea76709deb74d41ed2c087b572469_1772186728.webp"
-            class="d-block w-100"
-            alt="Sân tennis"
-          />
-          <!-- <div class="carousel-caption d-none d-md-block">
-            <h5>Sân Tennis Chuyên Nghiệp</h5>
-            <p>Trải nghiệm sân tennis với cơ sở vật chất hiện đại.</p>
-            <a href="#" class="btn btn-warning">Khám Phá</a>
-          </div> -->
-        </div>
-        <div class="carousel-item">
-          <img
-            src="https://golfbooking.com.vn/images/slideshow/2026/01/13/original/uu-dai-dac-quyen-intergolf-slice-web_1768300163.webp"
-            class="d-block w-100"
-            alt="Ưu đãi đặc biệt"
-          />
-          <!-- <div class="carousel-caption d-none d-md-block">
-            <h5>Ưu Đãi Đặc Biệt</h5>
-            <p>Giảm giá lên đến 30% cho lần đặt đầu tiên!</p>
-            <a href="#" class="btn btn-warning">Nhận Ưu Đãi</a>
-          </div> -->
-        </div>
-      </div>
-      <button
-        class="carousel-control-prev"
-        type="button"
-        data-bs-target="#carouselExampleCaptions"
-        data-bs-slide="prev"
+    <HeroView />
+    <main id="main-content">
+      <!-- ── Cities ── -->
+      <section
+        id="cities"
+        aria-labelledby="cities-heading"
+        class="section-wrapper"
       >
-        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Previous</span>
-      </button>
-      <button
-        class="carousel-control-next"
-        type="button"
-        data-bs-target="#carouselExampleCaptions"
-        data-bs-slide="next"
+        <CitiesView heading-id="cities-heading" />
+      </section>
+      <section
+        id="nearby-venues"
+        aria-labelledby="nearby-heading"
+        class="section-wrapper nearby-section"
+        itemscope
+        itemtype="https://schema.org/ItemList"
       >
-        <span class="carousel-control-next-icon" aria-hidden="true"></span>
-        <span class="visually-hidden">Next</span>
-      </button>
-    </div>
+        <meta itemprop="name" content="Sân thể thao gần bạn" />
 
-    <!-- Caption below carousel -->
-    <div class="container mt-5">
-      <div class="card shadow p-4 rounded-4">
-        <!-- Tabs -->
-        <ul class="nav nav-tabs mb-4">
-          <li class="nav-item">
-            <a class="nav-link">Sân bóng đá</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Sân bóng chuyền</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Sân golf</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Cầu lông</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Tennis</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Pickball</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link">Bóng rỗ</a>
-          </li>
-        </ul>
+        <div class="container">
+          <!-- ✅ h2 đúng hierarchy (HeroView giữ h1) -->
+          <header class="section-header">
+            <h2 id="nearby-heading" class="section-title">
+              Sân gần bạn
+            </h2>
+            <p class="section-subtitle">
+              Tìm sân thể thao chất lượng gần vị trí của bạn — đặt sân nhanh chóng, tiện lợi
+            </p>
+          </header>
 
-        <!-- Search -->
-        <div class="row g-3">
-          <!-- Địa điểm -->
-          <div class="col-md-4">
-            <input
-              type="text"
-              class="form-control form-control-lg"
-              placeholder="Nhập tên sân hoặc khu vực"
-            />
+          <!-- Loading skeleton -->
+          <div v-if="loading" class="venues-grid" aria-busy="true" aria-label="Đang tải danh sách sân">
+            <div
+              v-for="n in 6"
+              :key="n"
+              class="skeleton-card"
+              role="presentation"
+            >
+              <div class="skeleton-img" />
+              <div class="skeleton-body">
+                <div class="skeleton-line w-70" />
+                <div class="skeleton-line w-50" />
+                <div class="skeleton-line w-40" />
+              </div>
+            </div>
           </div>
-
-          <!-- Ngày -->
-          <div class="col-md-3">
-            <input type="date" class="form-control form-control-lg" />
+          <div
+            v-else-if="error"
+            role="alert"
+            class="error-state"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>{{ error }}</p>
+            <button class="btn-retry" @click="fetchNearbyClubs">Thử lại</button>
           </div>
+          <div
+            v-else-if="danhSachSan.length > 0"
+            class="venues-grid"
+          >
+            <article
+              v-for="(venue, index) in danhSachSan"
+              :key="venue.id"
+              class="venue-item"
+              :style="{ animationDelay: `${index * 0.08}s` }"
+              itemprop="itemListElement"
+              itemscope
+              itemtype="https://schema.org/SportsActivityLocation"
+            >
+              <!-- Schema.org structured data -->
+              <meta itemprop="position" :content="index + 1" />
+              <meta itemprop="name" :content="venue.name" />
+              <meta itemprop="address" :content="venue.address" />
+              <link itemprop="url" :href="`/venue/${venue.id}`" />
 
-          <!-- Giờ -->
-          <div class="col-md-3">
-            <input type="time" class="form-control form-control-lg" />
+              <VenueCard :venue="venue" />
+            </article>
           </div>
-
-          <!-- Button -->
-          <div class="col-md-2 d-grid">
-            <button class="btn btn-primary btn-lg">TÌM SÂN</button>
+          <div v-else class="empty-state" role="status">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <p>Không tìm thấy sân nào xung quanh vị trí của bạn.</p>
+            <button class="btn-retry" @click="loadDefaultClubs">Xem sân tại Đà Nẵng</button>
+          </div>
+          <div v-if="!loading && danhSachSan.length > 0" class="view-all-wrap">
+            <router-link to="/venues" class="btn-view-all">
+              Xem tất cả sân
+              <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </router-link>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+      <!-- ── Statistics ── -->
+      <section
+        id="statistics"
+        aria-labelledby="stats-heading"
+        class="section-wrapper"
+      >
+        <StatisticsView heading-id="stats-heading" />
+      </section>
+      <!-- ── Services ── -->
+      <section
+        id="services"
+        aria-labelledby="services-heading"
+        class="section-wrapper"
+      >
+        <ServicesView heading-id="services-heading" />
+      </section>
+      <section
+        id="venue-showcase"
+        aria-labelledby="showcase-heading"
+        class="section-wrapper"
+      >
+        <VenueView heading-id="showcase-heading" />
+      </section>
 
-    <div class="container mt-4">
-      <h4 class="mb-4 fw-bold">Sân gần bạn</h4>
+      <!-- ── Blog ── -->
+      <section
+        id="blog"
+        aria-labelledby="blog-heading"
+        class="section-wrapper"
+        itemscope
+        itemtype="https://schema.org/Blog"
+      >
+        <BlogView heading-id="blog-heading" />
+      </section>
 
-      <div class="row">
-        <template v-for="(value, index) in danhSachSan" :key="index">
-          <div class="col-md-6 mb-4">
-            <div class="card shadow-sm rounded-4 overflow-hidden">
-              <!-- ảnh -->
-              <div class="position-relative">
-                <img
-                  :src="value.hinh_anh"
-                  class="w-100"
-                  style="height: 180px; object-fit: cover"
-                />
-
-                <span
-                  class="badge bg-success position-absolute top-0 start-0 m-2"
-                >
-                  Đơn ngày
-                </span>
-              </div>
-
-              <!-- body -->
-              <div class="card-body d-flex justify-content-between">
-                <div>
-                  <h5 class="fw-bold">
-                    {{ value.ten }}
-                  </h5>
-
-                  <div class="text-muted small">
-                    📍 {{ value.khoang_cach }}km
-                    {{ value.dia_chi }}
-                  </div>
-
-                  <div class="text-muted small">⏰ {{ value.gio_mo }}</div>
-                </div>
-
-                <div class="text-end">
-                  <div class="text-warning fw-bold">⭐ {{ value.rating }}</div>
-
-                  <button class="btn btn-warning btn-sm mt-2">ĐẶT LỊCH</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- Services Section -->
-    <section class="bg-light" style="margin-top: 50px">
-      <div class="container">
-        <h2 class="text-center mb-4">Dịch Vụ Của Chúng Tôi</h2>
-        <div class="row">
-          <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-              <div class="card-body text-center">
-                <i class="fas fa-futbol fa-3x text-primary mb-3"></i>
-                <h5 class="card-title">Đặt Sân Bóng Đá</h5>
-                <p class="card-text">
-                  Đặt sân bóng đá dễ dàng với nhiều lựa chọn thời gian và địa
-                  điểm.
-                </p>
-                <a href="#" class="btn btn-primary">Đặt Ngay</a>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-              <div class="card-body text-center">
-                <i class="fas fa-table-tennis fa-3x text-success mb-3"></i>
-                <h5 class="card-title">Sân Tennis</h5>
-                <p class="card-text">
-                  Sân tennis chất lượng cao cho mọi cấp độ người chơi.
-                </p>
-                <a href="#" class="btn btn-success">Xem Chi Tiết</a>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-              <div class="card-body text-center">
-                <i class="fas fa-users fa-3x text-warning mb-3"></i>
-                <h5 class="card-title">Đội Nóng</h5>
-                <p class="card-text">
-                  Tìm đối thủ hoặc tham gia đội bóng ngay lập tức.
-                </p>
-                <a href="#" class="btn btn-warning">Tham Gia</a>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    </main>
   </div>
 </template>
 
 <script>
+import CitiesView     from "@/components/client/home/CitiesView.vue";
+import HeroView       from "@/components/client/home/HeroView.vue";
+import StatisticsView from "@/components/client/home/StatisticsView.vue";
+import ServicesView   from "@/components/client/home/ServicesView.vue";
+import BlogView       from "@/components/client/home/BlogView.vue";
+import VenueView      from "@/components/client/home/VenueView.vue";
+import VenueCard      from "@/components/client/booking/VenueCard.vue";
+import { clubService } from "@/services/club.service.js";
+
+// ── Default fallback coords: Đà Nẵng ──
+const DEFAULT_LAT = 16.047079;
+const DEFAULT_LNG = 108.206230;
+
 export default {
+  name: "HomeView",
+
+  components: {
+    HeroView,
+    CitiesView,
+    StatisticsView,
+    ServicesView,
+    BlogView,
+    VenueView,
+    VenueCard,
+  },
+
   data() {
     return {
-      danhSachSan: [
-        {
-          id: 1,
-          ten: "Sân Cầu Lông Thanh Xuân",
-          khoang_cach: 1.2,
-          dia_chi: "Thanh Khê, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.6,
-          hinh_anh: "https://golfbooking.com.vn/images/slideshow/2026/01/13/original/uu-dai-dac-quyen-intergolf-slice-web_1768300163.webp",
-        },
-        {
-          id: 2,
-          ten: "Sân Bóng Mini Hòa Xuân",
-          khoang_cach: 2.1,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.5,
-          hinh_anh: "https://golfbooking.com.vn/images/slideshow/2026/02/27/original/z7569511046253_0a3ea76709deb74d41ed2c087b572469_1772186728.webp",
-        },
-        {
-          id: 3,
-          ten: "CLB Cầu Lông Tuyên Sơn",
-          khoang_cach: 3.4,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "05:00 - 22:30",
-          rating: 4.7,
-          hinh_anh: "https://golfbooking.com.vn/images/slideshow/2026/02/13/original/z7531562292224_6d6a7e6283e06bcefe65f27652943f94_1770978712.webp",
-        },
-        {
-          id: 4,
-          ten: "Sân Tennis Sơn Trà",
-          khoang_cach: 4.1,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?4",
-        },
-        {
-          id: 5,
-          ten: "Sân Bóng Phước Mỹ",
-          khoang_cach: 2.7,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?5",
-        },
-        {
-          id: 6,
-          ten: "CLB Cầu Lông Hải Châu",
-          khoang_cach: 1.9,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.8,
-          hinh_anh: "https://picsum.photos/600/300?6",
-        },
-        {
-          id: 7,
-          ten: "Sân Bóng Mini Hòa Khánh",
-          khoang_cach: 5.6,
-          dia_chi: "Liên Chiểu, Đà Nẵng",
-          gio_mo: "06:00 - 22:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?7",
-        },
-        {
-          id: 8,
-          ten: "Sân Tennis Ngũ Hành Sơn",
-          khoang_cach: 6.2,
-          dia_chi: "Ngũ Hành Sơn, Đà Nẵng",
-          gio_mo: "05:30 - 21:30",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?8",
-        },
-        {
-          id: 9,
-          ten: "CLB Cầu Lông Đại Học",
-          khoang_cach: 3.3,
-          dia_chi: "Ngũ Hành Sơn, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.6,
-          hinh_anh: "https://picsum.photos/600/300?9",
-        },
-        {
-          id: 10,
-          ten: "Sân Bóng Mini An Hải",
-          khoang_cach: 2.5,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.5,
-          hinh_anh: "https://picsum.photos/600/300?10",
-        },
-
-        {
-          id: 11,
-          ten: "CLB Cầu Lông Thanh Bình",
-          khoang_cach: 2.0,
-          dia_chi: "Thanh Khê, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?11",
-        },
-        {
-          id: 12,
-          ten: "Sân Tennis Hòa Cường",
-          khoang_cach: 3.1,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "06:00 - 21:00",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?12",
-        },
-        {
-          id: 13,
-          ten: "Sân Bóng Mini Hòa An",
-          khoang_cach: 4.8,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?13",
-        },
-        {
-          id: 14,
-          ten: "CLB Cầu Lông Hòa Xuân",
-          khoang_cach: 3.7,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "05:00 - 22:30",
-          rating: 4.6,
-          hinh_anh: "https://picsum.photos/600/300?14",
-        },
-        {
-          id: 15,
-          ten: "Sân Tennis Mỹ An",
-          khoang_cach: 2.9,
-          dia_chi: "Ngũ Hành Sơn, Đà Nẵng",
-          gio_mo: "06:00 - 21:00",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?15",
-        },
-        {
-          id: 16,
-          ten: "Sân Bóng Mini Nam Việt Á",
-          khoang_cach: 3.4,
-          dia_chi: "Ngũ Hành Sơn, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.5,
-          hinh_anh: "https://picsum.photos/600/300?16",
-        },
-        {
-          id: 17,
-          ten: "CLB Cầu Lông Hòa Khánh",
-          khoang_cach: 6.1,
-          dia_chi: "Liên Chiểu, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?17",
-        },
-        {
-          id: 18,
-          ten: "Sân Tennis Liên Chiểu",
-          khoang_cach: 7.0,
-          dia_chi: "Liên Chiểu, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.1,
-          hinh_anh: "https://picsum.photos/600/300?18",
-        },
-        {
-          id: 19,
-          ten: "Sân Bóng Mini Hòa Minh",
-          khoang_cach: 5.9,
-          dia_chi: "Liên Chiểu, Đà Nẵng",
-          gio_mo: "05:30 - 22:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?19",
-        },
-        {
-          id: 20,
-          ten: "CLB Cầu Lông An Khê",
-          khoang_cach: 3.5,
-          dia_chi: "Thanh Khê, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.6,
-          hinh_anh: "https://picsum.photos/600/300?20",
-        },
-
-        {
-          id: 21,
-          ten: "Sân Tennis Thuận Phước",
-          khoang_cach: 3.8,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?21",
-        },
-        {
-          id: 22,
-          ten: "Sân Bóng Mini Hải Châu",
-          khoang_cach: 1.7,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.5,
-          hinh_anh: "https://picsum.photos/600/300?22",
-        },
-        {
-          id: 23,
-          ten: "CLB Cầu Lông Hòa Thọ",
-          khoang_cach: 4.1,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?23",
-        },
-        {
-          id: 24,
-          ten: "Sân Tennis Hòa Phát",
-          khoang_cach: 5.2,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?24",
-        },
-        {
-          id: 25,
-          ten: "Sân Bóng Mini Hòa Thọ",
-          khoang_cach: 4.6,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?25",
-        },
-        {
-          id: 26,
-          ten: "CLB Cầu Lông Sơn Trà",
-          khoang_cach: 2.4,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.7,
-          hinh_anh: "https://picsum.photos/600/300?26",
-        },
-        {
-          id: 27,
-          ten: "Sân Tennis Phước Mỹ",
-          khoang_cach: 2.8,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?27",
-        },
-        {
-          id: 28,
-          ten: "Sân Bóng Mini Mân Thái",
-          khoang_cach: 3.2,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?28",
-        },
-        {
-          id: 29,
-          ten: "CLB Cầu Lông Mỹ Khê",
-          khoang_cach: 2.0,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.6,
-          hinh_anh: "https://picsum.photos/600/300?29",
-        },
-        {
-          id: 30,
-          ten: "Sân Tennis Mỹ Khê",
-          khoang_cach: 2.1,
-          dia_chi: "Sơn Trà, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.5,
-          hinh_anh: "https://picsum.photos/600/300?30",
-        },
-
-        {
-          id: 31,
-          ten: "Sân Bóng Mini Khuê Trung",
-          khoang_cach: 3.9,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?31",
-        },
-        {
-          id: 32,
-          ten: "CLB Cầu Lông Hòa Cường",
-          khoang_cach: 2.6,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.7,
-          hinh_anh: "https://picsum.photos/600/300?32",
-        },
-        {
-          id: 33,
-          ten: "Sân Tennis Hòa Xuân",
-          khoang_cach: 4.0,
-          dia_chi: "Cẩm Lệ, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?33",
-        },
-        {
-          id: 34,
-          ten: "Sân Bóng Mini Hòa Phước",
-          khoang_cach: 5.5,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.4,
-          hinh_anh: "https://picsum.photos/600/300?34",
-        },
-        {
-          id: 35,
-          ten: "CLB Cầu Lông Hòa Nhơn",
-          khoang_cach: 8.0,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.1,
-          hinh_anh: "https://picsum.photos/600/300?35",
-        },
-        {
-          id: 36,
-          ten: "Sân Tennis Hòa Nhơn",
-          khoang_cach: 8.4,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "06:00 - 21:00",
-          rating: 4.0,
-          hinh_anh: "https://picsum.photos/600/300?36",
-        },
-        {
-          id: 37,
-          ten: "Sân Bóng Mini Hòa Liên",
-          khoang_cach: 9.1,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:30 - 22:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?37",
-        },
-        {
-          id: 38,
-          ten: "CLB Cầu Lông Hòa Tiến",
-          khoang_cach: 7.3,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?38",
-        },
-        {
-          id: 39,
-          ten: "Sân Tennis Hòa Châu",
-          khoang_cach: 6.9,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?39",
-        },
-        {
-          id: 40,
-          ten: "Sân Bóng Mini Hòa Phong",
-          khoang_cach: 10.1,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.1,
-          hinh_anh: "https://picsum.photos/600/300?40",
-        },
-
-        {
-          id: 41,
-          ten: "CLB Cầu Lông Hòa Bắc",
-          khoang_cach: 12.2,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.0,
-          hinh_anh: "https://picsum.photos/600/300?41",
-        },
-        {
-          id: 42,
-          ten: "Sân Tennis Hòa Sơn",
-          khoang_cach: 11.3,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "06:00 - 21:00",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?42",
-        },
-        {
-          id: 43,
-          ten: "Sân Bóng Mini Hòa Khương",
-          khoang_cach: 10.5,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:30 - 22:30",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?43",
-        },
-        {
-          id: 44,
-          ten: "CLB Cầu Lông Hòa Phú",
-          khoang_cach: 13.1,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.1,
-          hinh_anh: "https://picsum.photos/600/300?44",
-        },
-        {
-          id: 45,
-          ten: "Sân Tennis Hòa Ninh",
-          khoang_cach: 14.4,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "06:00 - 21:30",
-          rating: 4.0,
-          hinh_anh: "https://picsum.photos/600/300?45",
-        },
-        {
-          id: 46,
-          ten: "Sân Bóng Mini Hòa Phú",
-          khoang_cach: 13.7,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:30 - 22:30",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?46",
-        },
-        {
-          id: 47,
-          ten: "CLB Cầu Lông Hòa Bắc 2",
-          khoang_cach: 12.8,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:00 - 22:00",
-          rating: 4.1,
-          hinh_anh: "https://picsum.photos/600/300?47",
-        },
-        {
-          id: 48,
-          ten: "Sân Tennis Hòa Phong",
-          khoang_cach: 10.9,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "06:00 - 21:00",
-          rating: 4.2,
-          hinh_anh: "https://picsum.photos/600/300?48",
-        },
-        {
-          id: 49,
-          ten: "Sân Bóng Mini Hòa Nhơn 2",
-          khoang_cach: 8.9,
-          dia_chi: "Hòa Vang, Đà Nẵng",
-          gio_mo: "05:30 - 23:00",
-          rating: 4.3,
-          hinh_anh: "https://picsum.photos/600/300?49",
-        },
-        {
-          id: 50,
-          ten: "CLB Cầu Lông Trung Tâm",
-          khoang_cach: 1.5,
-          dia_chi: "Hải Châu, Đà Nẵng",
-          gio_mo: "05:00 - 22:30",
-          rating: 4.9,
-          hinh_anh: "https://picsum.photos/600/300?50",
-        },
-      ],
+      danhSachSan: [],
+      loading: true,
+      error: null,
     };
+  },
+
+  computed: {
+    /**
+     * ✅ Structured Data (JSON-LD)
+     * Giúp Google hiểu nội dung trang web tốt hơn (Rich Snippets).
+     */
+    schemaOrg() {
+      return [
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "PlayFinder",
+          "alternateName": "Hệ thống đặt sân PlayFinder",
+          "url": "https://playfinder.vn",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://playfinder.vn/san?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "PlayFinder",
+          "url": "https://playfinder.vn",
+          "logo": "https://playfinder.vn/logo.png",
+          "sameAs": [
+            "https://www.facebook.com/playfinder.vn",
+            "https://www.instagram.com/playfinder.vn"
+          ]
+        }
+      ];
+    }
+  },
+
+  async mounted() {
+    // ✅ Manual SEO update (fallback if no vue-meta)
+    document.title = "Đặt sân bóng đá, tennis, cầu lông gần bạn | PlayFinder Việt Nam";
+
+    await this.loadDefaultClubs();
+    this.tryGeolocation();
+  },
+
+  methods: {
+    // ── 1. Load default clubs (Đà Nẵng) — luôn chạy trước ──
+    async loadDefaultClubs() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const res = await clubService.getNearbyClubs(DEFAULT_LAT, DEFAULT_LNG);
+        this.danhSachSan = this.mapVenues(res.data.data);
+      } catch (e) {
+        console.error("Default club load error:", e);
+        this.error = "Không thể tải danh sách sân. Vui lòng thử lại.";
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // ── 2. Geolocation refinement (không block UI) ──
+    tryGeolocation() {
+      if (!navigator.geolocation) return;
+
+      navigator.geolocation.getCurrentPosition(
+        async ({ coords: { latitude, longitude } }) => {
+          try {
+            const res = await clubService.getNearbyClubs(latitude, longitude);
+            const refined = this.mapVenues(res.data.data);
+            if (refined.length > 0) this.danhSachSan = refined;
+          } catch (e) {
+            // Silently fall back — default list already showing
+            console.warn("Geolocation refine failed:", e);
+          }
+        },
+        (err) => console.warn("Geolocation denied:", err.message),
+        { timeout: 8000, maximumAge: 300_000 }
+      );
+    },
+
+    // ── Lấy lại nếu error ──
+    async fetchNearbyClubs() {
+      await this.loadDefaultClubs();
+    },
+
+    // ── Map API response → UI model ──
+    mapVenues(data = []) {
+      return data.map((item) => ({
+        id:              item.id,
+        name:            item.name,
+        address:         item.address,
+        image:           item.coverImageUrl || item.logoUrl || "https://images.unsplash.com/photo-1544691371-464a4d46af63?w=600&q=80",
+        imageAlt:        `Sân thể thao ${item.name} tại ${item.address}`, 
+        distance:        item.distance ? `${parseFloat(item.distance).toFixed(1)} km` : null,
+        isPartner:       true,
+        hasOnlineBooking: true,
+        rating:          item.rating   ?? 4.8, 
+        reviewCount:     item.reviewCount ?? 0,          
+        slug:            item.slug || item.id,
+      }));
+    },
   },
 };
 </script>
 
 <style scoped>
-.carousel {
-  height: 70vh;
-  overflow: hidden;
+/* ── Variables ── */
+.nearby-section {
+  --green: #3dd56d;
+  --green-dark: #28b857;
+  --text-dark: #1a1a2e;
+  --text-muted: #6b7280;
+  --bg-section: #f7f8fa;
+  --border: #e5e7eb;
+  --radius: 12px;
 }
 
-.carousel-item img {
-  height: 100%;
-  object-fit: cover;
+/* ── Section wrapper spacing ── */
+.section-wrapper {
+  padding: 0;
 }
 
-.carousel-caption {
-  position: relative;
-  width: auto;
-  max-width: 520px;
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 12px;
+.nearby-section {
+  background: var(--bg-section);
+  padding: 72px 0 80px;
+}
+
+/* ── Section header ── */
+.section-header {
   text-align: center;
-  margin: 20px auto;
+  margin-bottom: 48px;
 }
 
-.carousel-caption h5 {
-  font-size: 2rem;
-  font-weight: bold;
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(1.7rem, 3vw, 2.2rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dark);
+  margin-bottom: 12px;
+  position: relative;
+  display: inline-block;
+  padding-bottom: 16px;
 }
 
-.carousel-caption p {
-  font-size: 1.2rem;
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 3px;
+  background: var(--green);
+  border-radius: 2px;
 }
 
-.card {
-  transition: transform 0.3s;
+.section-subtitle {
+  font-size: 0.97rem;
+  color: var(--text-muted);
+  max-width: 520px;
+  margin: 0 auto;
+  line-height: 1.65;
 }
 
-.card:hover {
-  transform: translateY(-10px);
+/* ── Venues Grid: 3 cols → 2 → 1 ── */
+.venues-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);   /* ✅ 3 cột trên desktop */
+  gap: 24px;
 }
 
-.card:hover {
-  transform: translateY(-4px);
-  transition: 0.2s;
+@media (max-width: 992px) {
+  .venues-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .venues-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Venue item animation ── */
+.venue-item {
+  animation: fadeUp 0.5s ease both;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Skeleton loading ── */
+.skeleton-card {
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.skeleton-img {
+  width: 100%;
+  height: 180px;
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.w-70 { width: 70%; }
+.w-50 { width: 50%; }
+.w-40 { width: 40%; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+/* ── Error / Empty states ── */
+.error-state,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.error-state svg,
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.btn-retry {
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 24px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.btn-retry:hover {
+  background: var(--green-dark);
+  transform: translateY(-1px);
+}
+
+/* ── View All CTA ── */
+.view-all-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 44px;
+}
+
+.btn-view-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-dark);
+  border: 2px solid var(--text-dark);
+  border-radius: 6px;
+  padding: 12px 32px;
+  font-family: 'Barlow', sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.btn-view-all svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  transition: transform 0.25s ease;
+}
+
+.btn-view-all:hover {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(61, 213, 109, 0.3);
+}
+
+.btn-view-all:hover svg {
+  transform: translateX(4px);
 }
 </style>
