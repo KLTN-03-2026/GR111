@@ -85,6 +85,12 @@ const routes = [
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
   {
+    path: "/owner/pricing",
+    name: "owner-pricing",
+    component: () => import("../views/owner/PricingView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
     path: "/owner/bookings",
     name: "owner-bookings",
     component: () => import("../views/owner/BookingsView.vue"),
@@ -100,6 +106,18 @@ const routes = [
     path: "/owner/customers",
     name: "owner-customers",
     component: () => import("../views/owner/CustomersView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
+    path: "/owner/onboarding",
+    name: "owner-onboarding",
+    component: () => import("../views/owner/OwnerOnboardingView.vue"),
+    meta: { layout: "nocore", requiresAuth: true, roles: ["OWNER"] }, // Dùng nocore để tập trung vào form, không hiện sidebar
+  },
+  {
+    path: "/owner/settings",
+    name: "owner-settings",
+    component: () => import("../views/owner/SettingsView.vue"),
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
 ];
@@ -142,13 +160,11 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && token && user && to.meta.roles) {
     const isRoleValid = to.meta.roles.includes(user.role);
     if (!isRoleValid) {
-      alert("Bạn không có quyền truy cập trang này!");
-      // Nếu là OWNER đang nhập nhầm thì trả về owner, ADMIN về admin, còn USER trả về home
       if (user.role === 'OWNER') {
-        return next({ path: "/owner" });
+        return next({ path: "/auth/login" });
       }
       if (user.role === 'ADMIN') {
-        return next({ path: "/admin" });
+        return next({ path: "/auth/login" });
       }
       return next({ name: "home" });
     }
