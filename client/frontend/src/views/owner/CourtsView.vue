@@ -6,7 +6,7 @@
         <h1 class="view-title">Quản lý Sân đấu</h1>
         <p class="view-subtitle">Thiết lập thông tin, giá cả và trạng thái từng sân.</p>
       </div>
-      <button class="add-btn" @click="showAddModal = true">
+      <button class="add-btn" @click="openAddModal">
         <span class="material-icons">add_circle</span>
         <span>Thêm sân mới</span>
       </button>
@@ -41,10 +41,19 @@
     <!-- Courts Grid -->
     <div class="courts-grid" v-if="filteredCourts.length > 0">
       <div v-for="(court, i) in filteredCourts" :key="court.id" class="court-card" :style="`--delay: ${i * 80}ms`">
-        <div class="court-header">
-          <div class="court-type-tag" :class="'type-' + court.type">
+        
+        <!-- HÌNH ẢNH SÂN -->
+        <div class="court-image-container">
+          <img v-if="court.images && court.images.length > 0" :src="court.images[0]" class="court-cover-img" alt="Sân" />
+          <div v-else class="court-cover-placeholder">
+            <span class="material-icons">photo_size_select_actual</span>
+          </div>
+          <div class="court-type-overlay" :class="'type-' + court.type">
             {{ court.type === '5x5' ? 'Sân 5' : court.type === '7x7' ? 'Sân 7' : 'Sân 11' }}
           </div>
+        </div>
+
+        <div class="court-header">
           <div class="court-status-toggle">
             <span class="status-dot" :class="court.status"></span>
             <span class="status-text">{{ getStatusText(court.status) }}</span>
@@ -72,15 +81,15 @@
         </div>
 
         <div class="court-footer">
-          <button class="footer-btn edit" title="Chỉnh sửa">
+          <button class="footer-btn edit" title="Chỉnh sửa" @click="editCourt(court)">
             <span class="material-icons">edit</span>
             <span>Sửa</span>
           </button>
-          <button class="footer-btn status" :title="court.status === 'active' ? 'Bảo trì' : 'Kích hoạt'">
+          <button class="footer-btn status" :title="court.status === 'active' ? 'Bảo trì' : 'Kích hoạt'" @click="toggleCourtStatus(court)">
             <span class="material-icons">{{ court.status === 'active' ? 'build' : 'play_arrow' }}</span>
             <span>{{ court.status === 'active' ? 'Bảo trì' : 'Mở' }}</span>
           </button>
-          <button class="footer-btn delete" title="Xóa sân">
+          <button class="footer-btn delete" title="Xóa sân" @click="deleteCourt(court.id)">
             <span class="material-icons">delete</span>
           </button>
         </div>
@@ -93,18 +102,32 @@
       <h3>Không tìm thấy sân nào</h3>
       <p>Hãy thử thay đổi bộ lọc hoặc thêm sân mới cho câu lạc bộ này.</p>
     </div>
+
+    <!-- Add/Edit Court Modal -->
+    <AddCourtModal 
+      :isOpen="showAddModal" 
+      :initialData="editingCourt"
+      @close="closeModal" 
+      @save="handleAddCourt" 
+    />
   </div>
 </template>
 
 <script>
+import AddCourtModal from '@/components/owner/AddCourtModal.vue';
+
 export default {
   name: 'OwnerCourtsView',
+  components: {
+    AddCourtModal
+  },
   data() {
     return {
       selectedClubId: 1,
       searchQuery: '',
       typeFilter: 'all',
       showAddModal: false,
+      editingCourt: null,
       clubs: [
         { id: 1, name: 'Sân bóng Thành Phát' },
         { id: 2, name: 'Viettel Sports Center' }
@@ -129,6 +152,41 @@ export default {
     }
   },
   methods: {
+    openAddModal() {
+      this.editingCourt = null;
+      this.showAddModal = true;
+    },
+    closeModal() {
+      this.showAddModal = false;
+      setTimeout(() => {
+        this.editingCourt = null;
+      }, 300);
+    },
+    editCourt(court) {
+      this.editingCourt = { ...court };
+      this.showAddModal = true;
+    },
+    deleteCourt(id) {
+      if (confirm("Bạn có chắc chắn muốn xóa sân này khỏi hệ thống?")) {
+        this.courts = this.courts.filter(c => c.id !== id);
+      }
+    },
+    toggleCourtStatus(court) {
+      court.status = court.status === 'active' ? 'maintenance' : 'active';
+    },
+    handleAddCourt(savedCourt) {
+      savedCourt.clubId = this.selectedClubId;
+      
+      const index = this.courts.findIndex(c => c.id === savedCourt.id);
+      if (index !== -1) {
+        // Cập nhật
+        this.courts.splice(index, 1, savedCourt);
+      } else {
+        // Thêm mới
+        this.courts.push(savedCourt);
+      }
+      this.closeModal();
+    },
     getStatusText(status) {
       return status === 'active' ? 'Sẵn sàng' : status === 'maintenance' ? 'Bảo trì' : 'Đang bận';
     },
@@ -293,24 +351,56 @@ export default {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.court-header {
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px dashed #f1f5f9;
+.court-image-container {
+  width: 100%;
+  height: 180px;
+  position: relative;
+  background: #f1f5f9;
+  border-bottom: 1px solid #eaecf2;
 }
 
-.court-type-tag {
-  padding: 4px 12px;
+.court-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.court-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+}
+
+.court-cover-placeholder span {
+  font-size: 48px;
+}
+
+.court-type-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 14px;
   border-radius: 100px;
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-.court-type-tag.type-5x5 { background: #eff6ff; color: #2563eb; }
-.court-type-tag.type-7x7 { background: #faf5ff; color: #9333ea; }
-.court-type-tag.type-11x11 { background: #fff7ed; color: #ea580c; }
+
+.court-type-overlay.type-5x5 { background: #eff6ff; color: #2563eb; }
+.court-type-overlay.type-7x7 { background: #faf5ff; color: #9333ea; }
+.court-type-overlay.type-11x11 { background: #fff7ed; color: #ea580c; }
+
+.court-header {
+  padding: 12px 20px 0 20px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
 
 .court-status-toggle {
   display: flex;

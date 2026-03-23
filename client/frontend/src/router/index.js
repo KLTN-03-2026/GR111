@@ -141,11 +141,16 @@ router.beforeEach((to, from, next) => {
   }
 
   // 1. Nếu đã đăng nhập mà cố tình vào trang auth (login, register...)
-  if (token && (to.name === "login" || to.name === "register" || to.name === "forgot-password")) {
-    if (user && user.role === 'OWNER') {
+  if (
+    token &&
+    (to.name === "login" ||
+      to.name === "register" ||
+      to.name === "forgot-password")
+  ) {
+    if (user && user.role === "OWNER") {
       return next({ path: "/owner" });
     }
-    if (user && user.role === 'ADMIN') {
+    if (user && user.role === "ADMIN") {
       return next({ path: "/admin" });
     }
     return next({ name: "home" });
@@ -162,10 +167,10 @@ router.beforeEach((to, from, next) => {
     if (!isRoleValid) {
       alert("Bạn không có quyền truy cập trang này!");
       // Nếu là OWNER đang nhập nhầm thì trả về owner, ADMIN về admin, còn USER trả về home
-      if (user.role === 'OWNER') {
+      if (user.role === "OWNER") {
         return next({ path: "/owner" });
       }
-      if (user.role === 'ADMIN') {
+      if (user.role === "ADMIN") {
         return next({ path: "/admin" });
       }
       return next({ name: "home" });
