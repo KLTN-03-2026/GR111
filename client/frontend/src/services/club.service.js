@@ -29,18 +29,23 @@ export const clubService = {
         return api.get('/clubs', { params: filters });
     },
     
-    //thêm mới câu lạc bộ
-    addClub(clubId, clubData) {
-        return api.post(`/owner/clubs/${clubId}/amenities`, clubData);
+    // Thêm mới câu lạc bộ
+    addClub(clubData) {
+        return api.post('/owner/clubs', clubData);
     },
 
-    //chỉnh sửa câu lạc bộ
+    // Chỉnh sửa câu lạc bộ
     editClub(clubId, clubData) {
         return api.put(`/owner/clubs/${clubId}`, clubData);
     },
 
-    //lấy toàn bộ thông tin câu lạc bộ
-    Getallthedetails(clubId) {
+    // Lấy danh sách câu lạc bộ của chủ sân
+    getOwnerClubs() {
+        return api.get('/owner/clubs');
+    },
+
+    // Lấy thông tin chi tiết một câu lạc bộ (dành cho chủ sân)
+    getClubDetails(clubId) {
         return api.get(`/owner/clubs/${clubId}`);
     },
 };

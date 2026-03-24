@@ -120,6 +120,24 @@ const routes = [
     component: () => import("../views/owner/SettingsView.vue"),
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
+  // Placeholder routes to stop warnings
+  {
+    path: "/contact",
+    name: "contact",
+    component: () => import("../views/client/HomeView.vue"), // Reuse home until created
+  },
+  {
+    path: "/owner/vouchers",
+    name: "owner-vouchers",
+    component: () => import("../views/owner/HomeView.vue"), // Reuse owner home until created
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
+    path: "/owner/reviews",
+    name: "owner-reviews",
+    component: () => import("../views/owner/HomeView.vue"), // Reuse owner home until created
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
 ];
 
 const router = createRouter({
