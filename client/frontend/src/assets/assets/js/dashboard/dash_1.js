@@ -1,3 +1,6 @@
+import PerfectScrollbar from 'perfect-scrollbar';
+import ApexCharts from 'apexcharts';
+
 try {
 
   /*
@@ -128,7 +131,10 @@ try {
     }],
     labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
     yaxis: {
-      min: 0
+      min: 0,
+      labels: {
+        minWidth: 40
+      }
     },
     grid: {
       padding: {
@@ -490,56 +496,72 @@ try {
           Daily Sales | Render
       ============================
   */
-  var d_2C_1 = new ApexCharts(document.querySelector("#daily-sales"), d_2options1);
-  d_2C_1.render();
+  var dailySalesEl = document.querySelector("#daily-sales");
+  if (dailySalesEl) {
+    var d_2C_1 = new ApexCharts(dailySalesEl, d_2options1);
+    d_2C_1.render();
+  }
   
   /*
       ============================
           Total Orders | Render
       ============================
   */
-  var d_2C_2 = new ApexCharts(document.querySelector("#total-orders"), d_2options2);
-  d_2C_2.render();
+  var totalOrdersEl = document.querySelector("#total-orders");
+  if (totalOrdersEl) {
+    var d_2C_2 = new ApexCharts(totalOrdersEl, d_2options2);
+    d_2C_2.render();
+  }
   
   /*
       ================================
           Revenue Monthly | Render
       ================================
   */
-  var chart1 = new ApexCharts(
-      document.querySelector("#revenueMonthly"),
-      options1
-  );
-  
-  chart1.render();
+  var revenueMonthlyEl = document.querySelector("#revenueMonthly");
+  if (revenueMonthlyEl) {
+    var chart1 = new ApexCharts(
+        revenueMonthlyEl,
+        options1
+    );
+    chart1.render();
+  }
   
   /*
       =================================
           Sales By Category | Render
       =================================
   */
-  var chart = new ApexCharts(
-      document.querySelector("#chart-2"),
-      options
-  );
-  
-  chart.render();
+  var chart2El = document.querySelector("#chart-2");
+  if (chart2El) {
+    var chart = new ApexCharts(
+        chart2El,
+        options
+    );
+    chart.render();
+  }
   
   /*
       =============================================
           Perfect Scrollbar | Recent Activities
       =============================================
   */
- $('.mt-container').each(function(){ const ps = new PerfectScrollbar($(this)[0]); });
-  
-  const topSellingProduct = new PerfectScrollbar('.widget-table-three .table-scroll table', {
-    wheelSpeed:.5,
-    swipeEasing:!0,
-    minScrollbarLength:40,
-    maxScrollbarLength:100,
-    suppressScrollY: true
-  
+  $('.mt-container').each(function(){ 
+    if ($(this).length > 0) {
+      const ps = new PerfectScrollbar($(this)[0]); 
+    }
   });
+  
+  var tableScrollEl = document.querySelector('.widget-table-three .table-scroll table');
+  if (tableScrollEl) {
+    const topSellingProduct = new PerfectScrollbar(tableScrollEl, {
+      wheelSpeed:.5,
+      swipeEasing:!0,
+      minScrollbarLength:40,
+      maxScrollbarLength:100,
+      suppressScrollY: true
+    });
+  }
   
   } catch(e) {
       console.log(e);

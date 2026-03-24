@@ -120,6 +120,23 @@ const routes = [
     component: () => import("../views/owner/SettingsView.vue"),
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
+  {
+    path: "/contact",
+    name: "contact",
+    component: () => import("../views/client/ContactView.vue"),
+  },
+  {
+    path: "/owner/vouchers",
+    name: "owner-vouchers",
+    component: () => import("../views/owner/VouchersView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
+    path: "/owner/reviews",
+    name: "owner-reviews",
+    component: () => import("../views/owner/ReviewsView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
 ];
 
 const router = createRouter({

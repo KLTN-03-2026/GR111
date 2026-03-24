@@ -444,6 +444,8 @@
 </template>
 
 <script>
+import { clubService } from "@/services/club.service";
+
 export default {
   name: "OwnerClubsView",
   data() {
@@ -536,47 +538,58 @@ export default {
     },
     //thêm mới câu lạc bộ
     addClub() {
-      this.$router.push("/owner/clubs/${clubId}/amenities", this.add_Club);
-      then((response) => {
-        this.clubs.push(response.data.data); // Giả sử API trả về câu lạc bộ mới trong trường 'data'
-        this.clubs = {
-          id: Date.now(),
-          clubId: "",
-          name: "",
-          address: "",  
-          image: "",
-          status: "",
-          openTime: "",
-          closeTime: "",
-          totalCourts: "",
-          rating: "",
-          reviewCount: "",
-        };
-      }).catch((error) => {
-        console.error("Lỗi khi thêm câu lạc bộ:", error);
-      });
+      clubService
+        .addClub(this.addClub.clubId, this.add_Club)
+        .then((response) => {
+          this.clubs.push(response.data.data); // Giả sử API trả về câu lạc bộ mới trong trường 'data'
+          this.add_Club = {
+            id: Date.now(),
+            clubId: "",
+            name: "",
+            address: "",
+            image: "",
+            status: "active",
+            openTime: "",
+            closeTime: "",
+            totalCourts: 0,
+            rating: 0,
+            reviewCount: 0,
+          };
+        })
+        .catch((error) => {
+          console.error("Lỗi khi thêm câu lạc bộ:", error);
+        });
     },
     //lấy toàn bộ thông tin câu lạc bộ
     Getallthedetails() {
-      this.$router.push("/owner/clubs/${clubId}", this.clubs);
-      then((response) => {
-        this.clubs = response.data.data; // Giả sử API trả về dữ liệu trong trường 'data'
-      }).catch((error) => {
-        console.error("Lỗi khi lấy thông tin câu lạc bộ:", error);
-      });
+      // Giả sử cần clubId cụ thể hoặc lấy tất cả (service Getallthedetails lấy theo ID)
+      // Nếu là lấy danh sách của owner, có lẽ cần API khác, nhưng ta dùng cái có sẵn
+      const firstClubId = this.clubs.length > 0 ? this.clubs[0].clubId : "default";
+      clubService
+        .Getallthedetails(firstClubId)
+        .then((response) => {
+          if (response.data && response.data.data) {
+            this.clubs = response.data.data; // Giả sử API trả về dữ liệu trong trường 'data'
+          }
+        })
+        .catch((error) => {
+          console.error("Lỗi khi lấy thông tin câu lạc bộ:", error);
+        });
     },
     //chỉnh sửa câu lạc bộ
     editClub(club) {
-      this.$router.push("/owner/clubs/${clubId}", this.edit_Club);
-      then((response) => {
-        const index = this.clubs.findIndex((c) => c.id === club.id);
-        if (index !== -1) {
-          this.clubs.splice(index, 1, response.data.data); // Cập nhật câu lạc bộ trong danh sách
-          this.Getallthedetails(); // Tải lại danh sách câu lạc bộ sau khi chỉnh sửa
-        }
-      }).catch((error) => {
-        console.error("Lỗi khi chỉnh sửa câu lạc bộ:", error);
-      });
+      clubService
+        .editClub(club.id, this.edit_Club)
+        .then((response) => {
+          const index = this.clubs.findIndex((c) => c.id === club.id);
+          if (index !== -1) {
+            this.clubs.splice(index, 1, response.data.data); // Cập nhật câu lạc bộ trong danh sách
+            this.Getallthedetails(); // Tải lại danh sách câu lạc bộ sau khi chỉnh sửa
+          }
+        })
+        .catch((error) => {
+          console.error("Lỗi khi chỉnh sửa câu lạc bộ:", error);
+        });
     },
   },
 };
