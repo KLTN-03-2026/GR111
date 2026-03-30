@@ -92,3 +92,73 @@ export async function generateSlotsForWeek(courtId: string) {
   }
   return results;
 }
+
+/**
+ * Lấy toàn bộ slots của một sân trong khoảng thời gian (Dùng cho Calendar/Schedule)
+ */
+export async function getSlotsByCourtId(courtId: string, startDate: Date, endDate: Date) {
+  return prisma.timeSlot.findMany({
+    where: {
+      courtId,
+      startTime: { gte: startDate },
+      endTime: { lte: endDate }
+    },
+    include: {
+      court: {
+        select: { name: true, sportType: true }
+      }
+    },
+    orderBy: { startTime: 'asc' }
+  });
+}
+
+/**
+ * Khóa slot tạm thời (LOCKED) khi khách đang trong quá trình đặt sân
+ */
+export async function holdSlot(slotId: string, userId: string) {
+  // 1. Kiểm tra slot có đang AVAILABLE không
+  const slot = await prisma.timeSlot.findUnique({
+    where: { id: slotId }
+  });
+
+  if (!slot || slot.status !== "AVAILABLE") {
+    throw new Error("SLOT_NOT_AVAILABLE_FOR_HOLD");
+  }
+
+  // 2. Cập nhật trạng thái thành LOCKED
+  return prisma.timeSlot.update({
+    where: { id: slotId },
+    data: {
+      status: "LOCKED",
+      lockedBy: userId,
+      lockedAt: new Date()
+    }
+  });
+}
+
+/**
+ * Chủ sân chủ động đóng/mở khung giờ (Lock/Unlock slot)
+ */
+export async function toggleSlotStatus(slotId: string, ownerId: string, newStatus: "LOCKED" | "AVAILABLE") {
+  // 1. Kiểm tra quyền sở hữu sân của slot này
+  const slot = await prisma.timeSlot.findFirst({
+    where: { id: slotId, court: { club: { ownerId } } }
+  });
+
+  if (!slot) throw new Error("SLOT_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // 2. Nếu slot đang có người đặt (BOOKED), không được phép đổi trạng thái trực tiếp
+  // Chủ sân phải hủy booking trước nếu muốn đóng sân đột xuất
+  if (slot.status === "BOOKED") {
+    throw new Error("CANNOT_TOGGLE_BOOKED_SLOT_CANCEL_BOOKING_FIRST");
+  }
+
+  return prisma.timeSlot.update({
+    where: { id: slotId },
+    data: { 
+        status: newStatus,
+        // Nếu mở lại thì xóa thông tin khóa cũ
+        ...(newStatus === "AVAILABLE" ? { lockedBy: null, lockedAt: null } : {})
+    }
+  });
+}

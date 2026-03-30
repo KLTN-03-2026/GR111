@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcrypt";
 import type { UpdateProfileInput } from "@/validations/user.schema";
 
 /**
@@ -77,4 +78,33 @@ export async function updateMyProfile(userId: string, input: UpdateProfileInput)
   });
 
   return updatedUser;
+}
+
+/**
+ * Đổi mật khẩu
+ */
+export async function changePassword(userId: string, input: { currentPassword: string, newPassword: string }) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { passwordHash: true }
+  });
+
+  if (!user || !user.passwordHash) {
+    throw new Error("USER_NOT_FOUND_OR_NO_PASSWORD");
+  }
+
+  // BCrypt compare
+  const isValid = await bcrypt.compare(input.currentPassword, user.passwordHash);
+  if (!isValid) {
+    throw new Error("INVALID_CURRENT_PASSWORD");
+  }
+
+  // Hash new password
+  const newHash = await bcrypt.hash(input.newPassword, 12);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newHash }
+  });
+
+  return true;
 }

@@ -83,8 +83,57 @@ const routes = [
   // Page Admin
   {
     path: "/admin",
-    name: "admin-home",
-    component: () => import("../views/admin/HomeView.vue"),
+    name: "admin",
+    component: () => import("../views/admin/dashboard/DashboardView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/courts/:tab?",
+    name: "admin-courts",
+    component: () => import("../views/admin/views/CourtsAllView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/owners",
+    name: "admin-owners",
+    component: () => import("../views/admin/views/ClubOwnersView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/owners/kyc",
+    name: "admin-owners-kyc",
+    component: () => import("../views/admin/views/OwnersKycView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/users",
+    name: "admin-users",
+    component: () => import("../views/admin/views/UsersManagementView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/stats",
+    name: "admin-stats",
+    component: () => import("../views/admin/views/SystemStatsView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/reports",
+    name: "admin-reports",
+    component: () => import("../views/admin/views/ReportsManagementView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  {
+    path: "/admin/permissions",
+    name: "admin-permissions",
+    component: () => import("../views/admin/views/PermissionsManagementView.vue"),
+    meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
+  },
+  // Placeholders for other admin routes to avoid 404s when navigating the sidebar
+  {
+    path: "/admin/:catchAll(.*)",
+    name: "admin-placeholder",
+    component: () => import("../views/admin/views/ClubOwnersView.vue"),
     meta: { layout: "admin", requiresAuth: true, roles: ["ADMIN"] },
   },
 
@@ -187,14 +236,13 @@ router.beforeEach((to, from, next) => {
 
   // 3. Phân quyền Role-based Access Control (RBAC) nếu route có yêu cầu roles cụ thể
   if (to.meta.requiresAuth && token && user && to.meta.roles) {
-    const isRoleValid = to.meta.roles.includes(user.role);
+    const userRole = user.role ? user.role.toUpperCase() : null;
+    const allowedRoles = to.meta.roles.map(r => r.toUpperCase());
+    const isRoleValid = allowedRoles.includes(userRole);
+
     if (!isRoleValid) {
-      if (user.role === 'OWNER') {
-        return next({ path: "/auth/login" });
-      }
-      if (user.role === 'ADMIN') {
-        return next({ path: "/auth/login" });
-      }
+      if (userRole === 'OWNER') return next({ path: "/owner" });
+      if (userRole === 'ADMIN') return next({ path: "/admin" });
       return next({ name: "home" });
     }
   }

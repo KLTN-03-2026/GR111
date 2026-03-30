@@ -2,13 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, SportType } from "@/generated/prisma";
 
 export interface SearchClubFilters {
+  name?: string;
   sport?: string;
-
   city?: string;
   district?: string;
   surface?: string;
   format?: string;
   facility?: string | string[];
+  minPrice?: number;
+  maxPrice?: number;
+  minRating?: number;
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
   limit?: number;
 }
 
@@ -77,13 +83,29 @@ export async function getClubBySlug(slug: string) {
  * Tìm kiếm câu lạc bộ nâng cao với các bộ lọc
  */
 export async function searchClubs(filters: SearchClubFilters) {
-  const { sport, city, district, surface, format, facility, limit = 50 } = filters;
+  const { 
+    name, 
+    sport, 
+    city, 
+    district, 
+    surface, 
+    format, 
+    facility, 
+    minPrice, 
+    maxPrice, 
+    minRating, 
+    lat, 
+    lng, 
+    radiusKm = 20, 
+    limit = 50 
+  } = filters;
 
   const where: Prisma.ClubWhereInput = {
     isActive: true,
     approvalStatus: 'APPROVED',
   };
 
+  if (name) where.name = { contains: name, mode: 'insensitive' };
   if (city) where.city = { contains: city, mode: 'insensitive' };
   if (district) where.district = { contains: district, mode: 'insensitive' };
   
@@ -97,13 +119,22 @@ export async function searchClubs(filters: SearchClubFilters) {
   }
 
   // Lọc theo mặt sân hoặc trong nhà/ngoài trời
-  if (surface || format) {
+  if (surface || format || minPrice || maxPrice) {
     where.courts = {
       ...where.courts,
       some: {
         ...(where.courts?.some || {}),
         ...(surface ? { surface: { contains: surface, mode: 'insensitive' } } : {}),
         ...(format ? { indoorOutdoor: format.toUpperCase() } : {}),
+        ...(minPrice || maxPrice ? {
+          pricings: {
+            some: {
+              ...(minPrice ? { pricePerHour: { gte: minPrice } } : {}),
+              ...(maxPrice ? { pricePerHour: { lte: maxPrice } } : {}),
+              isActive: true
+            }
+          }
+        } : {})
       }
     };
   }
@@ -125,38 +156,64 @@ export async function searchClubs(filters: SearchClubFilters) {
       courts: {
         include: {
           pricings: true,
-          images: true
+          images: true,
+          _count: {
+            select: { favoredBy: true }
+          }
         }
       },
       amenities: {
         include: {
           amenity: true
         }
+      },
+      _count: {
+        select: { bookings: true }
       }
     },
     take: limit,
     orderBy: { createdAt: 'desc' }
   });
 
-  return clubs.map((club) => {
+  const processedClubs = clubs.map((club) => {
     // Tính giá thấp nhất (minPrice) từ tất cả các sân của CLB
-    let minPrice = null;
+    let currentMinPrice = null;
     const allPricings = club.courts.flatMap((c) => c.pricings);
     if (allPricings.length > 0) {
-      minPrice = Math.min(...allPricings.map((p) => Number(p.pricePerHour)));
+      currentMinPrice = Math.min(...allPricings.map((p) => Number(p.pricePerHour)));
+    }
+
+    // Tính khoảng cách nếu có lat/lng
+    let distance = null;
+    if (lat && lng && club.latitude && club.longitude) {
+      const R = 6371; // Bán kính trái đất (km)
+      const dLat = (club.latitude - lat) * Math.PI / 180;
+      const dLon = (club.longitude - lng) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat * Math.PI / 180) * Math.cos(club.latitude * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      distance = R * c;
     }
 
     return {
       ...club,
-      minPrice,
-      rating: 4.8, // Default rating for mockup
-      reviewCount: Math.floor(Math.random() * 50) + 10,
+      minPrice: currentMinPrice,
+      distance: distance ? parseFloat(distance.toFixed(2)) : null,
+      rating: 4.5 + (Math.random() * 0.5), // Mockup rating
+      reviewCount: club._count.bookings + 5,
       isPartner: true,
       hasOnlineBooking: club.courts.length > 0,
-      openNow: true, // Mockup
-      closeTime: "22:00",
       amenities: club.amenities.map((a) => a.amenity.name)
     };
+  });
+
+  // Lọc theo minRating và distance (nếu có)
+  return processedClubs.filter(club => {
+    if (minRating && club.rating < minRating) return false;
+    if (lat && lng && radiusKm && club.distance && club.distance > radiusKm) return false;
+    return true;
   });
 }
 

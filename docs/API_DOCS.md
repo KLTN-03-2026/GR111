@@ -142,10 +142,26 @@ Dùng JWT Token gửi trong Header:
     "slotDuration": 60
   }
   ```
+### Cập nhật Câu lạc bộ
+- **Endpoint**: `/api/owner/clubs/[clubId]`
+- **Method**: `PUT`
+- **Request Body**:
+  ```json
+  {
+    "name": "Sân Bóng Thanh Đa Super",
+    "address": "123 Bình Quới",
+    "district": "Bình Thạnh",
+    "city": "Hồ Chí Minh",
+    "phone": "0901234567",
+    "slotDuration": 60
+  }
+  ```
 
 ### Quản lý Sân bóng trong CLB
 - **Lấy danh sách sân**: `/api/owner/clubs/[clubId]/courts` (`GET`).
 - **Tạo sân mới**: `/api/owner/clubs/[clubId]/courts` (`POST`).
+- **Cập nhật sân**: `/api/owner/clubs/[clubId]/courts/[courtId]` (`PUT`).
+- **Xóa sân**: `/api/owner/clubs/[clubId]/courts/[courtId]` (`DELETE`).
   - **Body**:
     ```json
     {
