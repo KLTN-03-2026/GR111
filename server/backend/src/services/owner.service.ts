@@ -87,6 +87,18 @@ export async function submitOwnerOnboarding(userId: string, input: OnboardingInp
 export async function getMyOwnerProfile(userId: string) {
   return prisma.ownerProfile.findUnique({
     where: { userId },
+    include: {
+      user: {
+        select: {
+          fullName: true,
+          email: true,
+          phone: true,
+          avatarUrl: true,
+          role: true,
+          ownedClubs: true, // Lấy toàn bộ clb từ User
+        }
+      }
+    }
   });
 }
 

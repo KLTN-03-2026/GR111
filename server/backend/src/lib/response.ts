@@ -41,6 +41,13 @@ export function errorResponse(
 }
 
 /**
+ * Trả về response lỗi 400 (Bad Request)
+ */
+export function badRequestResponse(message: string, errors?: Record<string, string[]>): NextResponse<ErrorResponse> {
+  return errorResponse(message, 400, errors);
+}
+
+/**
  * Xử lý lỗi không mong muốn (catch block)
  */
 export function serverErrorResponse(error: unknown): NextResponse<ErrorResponse> {
