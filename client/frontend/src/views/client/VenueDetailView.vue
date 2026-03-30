@@ -38,51 +38,62 @@
       <!-- BOOKING TAB -->
       <div v-if="activeTab==='booking'" class="row g-4 bg-white rounded-0 rounded-bottom-3 shadow-sm p-4">
         <div class="col-lg-8">
-          <!-- Step 1 -->
+
+          <!-- ═══ Step 1: Chọn sân (MULTI-SELECT) ═══ -->
           <div class="vdp-step border-bottom pb-4 mb-4">
             <div class="d-flex align-items-start gap-3 mb-3">
               <div class="vdp-snum">1</div>
-              <div><div class="fw-bold fs-6 text-dark">Chọn sân</div><div class="text-muted small">Chọn loại sân phù hợp với nhu cầu của bạn</div></div>
+              <div>
+                <div class="fw-bold fs-6 text-dark">Chọn sân</div>
+                <div class="text-muted small">Có thể chọn nhiều sân để đặt cùng lúc</div>
+              </div>
+              <!-- Badge tổng số sân đang chọn -->
+              <div v-if="selectedCourtIds.length" class="ms-auto">
+                <span class="badge bg-success rounded-pill">{{ selectedCourtIds.length }} sân đã chọn</span>
+              </div>
             </div>
             <div class="d-flex flex-wrap gap-3">
               <div v-for="c in venue.courts" :key="c.id"
-                :class="['vdp-court-card d-flex align-items-center gap-3 p-3 rounded-3 border-2 border', selectedCourtId===c.id ? 'border-success bg-success-subtle' : 'border-light-subtle']"
-                @click="selectCourt(c.id)" style="min-width:175px;cursor:pointer">
-                <div :class="['p-2 rounded-2', selectedCourtId===c.id ? 'bg-success text-white' : 'bg-success-subtle text-success']">
+                :class="['vdp-court-card d-flex align-items-center gap-3 p-3 rounded-3 border-2 border', isCourtSelected(c.id) ? 'border-success bg-success-subtle' : 'border-light-subtle']"
+                @click="toggleCourt(c.id)" style="min-width:175px;cursor:pointer">
+                <div :class="['p-2 rounded-2', isCourtSelected(c.id) ? 'bg-success text-white' : 'bg-success-subtle text-success']">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
                 </div>
                 <div class="flex-grow-1">
                   <div class="fw-bold small">{{ c.name }}</div>
                   <div class="text-muted" style="font-size:12px">{{ formatPrice(c.basePrice) }} đ/30 phút</div>
                 </div>
-                <div v-if="selectedCourtId===c.id" class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width:20px;height:20px;flex-shrink:0">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                <!-- Checkbox style indicator -->
+                <div :class="['rounded-circle border-2 border d-flex align-items-center justify-content-center flex-shrink-0', isCourtSelected(c.id) ? 'bg-success border-success text-white' : 'border-secondary bg-white']" style="width:22px;height:22px;">
+                  <svg v-if="isCourtSelected(c.id)" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
               </div>
             </div>
           </div>
-          <!-- Step 2 -->
+
+          <!-- ═══ Step 2: Chọn ngày ═══ -->
           <div class="vdp-step border-bottom pb-4 mb-4">
             <div class="d-flex align-items-start gap-3 mb-3">
               <div class="vdp-snum">2</div>
-              <div><div class="fw-bold fs-6 text-dark">Chọn ngày</div><div class="text-muted small">Chọn ngày bạn muốn đặt sân</div></div>
+              <div><div class="fw-bold fs-6 text-dark">Chọn ngày</div><div class="text-muted small">Tất cả sân đã chọn sẽ đặt cùng ngày này</div></div>
             </div>
             <div class="d-flex flex-wrap gap-2">
               <div v-for="(d,i) in nextSevenDays" :key="d.full"
                 :class="['vdp-date-card d-flex flex-column align-items-center border-2 rounded-3 border', dateOffset===i ? 'bg-success text-white border-success shadow-sm' : 'border-light-subtle bg-white']"
                 style="min-width:70px;padding:10px 14px;cursor:pointer"
-                @click="dateOffset=i; selectedSlots=[]">
+                @click="dateOffset=i; clearAllSlots()">
                 <span style="font-size:10px;font-weight:700;text-transform:uppercase;opacity:.7">{{ d.dayName }}</span>
                 <span style="font-size:22px;font-weight:900;line-height:1.1">{{ d.dayNumber }}</span>
                 <span style="font-size:11px;font-weight:600;opacity:.7">Th.{{ d.month }}</span>
               </div>
             </div>
           </div>
-          <!-- Step 3 -->
+
+          <!-- ═══ Step 3: Chọn khung giờ ═══ -->
           <div class="vdp-step border-bottom pb-4 mb-4">
             <div class="d-flex align-items-start gap-3 mb-3">
               <div class="vdp-snum">3</div>
-              <div class="flex-grow-1"><div class="fw-bold fs-6 text-dark">Chọn khung giờ</div><div class="text-muted small">Có thể chọn nhiều khung giờ liên tiếp (mỗi ô = 30 phút)</div></div>
+              <div class="flex-grow-1"><div class="fw-bold fs-6 text-dark">Chọn khung giờ</div><div class="text-muted small">Chọn khung giờ cho từng sân đã chọn</div></div>
               <div class="btn-group btn-group-sm" role="group">
                 <button :class="['btn', slotView==='grid' ? 'btn-success' : 'btn-outline-secondary']" @click="slotView='grid'">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Lưới
@@ -92,45 +103,93 @@
                 </button>
               </div>
             </div>
-            <div class="d-flex gap-3 mb-3">
-              <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd" style="background:#fff;border:1.5px solid #d1d5db"></span>Còn trống</span>
-              <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd bg-success"></span>Đang chọn</span>
-              <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd" style="background:#fca5a5"></span>Đã đặt</span>
-              <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd" style="background:#e2e8f0"></span>Không hoạt động</span>
+
+            <!-- Không có sân nào được chọn -->
+            <div v-if="selectedCourtIds.length === 0" class="text-center py-4 rounded-3" style="background:#f8fafc;border:2px dashed #e2e8f0">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" class="d-block mx-auto mb-2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+              <p class="text-muted small mb-0">Vui lòng chọn sân ở bước 1 trước</p>
             </div>
-            <div v-if="slotView==='grid'" class="row g-2">
-              <div v-for="slot in filteredSlots" :key="slot.id" class="col-6 col-md-4 col-lg-3">
-                <div :class="['vdp-slot-card rounded-3 p-3 h-100', isSlotSelected(slot)?'bg-success text-white border-success':slot.status==='BOOKED'?'vdp-slot--booked':'bg-white border']"
-                  style="border-width:2px!important;cursor:pointer" @click="toggleSlot(slot)">
-                  <div class="d-flex justify-content-between align-items-center mb-1">
-                    <span class="fw-bold" style="font-size:12px">{{ slot.time }}</span>
-                    <span v-if="slot.status==='BOOKED'" class="badge" style="background:#fee2e2;color:#dc2626;font-size:9px">Đã đặt</span>
-                    <span v-else-if="isSlotSelected(slot)" class="badge bg-white bg-opacity-25 text-white" style="font-size:9px">Chọn</span>
+
+            <template v-else>
+              <!-- Legend -->
+              <div class="d-flex gap-3 mb-3">
+                <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd" style="background:#fff;border:1.5px solid #d1d5db"></span>Còn trống</span>
+                <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd bg-success"></span>Đang chọn</span>
+                <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd" style="background:#fca5a5"></span>Đã đặt</span>
+                <span class="d-flex align-items-center gap-1 text-muted small"><span class="vdp-lgd" style="background:#e2e8f0"></span>Không hoạt động</span>
+              </div>
+
+              <!-- ── GRID VIEW ── -->
+              <div v-if="slotView==='grid'">
+                <!-- Tab switcher cho từng sân đã chọn -->
+                <div class="d-flex gap-2 mb-3 flex-wrap">
+                  <button v-for="cid in selectedCourtIds" :key="cid"
+                    :class="['btn btn-sm d-flex align-items-center gap-2', activeEditCourtId===cid ? 'btn-success' : 'btn-outline-success']"
+                    @click="activeEditCourtId=cid">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                    {{ getCourtName(cid) }}
+                    <!-- Badge số slot đã chọn cho sân này -->
+                    <span v-if="(selectedSlotsByCourtId[cid]||[]).length" class="badge rounded-pill ms-1" :class="activeEditCourtId===cid ? 'bg-white text-success' : 'bg-success text-white'" style="font-size:10px">
+                      {{ (selectedSlotsByCourtId[cid]||[]).length }}
+                    </span>
+                  </button>
+                </div>
+
+                <!-- Grid slots cho sân đang active -->
+                <div class="row g-2">
+                  <div v-for="slot in gridSlotsForActiveCourt" :key="slot.id" class="col-6 col-md-4 col-lg-3">
+                    <div :class="['vdp-slot-card rounded-3 p-3 h-100',
+                      isSlotSelected(activeEditCourtId, slot) ? 'bg-success text-white border-success' :
+                      slot.status==='BOOKED' ? 'vdp-slot--booked' : 'bg-white border']"
+                      style="border-width:2px!important;cursor:pointer"
+                      @click="toggleSlot(activeEditCourtId, slot)">
+                      <div class="d-flex justify-content-between align-items-center mb-1">
+                        <span class="fw-bold" style="font-size:12px">{{ slot.time }}</span>
+                        <span v-if="slot.status==='BOOKED'" class="badge" style="background:#fee2e2;color:#dc2626;font-size:9px">Đã đặt</span>
+                        <span v-else-if="isSlotSelected(activeEditCourtId, slot)" class="badge bg-white bg-opacity-25 text-white" style="font-size:9px">Chọn</span>
+                      </div>
+                      <div style="font-size:11px;opacity:.8">{{ formatPrice(slot.price) }} đ</div>
+                    </div>
                   </div>
-                  <div style="font-size:11px;opacity:.8">{{ formatPrice(slot.price) }} đ</div>
                 </div>
               </div>
-            </div>
-            <div v-if="slotView==='timeline'" class="vdp-tl">
-              <div class="vdp-tl-scroll">
-                <div class="vdp-tl-head d-flex" style="background:#1e293b;min-width:max-content">
-                  <div class="vdp-tl-lbl"></div>
-                  <div class="d-flex flex-grow-1">
-                    <div v-for="h in tlHours" :key="h" class="vdp-tl-hcell text-white">{{ tlFmtHour(h) }}</div>
+
+              <!-- ── TIMELINE VIEW ── -->
+              <div v-if="slotView==='timeline'" class="vdp-tl">
+                <div class="vdp-tl-scroll">
+                  <div class="vdp-tl-head d-flex" style="background:#1e293b;min-width:max-content">
+                    <div class="vdp-tl-lbl"></div>
+                    <div class="d-flex flex-grow-1">
+                      <div v-for="h in tlHours" :key="h" class="vdp-tl-hcell text-white">{{ tlFmtHour(h) }}</div>
+                    </div>
                   </div>
-                </div>
-                <div v-for="court in venue.courts" :key="court.id" class="vdp-tl-row d-flex">
-                  <div class="vdp-tl-lbl vdp-tl-clbl fw-bold small">{{ court.name }}</div>
-                  <div class="vdp-tl-body position-relative d-flex flex-grow-1">
-                    <div v-for="h in tlHours" :key="h" :class="['vdp-tl-cell', isTlHourNoSlot(court.id,h)?'vdp-tl-cell--noslot':isTlHourBooked(court.id,h)?'vdp-tl-cell--booked':'vdp-tl-cell--free']" @click="toggleTlHour(court.id,h)"></div>
-                    <div v-for="seg in getTlBookedSegs(court.id)" :key="`b${seg.start}`" class="vdp-tl-block vdp-tl-block--bk position-absolute" :style="tlBlockStyle(seg.start,seg.end)">Đã đặt</div>
-                    <div v-for="seg in getTlSelectedSegs(court.id)" :key="`s${seg.start}`" class="vdp-tl-block vdp-tl-block--sel position-absolute" :style="tlBlockStyle(seg.start,seg.end)" @click.stop="removeTlSegment(court.id,seg)">{{ tlFmtHour(seg.start) }}–{{ tlFmtHour(seg.end) }}</div>
+                  <!-- Chỉ render các sân đang được chọn -->
+                  <div v-for="court in selectedCourts" :key="court.id" class="vdp-tl-row d-flex">
+                    <div class="vdp-tl-lbl vdp-tl-clbl fw-bold small">{{ court.name }}</div>
+                    <div class="vdp-tl-body position-relative d-flex flex-grow-1">
+                      <div v-for="h in tlHours" :key="h"
+                        :class="['vdp-tl-cell',
+                          isTlHourNoSlot(court.id,h) ? 'vdp-tl-cell--noslot' :
+                          isTlHourBooked(court.id,h) ? 'vdp-tl-cell--booked' : 'vdp-tl-cell--free']"
+                        @click="toggleTlHour(court.id,h)">
+                      </div>
+                      <div v-for="seg in getTlBookedSegs(court.id)" :key="`b${seg.start}`"
+                        class="vdp-tl-block vdp-tl-block--bk position-absolute"
+                        :style="tlBlockStyle(seg.start,seg.end)">Đã đặt</div>
+                      <div v-for="seg in getTlSelectedSegs(court.id)" :key="`s${seg.start}`"
+                        class="vdp-tl-block vdp-tl-block--sel position-absolute"
+                        :style="tlBlockStyle(seg.start,seg.end)"
+                        @click.stop="removeTlSegment(court.id,seg)">
+                        {{ tlFmtHour(seg.start) }}–{{ tlFmtHour(seg.end) }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
-          <!-- Step 4 -->
+
+          <!-- ═══ Step 4: Dịch vụ thêm ═══ -->
           <div class="vdp-step">
             <div class="d-flex align-items-start gap-3 mb-0" style="cursor:pointer" @click="svcOpen=!svcOpen">
               <div class="vdp-snum">4</div>
@@ -169,35 +228,56 @@
           </div>
         </div>
 
-        <!-- SIDEBAR -->
+        <!-- ═══ SIDEBAR ═══ -->
         <div class="col-lg-4">
           <div class="vdp-sidebar card border-0 sticky-top" style="top:90px">
             <div class="card-header d-flex justify-content-between align-items-center py-3">
               <span class="fw-bold text-white">Chi tiết đặt sân</span>
-              <span v-if="selectedSlots.length" class="badge bg-success rounded-pill">{{ mergedSlots.length }} khung giờ</span>
+              <span v-if="totalSelectedSlotsCount" class="badge bg-success rounded-pill">{{ selectedCourtIds.length }} sân</span>
             </div>
-            <div v-if="!selectedSlots.length" class="text-center py-5 text-muted">
+
+            <!-- Empty state -->
+            <div v-if="!totalSelectedSlotsCount" class="text-center py-5 text-muted">
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.3" class="d-block mx-auto mb-3"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <small>Vui lòng chọn khung giờ bạn muốn đặt</small>
+              <small>Vui lòng chọn sân và khung giờ bạn muốn đặt</small>
             </div>
+
             <div v-else class="card-body p-0">
+              <!-- Ngày chọn -->
               <div class="mx-3 mt-3 p-3 rounded-3" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0">
-                <div class="d-flex align-items-center gap-2 small fw-semibold mb-1">
+                <div class="d-flex align-items-center gap-2 small fw-semibold">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                   {{ selectedDateFormatted }}
                 </div>
-                <div class="d-flex align-items-center gap-2 small fw-semibold">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
-                  {{ selectedCourtName }}
+              </div>
+
+              <!-- Breakdown theo từng sân -->
+              <div class="px-3 mt-3">
+                <div v-for="cid in selectedCourtIds" :key="cid">
+                  <template v-if="(selectedSlotsByCourtId[cid]||[]).length">
+                    <!-- Header sân -->
+                    <div class="d-flex align-items-center gap-2 mb-1 mt-2">
+                      <div class="bg-success-subtle text-success rounded-2 px-2 py-1 d-flex align-items-center gap-1" style="font-size:11px;font-weight:700">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="3" y1="12" x2="21" y2="12"/></svg>
+                        {{ getCourtName(cid) }}
+                      </div>
+                    </div>
+                    <!-- Các slot của sân này (merged) -->
+                    <div v-for="g in mergedSlotsByCourt(cid)" :key="g.timeLabel" class="d-flex align-items-center gap-2 p-2 rounded-2 mb-1 vdp-slot-row">
+                      <span class="flex-grow-1 small fw-semibold">{{ g.timeLabel }}</span>
+                      <span class="fw-bold text-success small">{{ formatPrice(g.price) }} đ</span>
+                      <button class="vdp-rm-btn" @click="g.slots.forEach(s => toggleSlot(cid, s))">×</button>
+                    </div>
+                    <!-- Subtotal sân này -->
+                    <div class="d-flex justify-content-between px-2 pb-2 border-bottom mb-1">
+                      <span class="text-muted" style="font-size:11px">Cộng {{ getCourtName(cid) }}</span>
+                      <span class="fw-bold text-dark" style="font-size:11px">{{ formatPrice(courtTotalByCourt(cid)) }} đ</span>
+                    </div>
+                  </template>
                 </div>
               </div>
-              <div class="px-3 mt-2">
-                <div v-for="g in mergedSlots" :key="g.timeLabel" class="d-flex align-items-center gap-2 p-2 rounded-2 mb-1 vdp-slot-row">
-                  <span class="flex-grow-1 small fw-semibold">{{ g.timeLabel }}</span>
-                  <span class="fw-bold text-success small">{{ formatPrice(g.price) }} đ</span>
-                  <button class="vdp-rm-btn" @click="g.slots.forEach(s => toggleSlot(s))">×</button>
-                </div>
-              </div>
+
+              <!-- Dịch vụ thêm -->
               <div v-if="selectedServices.length" class="px-3 mt-2">
                 <div class="text-uppercase fw-bold mb-1" style="font-size:10px;letter-spacing:.4px;color:#94a3b8">Dịch vụ thêm</div>
                 <div v-for="sid in selectedServices" :key="sid" class="d-flex align-items-center gap-2 p-2 rounded-2 mb-1 vdp-slot-row">
@@ -206,6 +286,8 @@
                   <button class="vdp-rm-btn" @click="toggleService(sid)">×</button>
                 </div>
               </div>
+
+              <!-- Voucher -->
               <div class="px-3 mt-2">
                 <div class="input-group input-group-sm">
                   <span class="input-group-text border-end-0">
@@ -217,6 +299,8 @@
                 <div v-if="voucherApplied" class="text-success small mt-1">✓ Giảm {{ formatPrice(discount) }} đ đã áp dụng!</div>
                 <div v-if="voucherError" class="text-danger small mt-1">Mã không hợp lệ hoặc đã hết hạn</div>
               </div>
+
+              <!-- Thông tin khách hàng -->
               <div class="px-3 mt-3">
                 <div class="text-uppercase fw-bold mb-2" style="font-size:10px;letter-spacing:.5px;color:#94a3b8">Thông tin khách hàng</div>
                 <div class="mb-2"><label class="form-label small fw-bold mb-1">Họ và tên <span class="text-danger">*</span></label><input v-model="form.name" type="text" class="form-control form-control-sm" placeholder="Nguyễn Văn A"/></div>
@@ -224,16 +308,19 @@
                 <div class="mb-2"><label class="form-label small fw-bold mb-1">Email</label><input v-model="form.email" type="email" class="form-control form-control-sm" placeholder="email@example.com"/></div>
                 <div class="mb-2"><label class="form-label small fw-bold mb-1">Ghi chú</label><textarea v-model="form.note" class="form-control form-control-sm" rows="2" placeholder="Yêu cầu thêm..."></textarea></div>
               </div>
+
+              <!-- Tổng cộng -->
               <div class="px-3 mt-2 pt-2 border-top">
-                <div v-if="serviceTotal>0" class="d-flex justify-content-between small text-muted py-1"><span>Tiền sân</span><span>{{ formatPrice(courtTotal) }} đ</span></div>
+                <div v-if="serviceTotal>0" class="d-flex justify-content-between small text-muted py-1"><span>Tiền sân ({{ selectedCourtIds.length }} sân)</span><span>{{ formatPrice(courtTotal) }} đ</span></div>
                 <div v-if="serviceTotal>0" class="d-flex justify-content-between small text-muted py-1"><span>Dịch vụ</span><span>{{ formatPrice(serviceTotal) }} đ</span></div>
                 <div v-if="discount>0" class="d-flex justify-content-between small py-1"><span class="text-muted">Giảm giá</span><span class="text-danger fw-bold">– {{ formatPrice(discount) }} đ</span></div>
                 <div class="d-flex justify-content-between align-items-center pt-2 mt-1 border-top"><span class="fw-bold">Tổng cộng</span><span class="fw-black text-success fs-5">{{ formatPrice(grandTotal) }} đ</span></div>
               </div>
+
               <div class="p-3">
                 <button class="btn btn-success w-100 fw-bold py-3" :disabled="!form.name||!form.phone" @click="handleBooking">✓ TIẾP TỤC ĐẶT SÂN</button>
-              <p v-if="!form.name||!form.phone" class="text-danger text-center mt-1 mb-0" style="font-size:17px; opacity:0.8;"> Vui lòng điền họ tên và số điện thoại</p>
-              <p class="text-muted text-center mt-1 mb-0" style="font-size:17px; opacity:0.8;"> Không áp dụng hoàn tiền sau khi xác nhận</p>
+                <p v-if="!form.name||!form.phone" class="text-danger text-center mt-1 mb-0" style="font-size:17px; opacity:0.8;">Vui lòng điền họ tên và số điện thoại</p>
+                <p class="text-muted text-center mt-1 mb-0" style="font-size:17px; opacity:0.8;">Không áp dụng hoàn tiền sau khi xác nhận</p>
               </div>
             </div>
           </div>
@@ -253,13 +340,13 @@
             </div>
             <div class="vdp-gallery__main position-relative overflow-hidden mb-3" style="height:380px;background:#0f172a;">
               <transition name="gfade" mode="out-in">
-                <img :key="galleryIndex" :src="venueImages[galleryIndex].url" :alt="venueImages[galleryIndex].caption" class="position-absolute w-100 h-100" style="object-fit:cover;top:0;left:0;"/>
+                <img :key="galleryIndex" :src="venueImages[galleryIndex]?.url" :alt="venueImages[galleryIndex]?.caption" class="position-absolute w-100 h-100" style="object-fit:cover;top:0;left:0;"/>
               </transition>
               <div class="position-absolute bottom-0 start-0 end-0" style="height:110px;background:linear-gradient(to top,rgba(0,0,0,.72) 0%,transparent 100%);pointer-events:none;z-index:2"></div>
               <div class="position-absolute bottom-0 start-0 px-4 pb-3" style="z-index:3">
                 <span class="text-white fw-semibold d-flex align-items-center gap-2" style="font-size:14px;text-shadow:0 1px 6px rgba(0,0,0,.6)">
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  {{ venueImages[galleryIndex].caption }}
+                  {{ venueImages[galleryIndex]?.caption || 'Ảnh không có mô tả' }}
                 </span>
               </div>
               <div class="position-absolute bottom-0 start-0 end-0 d-flex justify-content-center gap-1 pb-3" style="z-index:3;pointer-events:none">
@@ -286,6 +373,24 @@
             <span class="fw-semibold small">{{ d.day }}</span>
             <span class="fw-bold small" :class="d.isClosed?'text-danger':'text-success'">{{ d.isClosed?'Đóng cửa':`${d.open} – ${d.close}` }}</span>
           </div>
+
+          <!-- BẢN ĐỒ VỊ TRÍ -->
+          <h5 class="fw-bold mt-4 mb-3">Vị trí & Bản đồ</h5>
+          <div class="mb-3 d-flex align-items-center gap-2 text-muted small fw-semibold" style="line-height: 1.5">
+            <svg style="flex-shrink:0" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            {{ venue.address }}
+          </div>
+          <div class="rounded-3 overflow-hidden border shadow-sm" style="height: 320px;">
+            <iframe 
+              v-if="venue.address"
+              width="100%" 
+              height="100%" 
+              frameborder="0" 
+              style="border:0"
+              :src="`https://maps.google.com/maps?q=${encodeURIComponent(venue.address)}&hl=vi&z=15&output=embed`" 
+              allowfullscreen>
+            </iframe>
+          </div>
         </div>
         <div class="col-lg-4">
           <div class="vdp-sidebar card border-0">
@@ -295,12 +400,8 @@
         </div>
       </div>
 
-      <!-- ═══════════════════════════════════════════════════════ -->
-      <!-- REVIEW TAB                                              -->
-      <!-- ═══════════════════════════════════════════════════════ -->
+      <!-- REVIEW TAB -->
       <div v-if="activeTab==='review'" class="bg-white rounded-bottom-3 shadow-sm">
-
-        <!-- ── Tổng quan điểm ── -->
         <div v-if="reviews.length > 0" class="vdp-rv-summary px-4 pt-4 pb-3 border-bottom">
           <div class="row align-items-center g-4">
             <div class="col-auto">
@@ -323,15 +424,7 @@
           </div>
         </div>
 
-        <!-- ══════════════════════════════════════════════════════
-             PHẦN VIẾT ĐÁNH GIÁ — có 3 trạng thái:
-             1. Chưa xác thực → form nhập SĐT kiểm tra
-             2. Xác thực thành công (đã đặt) → form viết đánh giá
-             3. Xác thực thất bại (chưa đặt) → thông báo khoá
-        ════════════════════════════════════════════════════════ -->
         <div class="px-4 pt-4 pb-4 border-bottom">
-
-          <!-- ── TRẠNG THÁI 1: Chưa xác thực ── -->
           <div v-if="reviewAuthState === 'idle'">
             <h6 class="fw-black mb-1" style="font-size:15px">Viết đánh giá của bạn</h6>
             <p class="text-muted small mb-3">Chỉ khách hàng đã đặt sân tại đây mới có thể đánh giá.</p>
@@ -347,17 +440,12 @@
               </div>
               <div class="d-flex gap-2">
                 <input v-model="authPhone" type="tel" class="form-control form-control-sm flex-grow-1" placeholder="Nhập số điện thoại đã đặt sân..." @keyup.enter="checkBookingHistory"/>
-                <button class="btn btn-success btn-sm fw-bold px-3" :disabled="!authPhone" @click="checkBookingHistory">
-                  Xác nhận
-                </button>
+                <button class="btn btn-success btn-sm fw-bold px-3" :disabled="!authPhone" @click="checkBookingHistory">Xác nhận</button>
               </div>
             </div>
           </div>
 
-          <!-- ── TRẠNG THÁI 2: Đã xác thực — form viết đánh giá ── -->
           <div v-else-if="reviewAuthState === 'verified'">
-
-            <!-- Badge xác thực -->
             <div class="d-flex align-items-center justify-content-between mb-4">
               <h6 class="fw-black mb-0" style="font-size:15px">Viết đánh giá của bạn</h6>
               <div class="vdp-rv-verified-badge d-flex align-items-center gap-2">
@@ -368,19 +456,13 @@
                 </button>
               </div>
             </div>
-
-            <!-- Chọn sao -->
             <div class="mb-3">
               <label class="form-label small fw-bold mb-2">Chất lượng sân <span class="text-danger">*</span></label>
               <div class="d-flex align-items-center gap-1">
                 <button v-for="s in 5" :key="s" class="vdp-star-btn" :class="{'vdp-star-btn--filled':s<=(reviewHover||reviewForm.rating)}" @mouseenter="reviewHover=s" @mouseleave="reviewHover=0" @click="reviewForm.rating=s">★</button>
-                <span class="ms-2 small fw-bold" :style="{color:reviewForm.rating?'#f59e0b':'#94a3b8'}">
-                  {{ ['','Tệ','Không tốt','Bình thường','Tốt','Xuất sắc 🎉'][reviewForm.rating||0]||'Chọn số sao' }}
-                </span>
+                <span class="ms-2 small fw-bold" :style="{color:reviewForm.rating?'#f59e0b':'#94a3b8'}">{{ ['','Tệ','Không tốt','Bình thường','Tốt','Xuất sắc 🎉'][reviewForm.rating||0]||'Chọn số sao' }}</span>
               </div>
             </div>
-
-            <!-- Tên + tiêu đề -->
             <div class="row g-2 mb-2">
               <div class="col-md-6">
                 <label class="form-label small fw-bold mb-1">Họ tên <span class="text-danger">*</span></label>
@@ -391,14 +473,10 @@
                 <input v-model="reviewForm.title" type="text" class="form-control form-control-sm" placeholder="Sân đẹp, dịch vụ tốt..."/>
               </div>
             </div>
-
-            <!-- Nội dung -->
             <div class="mb-3">
               <label class="form-label small fw-bold mb-1">Nội dung <span class="text-danger">*</span></label>
               <textarea v-model="reviewForm.content" class="form-control form-control-sm" rows="3" placeholder="Chia sẻ trải nghiệm về chất lượng sân, dịch vụ, mặt cỏ..."></textarea>
             </div>
-
-            <!-- Upload ảnh -->
             <div class="mb-4">
               <label class="form-label small fw-bold mb-2">Đính kèm hình ảnh <span class="text-muted fw-normal">(tối đa 5 ảnh)</span></label>
               <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -413,8 +491,6 @@
                 </label>
               </div>
             </div>
-
-            <!-- Nút gửi -->
             <div class="d-flex justify-content-end">
               <button class="btn btn-success fw-bold px-5" :disabled="!reviewForm.rating||!reviewForm.author||!reviewForm.content" @click="submitReview">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -423,31 +499,21 @@
             </div>
           </div>
 
-          <!-- ── TRẠNG THÁI 3: Chưa đặt sân → bị khoá ── -->
           <div v-else-if="reviewAuthState === 'denied'">
             <div class="vdp-rv-locked-box p-4 rounded-3 text-center">
               <div class="vdp-rv-locked-icon mx-auto mb-3">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
               </div>
               <h6 class="fw-black mb-1">Bạn chưa có lịch sử đặt sân</h6>
-              <p class="text-muted small mb-3">
-                Số điện thoại <strong>{{ authPhone }}</strong> chưa từng đặt sân tại đây.<br>
-                Chỉ khách hàng đã đặt sân mới được để lại đánh giá.
-              </p>
+              <p class="text-muted small mb-3">Số điện thoại <strong>{{ authPhone }}</strong> chưa từng đặt sân tại đây.<br>Chỉ khách hàng đã đặt sân mới được để lại đánh giá.</p>
               <div class="d-flex gap-2 justify-content-center flex-wrap">
-                <button class="btn btn-success btn-sm fw-bold px-4" @click="activeTab='booking'">
-                  Đặt sân ngay →
-                </button>
-                <button class="btn btn-outline-secondary btn-sm" @click="resetAuth">
-                  Thử số khác
-                </button>
+                <button class="btn btn-success btn-sm fw-bold px-4" @click="activeTab='booking'">Đặt sân ngay →</button>
+                <button class="btn btn-outline-secondary btn-sm" @click="resetAuth">Thử số khác</button>
               </div>
             </div>
           </div>
-
         </div>
 
-        <!-- ── Danh sách đánh giá ── -->
         <div class="px-4 py-4">
           <div v-if="reviews.length===0" class="text-center py-5 text-muted">
             <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" class="d-block mx-auto mb-3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -470,7 +536,6 @@
                   <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                       <span class="fw-bold small">{{ rv.author }}</span>
-                      <!-- Badge đã đặt sân — luôn hiển thị vì chỉ người đặt mới review được -->
                       <span class="vdp-rv-verified-tag">
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                         Đã đặt sân
@@ -511,123 +576,52 @@
         <div class="vdp-lightbox__counter">{{ lightbox.index+1 }} / {{ lightbox.images.length }}</div>
       </div>
     </transition>
-
-    <!-- BOOKING MODAL -->
-    <transition name="fade">
-      <div class="modal d-block vdp-modal-bg" v-if="showModal" @click.self="showModal=false">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-          <div class="modal-content rounded-4 border-0 shadow-lg">
-            <div class="modal-header border-0 pb-0"><button class="btn-close" @click="showModal=false"></button></div>
-            <div class="modal-body px-4 pb-4">
-              <div v-if="!bookingDone">
-                <div class="bg-success-subtle text-success rounded-3 d-flex align-items-center justify-content-center mb-3" style="width:52px;height:52px">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                </div>
-                <h5 class="fw-black mb-3">Xác nhận đặt sân</h5>
-                <div class="bg-light rounded-3 p-3 mb-3" style="max-height:250px;overflow-y:auto">
-                  <div v-for="(row,i) in modalRows" :key="i" class="d-flex justify-content-between small py-1 border-bottom border-light">
-                    <span class="text-muted">{{ row.label }}</span>
-                    <strong :style="row.color?`color:${row.color}`:''">>{{ row.value }}</strong>
-                  </div>
-                </div>
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                  <span class="fw-bold">Tổng thanh toán</span>
-                  <span class="fw-black text-success fs-4">{{ formatPrice(grandTotal) }} đ</span>
-                </div>
-                <div class="d-flex gap-2">
-                  <button class="btn btn-outline-secondary flex-fill" @click="showModal=false">Hủy bỏ</button>
-                  <button class="btn btn-success flex-fill fw-bold" @click="confirmBooking">Xác nhận đặt sân</button>
-                </div>
-              </div>
-              <div v-else class="text-center py-3">
-                <div class="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3" style="width:72px;height:72px;animation:pop .4s cubic-bezier(.175,.885,.32,1.275)">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <h5 class="fw-black mb-2">Đặt sân thành công!</h5>
-                <p class="text-muted">Xác nhận gửi đến <strong>{{ form.phone }}</strong>.<br>Hẹn gặp bạn tại sân!</p>
-                <button class="btn btn-success w-100 fw-bold mt-2" @click="closeSuccess">Về trang chủ</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-
   </div>
 </template>
 
 <script>
 import '@/assets/vdp.css'
+import { clubService } from '@/services/club.service.js';
 export default {
   name: 'VenueDetailView',
 
   data() {
     return {
       activeTab: 'booking',
-      showModal: false,
-      bookingDone: false,
       dateOffset: 0,
-      selectedCourtId: null,
-      selectedSlots: [],
+
+      // ── MULTI-COURT SELECTION ────────────────────────────────────
+      // Danh sách id các sân đang được chọn (thay cho selectedCourtId đơn)
+      selectedCourtIds: [],
+      // Map { courtId: [slot, slot, ...] } — slot đã chọn theo từng sân
+      selectedSlotsByCourtId: {},
+      // Sân đang được hiển thị/edit trong Grid view
+      activeEditCourtId: null,
+
       selectedServices: [],
       svcOpen: false,
       slotView: 'grid',
 
       // ── Gallery ──────────────────────────────────────────────────
       galleryIndex: 0,
-      venueImages: [
-        { url: 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=1200&h=700&fit=crop', caption: 'Sân 7 – Số 1 ban ngày' },
-        { url: 'https://images.unsplash.com/photo-1551958219-acbc630e2914?w=1200&h=700&fit=crop', caption: 'Sân 7 – Số 2 ban đêm' },
-        { url: 'https://images.unsplash.com/photo-1459865264687-595d652de67e?w=1200&h=700&fit=crop', caption: 'Sân 11 – Chính diện' },
-        { url: 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?w=1200&h=700&fit=crop', caption: 'Góc sân & khán đài' },
-        { url: 'https://images.unsplash.com/photo-1508098682722-e99c643e7f0e?w=1200&h=700&fit=crop', caption: 'Khu vực canteen' },
-        { url: 'https://images.unsplash.com/photo-1580711508444-cbdb49025ecf?w=1200&h=700&fit=crop', caption: 'Phòng thay đồ' },
-      ],
+      venueImages: [],
+
+      // ── Loading state ─────────────────────────────────────────────
+      venueLoading: true,
+      slotsLoading: false,
 
       // ── Review Auth ──────────────────────────────────────────────
-      // 'idle' | 'verified' | 'denied'
       reviewAuthState: 'idle',
       authPhone: '',
-      // Danh sách SĐT đã đặt sân thành công (thực tế lấy từ backend)
-      // Trong demo: khởi tạo sẵn 1 số, và tự động thêm khi user đặt thành công
-      bookedPhones: ['0901234567'],
+      bookedPhones: [],
 
       // ── Review Form ──────────────────────────────────────────────
       reviewHover: 0,
       reviewSort: 'newest',
       reviewForm: { rating: 0, author: '', title: '', content: '', images: [] },
-      reviews: [
-        {
-          id: 1, author: 'Trần Minh Khoa', rating: 5, date: '20/03/2026',
-          title: 'Sân cực đỉnh, dịch vụ tốt!',
-          content: 'Mặt cỏ nhân tạo rất tốt, không trơn trượt. Đèn chiếu sáng ban đêm cực kỳ sáng và đều. Nhân viên nhiệt tình, bãi xe rộng. Sẽ quay lại!',
-          images: [
-            'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?w=400&h=300&fit=crop',
-            'https://images.unsplash.com/photo-1551958219-acbc630e2914?w=400&h=300&fit=crop',
-          ],
-          likes: 12,
-        },
-        {
-          id: 2, author: 'Lê Hoàng Nam', rating: 4, date: '18/03/2026',
-          title: 'Tốt, giá hơi cao vào cuối tuần',
-          content: 'Sân sạch sẽ, thoáng mát. Dịch vụ cho thuê bóng và giày khá ổn. Chỉ tiếc giá cuối tuần hơi đắt so với các sân cùng khu vực.',
-          images: [],
-          likes: 5,
-        },
-        {
-          id: 3, author: 'Phạm Thị Lan', rating: 5, date: '15/03/2026',
-          title: null,
-          content: 'Đặt sân online rất tiện lợi. Hệ thống thanh toán nhanh chóng. Sân đẹp, phù hợp cho cả đội bóng nghiệp dư lẫn chuyên nghiệp. Rất hài lòng!',
-          images: ['https://images.unsplash.com/photo-1459865264687-595d652de67e?w=400&h=300&fit=crop'],
-          likes: 8,
-        },
-      ],
+      reviews: [],
 
-      // Lightbox
-      lightbox: { show: false, images: [], index: 0 },
-
-      // ── Timeline ────────────────────────────────────────────────
-      tlHours: [5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15,15.5,16,16.5,17,17.5,18,18.5,19,19.5,20,20.5,21],
+      lightbox: { show: false, images: [], index: 0 },      tlHours: [5,5.5,6,6.5,7,7.5,8,8.5,9,9.5,10,10.5,11,11.5,12,12.5,13,13.5,14,14.5,15,15.5,16,16.5,17,17.5,18,18.5,19,19.5,20,20.5,21],
 
       voucherApplied: false,
       voucherError: false,
@@ -649,98 +643,42 @@ export default {
         { id:'s6', name:'Thuê bóng đá',           price: 30000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 00-6.88 17.19L12 12l6.88 7.19A10 10 0 0012 2z"/></svg>' },
       ],
 
+      // ── Venue data (fetched from API) ──────────────────────────
+      clubId: '',
+      venueSlug: '',
       venue: {
-        name: 'Sân bóng đá cỏ nhân tạo Thành Phát',
-        address: 'Số 2 Đ. Hoàng Minh Giám, Trung Hòa, Cầu Giấy, Hà Nội',
-        image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=1200&h=600&fit=crop',
-        description: 'Sân bóng Thành Phát là một trong những cụm sân bóng cỏ nhân tạo chất lượng hàng đầu tại Hà Nội. Hệ thống sân được bảo trì định kỳ, chiếu sáng hiện đại.',
-        amenities: [
-          {id:1,name:'WiFi miễn phí'},{id:2,name:'Bãi đỗ xe ô tô'},
-          {id:3,name:'Canteen & Đồ uống'},{id:4,name:'Phòng thay đồ'},{id:5,name:'Thuê giày & bóng'},
-        ],
-        courts: [
-          {id:'c1',name:'Sân 7 – Số 1',  basePrice:225000},
-          {id:'c2',name:'Sân 7 – Số 2',  basePrice:225000},
-          {id:'c3',name:'Sân 11 – Chính',basePrice:600000},
-        ],
-        openingHours: [
-          {day:'Thứ Hai', open:'05:00',close:'23:00',isClosed:false},
-          {day:'Thứ Ba',  open:'05:00',close:'23:00',isClosed:false},
-          {day:'Thứ Tư',  open:'05:00',close:'23:00',isClosed:false},
-          {day:'Thứ Năm', open:'05:00',close:'23:00',isClosed:false},
-          {day:'Thứ Sáu', open:'05:00',close:'23:00',isClosed:false},
-          {day:'Thứ Bảy', open:'05:00',close:'24:00',isClosed:false},
-          {day:'Chủ Nhật',open:'05:00',close:'24:00',isClosed:false},
-        ],
+        name: '',
+        address: '',
+        image: '',
+        description: '',
+        amenities: [],
+        courts: [],
+        openingHours: [],
       },
 
-      allSlots: {
-        c1: [
-          {id:'c1-1', time:'05:00 – 05:30',price:150000,status:'AVAILABLE'},
-          {id:'c1-2', time:'05:30 – 06:00',price:150000,status:'AVAILABLE'},
-          {id:'c1-3', time:'06:00 – 06:30',price:175000,status:'AVAILABLE'},
-          {id:'c1-4', time:'06:30 – 07:00',price:175000,status:'AVAILABLE'},
-          {id:'c1-5', time:'07:00 – 07:30',price:225000,status:'BOOKED'},
-          {id:'c1-6', time:'07:30 – 08:00',price:225000,status:'BOOKED'},
-          {id:'c1-7', time:'08:00 – 08:30',price:200000,status:'BOOKED'},
-          {id:'c1-8', time:'08:30 – 09:00',price:200000,status:'AVAILABLE'},
-          {id:'c1-9', time:'09:00 – 09:30',price:180000,status:'AVAILABLE'},
-          {id:'c1-10',time:'09:30 – 10:00',price:180000,status:'AVAILABLE'},
-          {id:'c1-11',time:'16:00 – 16:30',price:300000,status:'AVAILABLE'},
-          {id:'c1-12',time:'16:30 – 17:00',price:300000,status:'AVAILABLE'},
-          {id:'c1-13',time:'17:00 – 17:30',price:400000,status:'AVAILABLE'},
-          {id:'c1-14',time:'17:30 – 18:00',price:400000,status:'AVAILABLE'},
-          {id:'c1-15',time:'18:00 – 18:30',price:400000,status:'AVAILABLE'},
-          {id:'c1-16',time:'18:30 – 19:00',price:400000,status:'BOOKED'},
-          {id:'c1-17',time:'19:00 – 19:30',price:400000,status:'AVAILABLE'},
-          {id:'c1-18',time:'19:30 – 20:00',price:400000,status:'AVAILABLE'},
-          {id:'c1-19',time:'20:00 – 20:30',price:250000,status:'AVAILABLE'},
-          {id:'c1-20',time:'20:30 – 21:00',price:250000,status:'AVAILABLE'},
-        ],
-        c2: [
-          {id:'c2-1', time:'05:00 – 05:30',price:150000,status:'AVAILABLE'},
-          {id:'c2-2', time:'05:30 – 06:00',price:150000,status:'AVAILABLE'},
-          {id:'c2-3', time:'06:00 – 06:30',price:175000,status:'AVAILABLE'},
-          {id:'c2-4', time:'06:30 – 07:00',price:175000,status:'AVAILABLE'},
-          {id:'c2-5', time:'07:00 – 07:30',price:225000,status:'AVAILABLE'},
-          {id:'c2-6', time:'07:30 – 08:00',price:225000,status:'BOOKED'},
-          {id:'c2-7', time:'08:00 – 08:30',price:200000,status:'BOOKED'},
-          {id:'c2-8', time:'08:30 – 09:00',price:200000,status:'AVAILABLE'},
-          {id:'c2-9', time:'09:00 – 09:30',price:180000,status:'AVAILABLE'},
-          {id:'c2-10',time:'09:30 – 10:00',price:180000,status:'AVAILABLE'},
-          {id:'c2-11',time:'16:00 – 16:30',price:300000,status:'AVAILABLE'},
-          {id:'c2-12',time:'16:30 – 17:00',price:300000,status:'BOOKED'},
-          {id:'c2-13',time:'17:00 – 17:30',price:400000,status:'BOOKED'},
-          {id:'c2-14',time:'17:30 – 18:00',price:400000,status:'AVAILABLE'},
-          {id:'c2-15',time:'18:00 – 18:30',price:400000,status:'AVAILABLE'},
-          {id:'c2-16',time:'18:30 – 19:00',price:400000,status:'AVAILABLE'},
-          {id:'c2-17',time:'19:00 – 19:30',price:400000,status:'AVAILABLE'},
-          {id:'c2-18',time:'19:30 – 20:00',price:400000,status:'BOOKED'},
-          {id:'c2-19',time:'20:00 – 20:30',price:250000,status:'AVAILABLE'},
-          {id:'c2-20',time:'20:30 – 21:00',price:250000,status:'AVAILABLE'},
-        ],
-        c3: [
-          {id:'c3-1', time:'06:00 – 06:30',price:400000,status:'AVAILABLE'},
-          {id:'c3-2', time:'06:30 – 07:00',price:400000,status:'AVAILABLE'},
-          {id:'c3-3', time:'07:00 – 07:30',price:500000,status:'BOOKED'},
-          {id:'c3-4', time:'07:30 – 08:00',price:500000,status:'BOOKED'},
-          {id:'c3-5', time:'15:00 – 15:30',price:550000,status:'AVAILABLE'},
-          {id:'c3-6', time:'15:30 – 16:00',price:550000,status:'AVAILABLE'},
-          {id:'c3-7', time:'16:00 – 16:30',price:600000,status:'AVAILABLE'},
-          {id:'c3-8', time:'16:30 – 17:00',price:600000,status:'AVAILABLE'},
-          {id:'c3-9', time:'17:00 – 17:30',price:600000,status:'BOOKED'},
-          {id:'c3-10',time:'17:30 – 18:00',price:600000,status:'BOOKED'},
-          {id:'c3-11',time:'18:00 – 18:30',price:600000,status:'AVAILABLE'},
-          {id:'c3-12',time:'18:30 – 19:00',price:600000,status:'AVAILABLE'},
-          {id:'c3-13',time:'19:00 – 19:30',price:600000,status:'AVAILABLE'},
-          {id:'c3-14',time:'19:30 – 20:00',price:600000,status:'AVAILABLE'},
-          {id:'c3-15',time:'20:00 – 20:30',price:500000,status:'AVAILABLE'},
-          {id:'c3-16',time:'20:30 – 21:00',price:500000,status:'AVAILABLE'},
-        ],
-      },
+      // ── Slots (fetched from API per date) ─────────────────────
+      allSlots: {},
 
       validVouchers: { 'GIAM50K':50000,'WELCOME':100000,'VIP2026':200000 },
     };
+  },
+
+  watch: {
+    dateOffset() {
+      // Khi đổi ngày → fetch lại slots + reset selection
+      const resetSlots = {};
+      this.selectedCourtIds.forEach(id => { resetSlots[id] = []; });
+      this.selectedSlotsByCourtId = { ...resetSlots };
+      this.fetchSlots();
+    },
+  },
+
+  async mounted() {
+    this.venueSlug = this.$route.params.id;
+    if (this.venueSlug) {
+      await this.fetchVenueData();
+      await this.fetchSlots();
+    }
   },
 
   computed: {
@@ -750,24 +688,32 @@ export default {
     },
     selectedDate()          { return this.nextSevenDays[this.dateOffset]?.full||''; },
     selectedDateFormatted() { if(!this.selectedDate)return''; const[y,m,d]=this.selectedDate.split('-'); return`${d}/${m}/${y}`; },
-    selectedCourtName()     { return this.venue.courts.find(c=>c.id===this.selectedCourtId)?.name||''; },
-    filteredSlots()         { return this.allSlots[this.selectedCourtId]||[]; },
-    courtTotal()            { return this.selectedSlots.reduce((s,sl)=>s+sl.price,0); },
-    serviceTotal()          { return this.selectedServices.reduce((s,id)=>s+this.getServicePrice(id),0); },
-    grandTotal()            { return Math.max(0,this.courtTotal+this.serviceTotal-this.discount); },
-    mergedSlots() {
-      if(!this.selectedSlots.length)return[];
-      const sorted=[...this.selectedSlots].sort((a,b)=>this.slotStart(a)-this.slotStart(b));
-      const groups=[];let cur=null;
-      sorted.forEach(slot=>{const start=this.slotStart(slot),end=this.slotEnd(slot);if(cur&&Math.abs(cur.end-start)<0.01){cur.end=end;cur.price+=slot.price;cur.slots.push(slot);}else{if(cur)groups.push(cur);cur={start,end,price:slot.price,slots:[slot]};}});
-      if(cur)groups.push(cur);
-      return groups.map(g=>({timeLabel:`${this.tlFmtHour(g.start)} – ${this.tlFmtHour(g.end)}`,price:g.price,slots:g.slots}));
+
+    // Các court object đang được chọn
+    selectedCourts() {
+      return this.venue.courts.filter(c => this.selectedCourtIds.includes(c.id));
     },
-    modalRows() {
-      const rows=[{label:'Địa điểm',value:this.venue.name},{label:'Ngày',value:this.selectedDateFormatted},{label:'Sân',value:this.selectedCourtName},{label:'Khách hàng',value:this.form.name},{label:'Điện thoại',value:this.form.phone},...(this.form.email?[{label:'Email',value:this.form.email}]:[]),...this.mergedSlots.map(g=>({label:g.timeLabel,value:`${this.formatPrice(g.price)} đ`,color:'#16a34a'})),...this.selectedServices.map(id=>({label:this.getServiceName(id),value:`${this.formatPrice(this.getServicePrice(id))} đ`,color:'#16a34a'}))];
-      if(this.discount>0)rows.push({label:'Giảm giá',value:`– ${this.formatPrice(this.discount)} đ`,color:'#ef4444'});
-      return rows;
+
+    // Slots hiển thị trong grid cho sân đang active
+    gridSlotsForActiveCourt() {
+      return this.allSlots[this.activeEditCourtId] || [];
     },
+
+    // Tổng số slot đã chọn trên tất cả sân
+    totalSelectedSlotsCount() {
+      return Object.values(this.selectedSlotsByCourtId).reduce((sum, slots) => sum + slots.length, 0);
+    },
+
+    // Tổng tiền sân (tất cả sân)
+    courtTotal() {
+      return Object.entries(this.selectedSlotsByCourtId).reduce((sum, [, slots]) => {
+        return sum + slots.reduce((s, sl) => s + sl.price, 0);
+      }, 0);
+    },
+
+    serviceTotal() { return this.selectedServices.reduce((s,id)=>s+this.getServicePrice(id),0); },
+    grandTotal()   { return Math.max(0, this.courtTotal + this.serviceTotal - this.discount); },
+
     avgRating() { return this.reviews.length?this.reviews.reduce((s,r)=>s+r.rating,0)/this.reviews.length:0; },
     sortedReviews() {
       const r=[...this.reviews];
@@ -778,21 +724,176 @@ export default {
     },
   },
 
-  created() { this.selectedCourtId=this.venue.courts[0].id; },
-
   methods: {
+    async fetchVenueData() {
+      try {
+        this.venueLoading = true;
+        const res = await clubService.getClubBySlug(this.venueSlug);
+        if (res.data && res.data.data) {
+          const apiClub = res.data.data;
+          this.clubId = apiClub.id;
+          
+          this.venue = {
+            name: apiClub.name || '',
+            address: `${apiClub.address}, ${apiClub.ward ? apiClub.ward + ', ' : ''}${apiClub.district}, ${apiClub.city}`,
+            image: apiClub.coverImageUrl || '',
+            description: apiClub.description || '',
+            amenities: apiClub.amenities?.map(a => ({
+              id: a.amenity.id, name: a.amenity.name, icon: a.amenity.icon
+            })) || [],
+            courts: apiClub.courts?.map(c => ({
+              id: c.id, 
+              name: c.name, 
+              basePrice: c.pricings?.[0]?.pricePerHour ? Number(c.pricings[0].pricePerHour) : 0
+            })) || [],
+            openingHours: apiClub.openingHours?.map(h => {
+              const days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+              const open = new Date(h.openTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+              const close = new Date(h.closeTime).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'});
+              return {
+                day: days[h.dayOfWeek],
+                open,
+                close,
+                isClosed: h.isClosed
+              }
+            }) || []
+          };
+          
+          // Set venueImages if empty
+          if (this.venueImages.length === 0 && apiClub.images) {
+            this.venueImages = apiClub.images.map(img => ({
+              url: img.url,
+              caption: img.caption || 'Hình ảnh sân'
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching venue:", err);
+      } finally {
+        this.venueLoading = false;
+      }
+    },
+
+    async fetchSlots() {
+      if (!this.venueSlug || !this.selectedDate) return;
+      try {
+        this.slotsLoading = true;
+        const res = await clubService.getSlotsByClub(this.venueSlug, this.selectedDate);
+        if (res.data && res.data.data) {
+          const courtsData = res.data.data.courts || [];
+          const newAllSlots = {};
+          
+          courtsData.forEach(court => {
+            newAllSlots[court.id] = court.slots.map(slot => ({
+              id: slot.id,
+              time: slot.time,
+              price: slot.price,
+              status: slot.status
+            }));
+          });
+          
+          this.allSlots = newAllSlots;
+          
+          // Cập nhật selectedCourtIds nếu chưa có (chọn sân đầu tiên làm default)
+          if (this.venue.courts && this.venue.courts.length > 0 && this.selectedCourtIds.length === 0) {
+              const defaultCourtId = this.venue.courts[0].id;
+              this.toggleCourt(defaultCourtId);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching slots:", err);
+      } finally {
+        this.slotsLoading = false;
+      }
+    },
+
     formatPrice(v)      { return new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0}).format(v); },
+    getCourtName(id)    { return this.venue.courts.find(c=>c.id===id)?.name||''; },
     getServiceName(id)  { return this.services.find(s=>s.id===id)?.name||''; },
     getServicePrice(id) { return this.services.find(s=>s.id===id)?.price||0; },
     parseHour(t)        { const[h,m]=t.split(':').map(Number);return h+m/60; },
     slotStart(slot)     { return this.parseHour(slot.time.split(' – ')[0]); },
     slotEnd(slot)       { return this.parseHour(slot.time.split(' – ')[1]); },
     tlFmtHour(h)        { return`${String(Math.floor(h)).padStart(2,'0')}:${h%1===0.5?'30':'00'}`; },
-    selectCourt(id)     { this.selectedCourtId=id;this.selectedSlots=[]; },
-    isSlotSelected(slot){ return this.selectedSlots.some(x=>x.id===slot.id); },
-    toggleSlot(slot)    { if(slot.status==='BOOKED'||slot.status==='LOCKED')return;const i=this.selectedSlots.findIndex(x=>x.id===slot.id);if(i>-1)this.selectedSlots.splice(i,1);else this.selectedSlots.push(slot); },
+
+    // ── MULTI-COURT SELECTION ────────────────────────────────────
+    isCourtSelected(id) { return this.selectedCourtIds.includes(id); },
+
+    toggleCourt(id) {
+      const i = this.selectedCourtIds.indexOf(id);
+      if (i > -1) {
+        // Bỏ chọn sân → xoá slot của sân đó
+        this.selectedCourtIds.splice(i, 1);
+        const newSlots = { ...this.selectedSlotsByCourtId };
+        delete newSlots[id];
+        this.selectedSlotsByCourtId = newSlots;
+        
+        // Nếu activeEditCourtId bị xoá → chuyển sang sân đầu tiên còn lại
+        if (this.activeEditCourtId === id) {
+          this.activeEditCourtId = this.selectedCourtIds[0] || null;
+        }
+      } else {
+        // Thêm sân
+        this.selectedCourtIds.push(id);
+        if (!this.selectedSlotsByCourtId[id]) {
+          this.selectedSlotsByCourtId = { ...this.selectedSlotsByCourtId, [id]: [] };
+        }
+        // Auto-focus vào sân mới chọn
+        this.activeEditCourtId = id;
+      }
+    },
+
+    clearAllSlots() {
+      const reset = {};
+      this.selectedCourtIds.forEach(id => { reset[id] = []; });
+      this.selectedSlotsByCourtId = reset;
+    },
+
+    // ── SLOT SELECTION (theo courtId) ────────────────────────────
+    isSlotSelected(courtId, slot) {
+      return (this.selectedSlotsByCourtId[courtId] || []).some(x => x.id === slot.id);
+    },
+
+    toggleSlot(courtId, slot) {
+      if (slot.status === 'BOOKED' || slot.status === 'LOCKED') return;
+      
+      const currentSlots = this.selectedSlotsByCourtId[courtId] || [];
+      const slots = [...currentSlots];
+      
+      const i = slots.findIndex(x => x.id === slot.id);
+      if (i > -1) slots.splice(i, 1);
+      else slots.push(slot);
+      
+      // Force UI reactivity via new object reference
+      this.selectedSlotsByCourtId = { 
+        ...this.selectedSlotsByCourtId, 
+        [courtId]: slots 
+      };
+    },
+
+    // Tổng tiền cho 1 sân cụ thể
+    courtTotalByCourt(courtId) {
+      return (this.selectedSlotsByCourtId[courtId] || []).reduce((s, sl) => s + sl.price, 0);
+    },
+
+    // Merge các slot liên tiếp của 1 sân thành các segment (giống mergedSlots cũ)
+    mergedSlotsByCourt(courtId) {
+      const slots = this.selectedSlotsByCourtId[courtId] || [];
+      if (!slots.length) return [];
+      const sorted = [...slots].sort((a, b) => this.slotStart(a) - this.slotStart(b));
+      const groups = []; let cur = null;
+      sorted.forEach(slot => {
+        const start = this.slotStart(slot), end = this.slotEnd(slot);
+        if (cur && Math.abs(cur.end - start) < 0.01) { cur.end = end; cur.price += slot.price; cur.slots.push(slot); }
+        else { if (cur) groups.push(cur); cur = { start, end, price: slot.price, slots: [slot] }; }
+      });
+      if (cur) groups.push(cur);
+      return groups.map(g => ({ timeLabel: `${this.tlFmtHour(g.start)} – ${this.tlFmtHour(g.end)}`, price: g.price, slots: g.slots }));
+    },
+
     isServiceSelected(id){ return this.selectedServices.includes(id); },
-    toggleService(id)   { const i=this.selectedServices.indexOf(id);if(i>-1)this.selectedServices.splice(i,1);else this.selectedServices.push(id); },
+    toggleService(id)    { const i=this.selectedServices.indexOf(id);if(i>-1)this.selectedServices.splice(i,1);else this.selectedServices.push(id); },
+
     applyVoucher() {
       const code=this.form.voucher.trim().toUpperCase();
       if(this.validVouchers[code]){this.discount=this.validVouchers[code];this.voucherApplied=true;this.voucherError=false;}
@@ -807,15 +908,11 @@ export default {
     checkBookingHistory() {
       const phone = this.authPhone.trim().replace(/\s/g,'');
       if(!phone) return;
-      // Chuẩn hoá số: bỏ khoảng trắng, so sánh không phân biệt format
       const normalize = p => p.replace(/[\s\-\.]/g,'');
       const matched = this.bookedPhones.some(p => normalize(p) === normalize(phone));
       this.reviewAuthState = matched ? 'verified' : 'denied';
     },
-    resetAuth() {
-      this.reviewAuthState = 'idle';
-      this.authPhone = '';
-    },
+    resetAuth() { this.reviewAuthState='idle'; this.authPhone=''; },
 
     // ── Review ───────────────────────────────────────────────────
     ratingCount(star)   { return this.reviews.filter(r=>r.rating===star).length; },
@@ -831,7 +928,6 @@ export default {
       const now=new Date();
       this.reviews.unshift({id:Date.now(),author:this.reviewForm.author,rating:this.reviewForm.rating,title:this.reviewForm.title||null,content:this.reviewForm.content,images:[...this.reviewForm.images],date:`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`,likes:0});
       this.reviewForm={rating:0,author:'',title:'',content:'',images:[]};
-      // Sau khi submit reset về idle để tránh submit nhiều lần
       this.reviewAuthState='idle';
       this.authPhone='';
     },
@@ -841,28 +937,64 @@ export default {
     // ── Timeline ─────────────────────────────────────────────────
     tlBlockStyle(start,end) { const total=this.tlHours.length,iStart=this.tlHours.indexOf(start),iEnd=this.tlHours.indexOf(end),colEnd=iEnd===-1?total:iEnd;return{left:`calc(${(iStart/total)*100}% + 1px)`,width:`calc(${((colEnd-iStart)/total)*100}% - 3px)`}; },
     getTlBookedSegs(cid) { return(this.allSlots[cid]||[]).filter(s=>s.status==='BOOKED').map(s=>({start:this.slotStart(s),end:this.slotEnd(s)})); },
-    getTlSelectedSegs(cid) { const sel=this.selectedSlots.filter(s=>s.id.startsWith(cid)),segs=[];let cur=null;sel.forEach(s=>{const a=this.slotStart(s),b=this.slotEnd(s);if(cur&&cur.end===a){cur.end=b;}else{if(cur)segs.push(cur);cur={start:a,end:b};}});if(cur)segs.push(cur);return segs; },
+    getTlSelectedSegs(cid) {
+      const sel = this.selectedSlotsByCourtId[cid] || [];
+      const segs = []; let cur = null;
+      [...sel].sort((a,b)=>this.slotStart(a)-this.slotStart(b)).forEach(s=>{
+        const a=this.slotStart(s),b=this.slotEnd(s);
+        if(cur&&cur.end===a){cur.end=b;}else{if(cur)segs.push(cur);cur={start:a,end:b};}
+      });
+      if(cur)segs.push(cur);
+      return segs;
+    },
     isTlHourBooked(cid,h) { return(this.allSlots[cid]||[]).some(s=>s.status==='BOOKED'&&h>=this.slotStart(s)&&h<this.slotEnd(s)); },
     isTlHourNoSlot(cid,h) { return!(this.allSlots[cid]||[]).some(s=>h>=this.slotStart(s)&&h<this.slotEnd(s)); },
-    toggleTlHour(cid,h) { if(this.isTlHourNoSlot(cid,h)||this.isTlHourBooked(cid,h))return;if(cid!==this.selectedCourtId)this.selectCourt(cid);const slot=(this.allSlots[cid]||[]).find(s=>h>=this.slotStart(s)&&h<this.slotEnd(s));if(slot)this.toggleSlot(slot); },
-    removeTlSegment(cid,seg) { (this.allSlots[cid]||[]).filter(s=>this.slotStart(s)>=seg.start&&this.slotStart(s)<seg.end).forEach(s=>this.toggleSlot(s)); },
-
-    // ── Modal ────────────────────────────────────────────────────
-    handleBooking() { this.bookingDone=false;this.showModal=true; },
-    confirmBooking() {
-      // Lưu SĐT vào danh sách đã đặt thành công → có thể review
-      const phone = this.form.phone.trim();
-      if(phone && !this.bookedPhones.includes(phone)) {
-        this.bookedPhones.push(phone);
-      }
-      this.bookingDone=true;
+    toggleTlHour(cid,h) {
+      if(this.isTlHourNoSlot(cid,h)||this.isTlHourBooked(cid,h))return;
+      const slot=(this.allSlots[cid]||[]).find(s=>h>=this.slotStart(s)&&h<this.slotEnd(s));
+      if(slot) this.toggleSlot(cid, slot);
     },
-    closeSuccess() {
-      this.showModal=false;this.bookingDone=false;this.selectedSlots=[];this.selectedServices=[];
-      this.discount=0;this.voucherApplied=false;this.voucherError=false;
-      this.form={name:'',phone:'',email:'',note:'',voucher:''};
+    removeTlSegment(cid,seg) {
+      (this.allSlots[cid]||[]).filter(s=>this.slotStart(s)>=seg.start&&this.slotStart(s)<seg.end).forEach(s=>this.toggleSlot(cid, s));
+    },
+
+    // ── Booking ──────────────────────────────────────────────────
+    handleBooking() {
+      if (!this.totalSelectedSlotsCount) {
+        alert("Vui lòng chọn ít nhất 1 khung giờ!");
+        return;
+      }
+      // Gom tất cả slot của các sân thành 1 array flat để truyền sang checkout
+      const allSelectedSlots = Object.entries(this.selectedSlotsByCourtId).flatMap(([courtId, slots]) =>
+        slots.map(s => ({ ...s, courtId, courtName: this.getCourtName(courtId) }))
+      );
+      // Gom timeSlotIds thật (cuid) để gửi lên API booking
+      const timeSlotIds = allSelectedSlots.map(s => s.id);
+      // Gom services đầy đủ (id, name, price) thay vì chỉ gửi IDs
+      const selectedServicesData = this.selectedServices.map(sid => {
+        const svc = this.services.find(s => s.id === sid);
+        return svc ? { id: svc.id, name: svc.name, price: svc.price } : null;
+      }).filter(Boolean);
+      this.$router.push({
+        path: "/checkout",
+        query: {
+          club_id: this.clubId,
+          club_slug: this.$route.params.slug,
+          venue_name: this.venue.name,
+          courts: JSON.stringify(this.selectedCourtIds.map(id => ({ id, name: this.getCourtName(id) }))),
+          date: this.selectedDate,
+          slots: JSON.stringify(allSelectedSlots),
+          time_slot_ids: JSON.stringify(timeSlotIds),
+          services: JSON.stringify(selectedServicesData),
+          total: this.grandTotal,
+          name: this.form.name,
+          phone: this.form.phone,
+          email: this.form.email,
+          note: this.form.note,
+          voucher_code: this.voucherApplied ? this.form.voucher.trim().toUpperCase() : '',
+        }
+      });
     },
   },
 };
 </script>
-
