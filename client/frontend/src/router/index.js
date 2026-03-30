@@ -20,6 +20,30 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+  path: "/checkout",
+  name: "checkout",
+  component: () => import("../views/client/CheckoutView.vue"),
+  meta: { requiresAuth: true },
+  },
+    {
+  path: "/order",
+  name: "order",
+  component: () => import("../views/client/OrderManagement.vue"),
+  meta: { requiresAuth: true },
+  },
+   {
+  path: "/friend",
+  name: "friend",
+  component: () => import("../views/client/FindFriend.vue"),
+  meta: { requiresAuth: true },
+  },
+  {
+  path: "/blog",
+  name: "blog",
+  component: () => import("../views/client/BlogView.vue"),
+  meta: { requiresAuth: true },
+  },
+  {
     path: "/about",
     name: "about",
     component: () => import("../views/client/AboutView.vue"),

@@ -43,4 +43,13 @@ export const clubService = {
     Getallthedetails(clubId) {
         return api.get(`/owner/clubs/${clubId}`);
     },
+
+    /**
+     * Lấy danh sách time slots của tất cả sân trong CLB theo ngày
+     * @param {string} slug - Slug CLB
+     * @param {string} date - Ngày (YYYY-MM-DD)
+     */
+    getSlotsByClub(slug, date) {
+        return api.get(`/clubs/${slug}/slots`, { params: { date } });
+    },
 };
