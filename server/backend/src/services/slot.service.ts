@@ -27,7 +27,7 @@ export async function generateSlotsForCourt(courtId: string, date: Date) {
   const slotDuration = court.club.slotDuration;
   
   // 3. Chuẩn bị mốc thời gian Bắt đầu và Kết thúc của ngày hôm đó
-  // oh.openTime trong DB chỉ lấy phần Giờ:Phút (lưu dưới dạng Date năm 1970)
+  // oh.openTime trong DB chỉ lấy phần Giờ:Phút (lưu dưới dạng UTC Date năm 1970)
   const start = new Date(date);
   start.setHours(oh.openTime.getHours(), oh.openTime.getMinutes(), 0, 0);
 
