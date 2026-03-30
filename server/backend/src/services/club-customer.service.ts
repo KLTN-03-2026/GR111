@@ -91,3 +91,34 @@ export async function updateCustomerTier(
     data,
   });
 }
+
+/**
+ * Lấy lịch sử đặt sân chi tiết của một khách hàng tại CLB của chủ sân
+ */
+export async function getCustomerBookingHistory(clubId: string, userId: string, ownerId: string) {
+  // 1. Kiểm tra quyền truy cập CLB
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // 2. Truy vấn danh sách booking của khách này tại CLB
+  return prisma.booking.findMany({
+    where: {
+      clubId,
+      userId
+    },
+    include: {
+      items: {
+        include: {
+          timeSlot: {
+            include: { court: { select: { name: true } } }
+          }
+        }
+      },
+      payment: true,
+      review: true
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
