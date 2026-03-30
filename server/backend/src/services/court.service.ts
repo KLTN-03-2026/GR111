@@ -49,3 +49,38 @@ export async function getCourtsByClubId(clubId: string) {
     }
   });
 }
+
+/**
+ * Cập nhật thông tin sân (Dành cho Owner)
+ */
+export async function updateCourt(courtId: string, ownerId: string, input: Partial<CreateCourtInput>) {
+  // 1. Kiểm tra quyền sở hữu sân thông qua CLB
+  const court = await prisma.court.findFirst({
+    where: { id: courtId, club: { ownerId } },
+  });
+
+  if (!court) throw new Error("COURT_NOT_FOUND_OR_UNAUTHORIZED");
+
+  return prisma.court.update({
+    where: { id: courtId },
+    data: input,
+    include: { pricings: true, images: true }
+  });
+}
+
+/**
+ * Xóa sân (Soft Delete - chuyển trạng thái sang INACTIVE)
+ */
+export async function deleteCourt(courtId: string, ownerId: string) {
+  const court = await prisma.court.findFirst({
+    where: { id: courtId, club: { ownerId } },
+  });
+
+  if (!court) throw new Error("COURT_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // Chuyển sang trạng thái INACTIVE để giữ lại lịch sử booking (Soft Delete)
+  return prisma.court.update({
+    where: { id: courtId },
+    data: { status: "INACTIVE" }
+  });
+}

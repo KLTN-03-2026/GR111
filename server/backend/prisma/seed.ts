@@ -37,13 +37,24 @@ async function main() {
   const hashedPassword = await bcrypt.hash("password123", SALT_ROUNDS);
 
   // Admin
-  const admin = await prisma.user.create({
+  await prisma.user.create({
     data: {
       email: "admin@sportplatform.com",
       fullName: "Hệ thống Admin",
       passwordHash: hashedPassword,
       role: "ADMIN",
       profile: { create: { bio: "Quản trị viên hệ thống" } },
+    },
+  });
+
+  const adminPassword = await bcrypt.hash("admin123", SALT_ROUNDS);
+  await prisma.user.create({
+    data: {
+      email: "admin@gmail.com",
+      fullName: "Admin Test",
+      passwordHash: adminPassword,
+      role: "ADMIN",
+      profile: { create: { bio: "Tài khoản hỗ trợ test" } },
     },
   });
 

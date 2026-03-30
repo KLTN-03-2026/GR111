@@ -444,6 +444,8 @@
 </template>
 
 <script>
+import { clubService } from '@/services/club.service';
+
 export default {
   name: "OwnerClubsView",
   data() {
@@ -451,63 +453,17 @@ export default {
       searchQuery: "",
       statusFilter: "all",
       showAddModal: false,
-      edit_Club: {},
+      loading: false,
+      edit_Club: {
+      },
       add_Club: {
-        clubId: "",
         name: "",
         address: "",
-        image: "",
-        status: "active",
-        openTime: "",
-        closeTime: "",
-        totalCourts: 0,
-        rating: 0,
-        reviewCount: 0,
+        city: "Hà Nội",
+        district: "Cầu Giấy",
+        description: "",
       },
-      clubs: [
-        {
-          id: 1,
-          clubId: "CLB-001",
-          name: "Sân bóng Thành Phát",
-          address: "123 Phạm Hùng, Cầu Giấy, Hà Nội",
-          image:
-            "https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&q=80&w=600",
-          status: "active",
-          openTime: "06:00",
-          closeTime: "23:00",
-          totalCourts: 6,
-          rating: 4.8,
-          reviewCount: 382,
-        },
-        {
-          id: 2,
-          clubId: "CLB-002",
-          name: "Viettel Sports Center",
-          address: "Ngõ 155 Trường Chinh, Thanh Xuân, Hà Nội",
-          image:
-            "https://images.unsplash.com/photo-1459865264687-595d654dfbb5?auto=format&fit=crop&q=80&w=600",
-          status: "active",
-          openTime: "05:00",
-          closeTime: "22:00",
-          totalCourts: 12,
-          rating: 4.9,
-          reviewCount: 1540,
-        },
-        {
-          id: 3,
-          clubId: "CLB-003",
-          name: "Sân bóng Chu Văn An",
-          address: "Tây Hồ, Hà Nội (Đang sửa chữa)",
-          image:
-            "https://images.unsplash.com/photo-1529900748604-07564d024be1?auto=format&fit=crop&q=80&w=600",
-          status: "inactive",
-          openTime: "06:00",
-          closeTime: "22:30",
-          totalCourts: 4,
-          rating: 4.5,
-          reviewCount: 89,
-        },
-      ],
+      clubs: [],
     };
   },
   computed: {
@@ -517,7 +473,7 @@ export default {
           club.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
           club.address.toLowerCase().includes(this.searchQuery.toLowerCase());
         const matchesStatus =
-          this.statusFilter === "all" || club.status === this.statusFilter;
+          this.statusFilter === "all" || club.approvalStatus === this.statusFilter;
         return matchesSearch && matchesStatus;
       });
     },
@@ -528,56 +484,64 @@ export default {
   methods: {
     getStatusText(status) {
       const statuses = {
-        active: "Đang hoạt động",
-        inactive: "Tạm ngưng",
-        pending: "Chờ duyệt",
+        APPROVED: "Đang hoạt động",
+        REJECTED: "Tạm ngưng",
+        PENDING: "Chờ duyệt",
       };
       return statuses[status] || status;
     },
-    //thêm mới câu lạc bộ
-    addClub() {
-      this.$router.push("/owner/clubs/${clubId}/amenities", this.add_Club);
-      then((response) => {
-        this.clubs.push(response.data.data); // Giả sử API trả về câu lạc bộ mới trong trường 'data'
-        this.clubs = {
-          id: Date.now(),
-          clubId: "",
-          name: "",
-          address: "",  
-          image: "",
-          status: "",
-          openTime: "",
-          closeTime: "",
-          totalCourts: "",
-          rating: "",
-          reviewCount: "",
-        };
-      }).catch((error) => {
-        console.error("Lỗi khi thêm câu lạc bộ:", error);
-      });
+    // Lấy toàn bộ danh sách câu lạc bộ của Owner
+    async Getallthedetails() {
+      this.loading = true;
+      try {
+        const response = await clubService.getMyClubs();
+        this.clubs = response.data.data || [];
+      } catch (error) {
+        console.error("Lỗi khi lấy danh sách câu lạc bộ:", error);
+      } finally {
+        this.loading = false;
+      }
     },
-    //lấy toàn bộ thông tin câu lạc bộ
-    Getallthedetails() {
-      this.$router.push("/owner/clubs/${clubId}", this.clubs);
-      then((response) => {
-        this.clubs = response.data.data; // Giả sử API trả về dữ liệu trong trường 'data'
-      }).catch((error) => {
-        console.error("Lỗi khi lấy thông tin câu lạc bộ:", error);
-      });
-    },
-    //chỉnh sửa câu lạc bộ
-    editClub(club) {
-      this.$router.push("/owner/clubs/${clubId}", this.edit_Club);
-      then((response) => {
-        const index = this.clubs.findIndex((c) => c.id === club.id);
-        if (index !== -1) {
-          this.clubs.splice(index, 1, response.data.data); // Cập nhật câu lạc bộ trong danh sách
-          this.Getallthedetails(); // Tải lại danh sách câu lạc bộ sau khi chỉnh sửa
+    // Thêm mới câu lạc bộ
+    async addClub() {
+      try {
+        const response = await clubService.createClub(this.add_Club);
+        console.log(response);
+        if (response.data.success) {
+          alert("Thêm câu lạc bộ thành công! Vui lòng chờ Admin phê duyệt.");
+          this.Getallthedetails();
+          this.resetAddForm();
+          // Đóng modal (nếu dùng Bootstrap)
+          const modal = document.getElementById('addClubModal');
+          const modalInstance = bootstrap.Modal.getInstance(modal);
+          if (modalInstance) modalInstance.hide();
         }
-      }).catch((error) => {
-        console.error("Lỗi khi chỉnh sửa câu lạc bộ:", error);
-      });
+      } catch (error) {
+        console.error("Lỗi khi thêm câu lạc bộ:", error);
+        alert("Có lỗi xảy ra khi thêm mới.");
+      }
     },
+    // Chỉnh sửa câu lạc bộ
+    async updateClubData() {
+      try {
+        const response = await clubService.updateClub(this.edit_Club.id, this.edit_Club);
+        if (response.data.success) {
+          alert("Cập nhật thông tin thành công!");
+          this.Getallthedetails();
+        }
+      } catch (error) {
+        console.error("Lỗi khi cập nhật câu lạc bộ:", error);
+      }
+    },
+    resetAddForm() {
+      this.add_Club = {
+        name: "",
+        address: "",
+        city: "Hà Nội",
+        district: "Cầu Giấy",
+        description: "",
+      };
+    }
   },
 };
 </script>

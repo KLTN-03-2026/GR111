@@ -106,6 +106,36 @@ export async function processPaymentWebhook(vnp_Params: Record<string, string>) 
   }
 }
 
+/**
+ * User upload ảnh minh chứng chuyển khoản (Bill)
+ */
+export async function submitPaymentProof(bookingId: string, proofImageUrl: string) {
+  return prisma.$transaction(async (tx) => {
+    // 1. Kiểm tra tồn tại payment
+    const payment = await tx.payment.findUnique({
+      where: { bookingId }
+    });
+
+    if (!payment) throw new Error("PAYMENT_NOT_FOUND");
+
+    // 2. Cập nhật ảnh minh chứng và trạng thái
+    // WAITING_PAYMENT trong ngữ cảnh này là đang chờ chủ sân xác nhận tiền đã về
+    await tx.payment.update({
+      where: { bookingId },
+      data: {
+        proofImageUrl,
+        status: "WAITING_PAYMENT",
+      }
+    });
+
+    // 3. Cập nhật trạng thái booking tương ứng
+    return tx.booking.update({
+      where: { id: bookingId },
+      data: { status: "WAITING_PAYMENT" }
+    });
+  });
+}
+
 function sortObject(obj: Record<string, string>) {
   const sorted: Record<string, string> = {};
   const str = [];
