@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { updateClubApprovalStatus } from "@/services/admin.service";
+import { updateClubApprovalStatus } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse, badRequestResponse } from "@/lib/response";
 import { ApprovalStatus } from "@/generated/prisma";
 

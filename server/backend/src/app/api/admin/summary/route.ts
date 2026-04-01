@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAdminSummary, getMonthlyStatsAdmin } from "@/services/admin.service";
+import { getAdminSummary, getMonthlyStatsAdmin } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       getAdminSummary(startDate, endDate),
       getMonthlyStatsAdmin()
     ]);
-    
+
     return successResponse("Lấy số liệu tổng quan thành công", {
       ...summary,
       monthlyStats

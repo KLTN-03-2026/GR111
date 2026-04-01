@@ -197,6 +197,73 @@
         </div>
       </Transition>
     </div>
+
+    <!-- ── Detail Modal (Quick View) ── -->
+    <Transition name="fade">
+      <div v-if="showDetailModal" class="modal-overlay" @click.self="showDetailModal = false">
+        <div class="modal-container">
+          <button class="modal-close-btn" @click="showDetailModal = false" aria-label="Đóng">
+            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          
+          <div class="modal-content-grid" v-if="detailedClub">
+            <!-- Sidebar / Image -->
+            <div class="modal-image-side">
+              <img :src="detailedClub.coverImageUrl || detailedClub.logoUrl || defaultImg" :alt="detailedClub.name" class="modal-main-img" />
+              <div class="modal-badges">
+                <span class="modal-badge-partner" v-if="detailedClub.isPartner">Đối tác</span>
+              </div>
+            </div>
+            
+            <!-- Info Side -->
+            <div class="modal-info-side">
+              <h2 class="modal-club-name">{{ detailedClub.name }}</h2>
+              
+              <div class="modal-meta-row">
+                <div class="modal-meta-item">
+                  <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  <span>{{ detailedClub.address }}, {{ detailedClub.district }}, {{ detailedClub.city }}</span>
+                </div>
+              </div>
+
+              <div class="modal-section">
+                <h4 class="modal-section-title">Môn thể thao</h4>
+                <div class="modal-sports-list">
+                  <span v-for="sport in getSportTypes(detailedClub)" :key="sport" class="modal-sport-tag">
+                    {{ sport }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="modal-section" v-if="detailedClub.description">
+                <h4 class="modal-section-title">Giới thiệu</h4>
+                <p class="modal-description">{{ detailedClub.description }}</p>
+              </div>
+
+              <div class="modal-section">
+                <h4 class="modal-section-title">Tiện ích</h4>
+                <div class="modal-amenities">
+                  <span v-if="detailedClub.wifi" class="amenity-item"> Wifi</span>
+                  <span v-if="detailedClub.parking" class="amenity-item">Gửi xe</span>
+                  <span v-if="detailedClub.canteen" class="amenity-item">Căng tin</span>
+                </div>
+              </div>
+
+              <div class="modal-footer-cta">
+                <div class="modal-price-box">
+                  <span class="price-label">Giá từ</span>
+                  <span class="price-value">{{ formatPrice(detailedClub.minPrice || 0) }}<small>/h</small></span>
+                </div>
+                <router-link :to="`/venue/${detailedClub.slug}`" class="modal-btn-book">
+                  Đặt sân ngay
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </router-link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -236,6 +303,8 @@ export default {
       sidebarCollapsed: false,
       isMobile: window.innerWidth < 768,
       popups: {},
+      showDetailModal: false,
+      detailedClub: null,
       defaultImg: 'https://images.unsplash.com/photo-1544691371-464a4d46af63?w=600&q=80',
       sports: Object.entries(SPORT_LABELS).map(([value, info]) => ({ value, ...info })),
     };
@@ -383,7 +452,10 @@ export default {
               <div class="map-popup-sports">${sports.map(s => `<span class="map-sport-tag">${s}</span>`).join('')}</div>
               <div class="map-popup-footer">
                 <span class="map-popup-price">${priceStr}</span>
-                <a href="/venue/${club.slug}" class="map-popup-btn" onclick="return false;" data-slug="${club.slug}">Đặt sân</a>
+                <div class="map-popup-actions">
+                  <button class="map-popup-btn map-popup-btn--outline" data-view-id="${club.id}">Xem</button>
+                  <a href="/venue/${club.slug}" class="map-popup-btn" onclick="return false;" data-slug="${club.slug}">Đặt sân</a>
+                </div>
               </div>
             </div>
           </div>
@@ -391,12 +463,22 @@ export default {
 
         this.popups[club.id] = popup;
 
-        // Gắn click vào nút "Đặt sân" trong popup
+        // Gắn click vào các nút trong popup
         popup.on('open', () => {
-          const btn = document.querySelector(`.map-popup [data-slug="${club.slug}"]`);
-          if (btn) {
-            btn.addEventListener('click', () => {
+          // Nút Đặt sân
+          const btnBook = document.querySelector(`.map-popup [data-slug="${club.slug}"]`);
+          if (btnBook) {
+            btnBook.addEventListener('click', () => {
               this.$router.push(`/venue/${club.slug}`);
+            });
+          }
+
+          // Nút Xem (Chi tiết)
+          const btnView = document.querySelector(`.map-popup [data-view-id="${club.id}"]`);
+          if (btnView) {
+            btnView.addEventListener('click', () => {
+              this.detailedClub = club;
+              this.showDetailModal = true;
             });
           }
         });
@@ -621,6 +703,219 @@ export default {
 }
 
 .map-popup-btn:hover { opacity: 0.85; }
+.map-popup-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.map-popup-btn--outline {
+  background: #fff;
+  color: #16a34a;
+  border: 1.5px solid #16a34a;
+  padding: 4px 10px;
+}
+.map-popup-btn--outline:hover {
+  background: #f0fdf4;
+}
+
+/* ── Modal (Quick View) ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-container {
+  background: #fff;
+  width: 100%;
+  max-width: 850px;
+  border-radius: 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+  animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modal-pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.2s;
+}
+.modal-close-btn:hover { transform: rotate(90deg); background: #fff; }
+.modal-close-btn svg { width: 20px; height: 20px; stroke: #1a1a2e; stroke-width: 2.5; fill: none; }
+
+.modal-content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+}
+
+.modal-image-side {
+  position: relative;
+  background: #f8fafc;
+}
+
+.modal-main-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  min-height: 480px;
+}
+
+.modal-badges {
+  position: absolute;
+  top: 20px; left: 20px;
+}
+.modal-badge-partner {
+  background: #fff;
+  color: #16a34a;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.modal-info-side {
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-club-name {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #1a1a2e;
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+.modal-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.modal-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+.modal-meta-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.modal-section {
+  margin-bottom: 24px;
+}
+
+.modal-section-title {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #9ca3af;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.modal-sports-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal-sport-tag {
+  background: #f0fdf4;
+  color: #16a34a;
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.modal-description {
+  font-size: 0.92rem;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.modal-amenities {
+  display: flex;
+  gap: 15px;
+}
+.amenity-item { font-size: 0.88rem; color: #374151; font-weight: 600; }
+
+.modal-footer-cta {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 24px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.modal-price-box {
+  display: flex;
+  flex-direction: column;
+}
+.price-label { font-size: 0.75rem; color: #9ca3af; font-weight: 600; }
+.price-value { font-size: 1.4rem; font-weight: 900; color: #1a1a2e; }
+.price-value small { font-size: 0.8rem; font-weight: 600; margin-left: 2px; }
+
+.modal-btn-book {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  text-decoration: none;
+  padding: 14px 28px;
+  border-radius: 14px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.3);
+}
+.modal-btn-book:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(22, 163, 74, 0.4); }
+.modal-btn-book svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 3; }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
+@media (max-width: 768px) {
+  .modal-container { max-width: 95%; max-height: 90vh; overflow-y: auto; }
+  .modal-content-grid { grid-template-columns: 1fr; }
+  .modal-image-side { height: 200px; }
+  .modal-main-img { min-height: 200px; }
+  .modal-info-side { padding: 24px; }
+  .modal-club-name { font-size: 1.4rem; }
+}
 
 /* Custom marker */
 .custom-marker { cursor: pointer; }

@@ -197,7 +197,9 @@ export default {
            club.courts?.forEach(court => {
               const type = court.sportType === 'FOOTBALL' ? 'Bóng đá' : 
                           court.sportType === 'BADMINTON' ? 'Cầu lông' : 
-                          court.sportType === 'TENNIS' ? 'Tennis' : 'Khác';
+                          court.sportType === 'TENNIS' ? 'Tennis' : 
+                          court.sportType === 'PICKLEBALL' ? 'Pickleball' : 
+                          court.sportType === 'BASKETBALL' ? 'Bóng rổ' : 'Khác';
               acc[type] = (acc[type] || 0) + 1;
            });
            return acc;
@@ -206,7 +208,9 @@ export default {
         courtTypeData.value = [
           { label: 'Bóng đá', value: counts['Bóng đá'] || 0, color: '#4f6ef7' },
           { label: 'Cầu lông', value: counts['Cầu lông'] || 0, color: '#22c55e' },
-          { label: 'Tennis', value: counts['Tennis'] || 0, color: '#f97316' }
+          { label: 'Tennis', value: counts['Tennis'] || 0, color: '#f97316' },
+          { label: 'Pickleball', value: counts['Pickleball'] || 0, color: '#ec4899' },
+          { label: 'Bóng rổ', value: counts['Bóng rổ'] || 0, color: '#eab308' }
         ];
 
       } catch (error) {

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { toggleClubActiveStatus } from "@/services/admin.service";
+import { toggleClubActiveStatus } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

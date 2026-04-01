@@ -16,6 +16,7 @@ export interface SearchClubFilters {
   lng?: number;
   radiusKm?: number;
   limit?: number;
+  date?: string;
 }
 
 
@@ -44,6 +45,7 @@ export async function getNearbyClubs(lat: number, lng: number, radiusKm: number 
     WHERE latitude IS NOT NULL AND longitude IS NOT NULL
       AND "isActive" = true
       AND "approvalStatus" = 'APPROVED'
+      AND "deletedAt" IS NULL
       AND (6371 * acos(
         cos(radians(${lat})) * cos(radians(latitude)) * 
         cos(radians(longitude) - radians(${lng})) + 
@@ -60,8 +62,8 @@ export async function getNearbyClubs(lat: number, lng: number, radiusKm: number 
  * Lấy chi tiết câu lạc bộ kèm các sân (courts)
  */
 export async function getClubBySlug(slug: string) {
-  return prisma.club.findUnique({
-    where: { slug },
+  return prisma.club.findFirst({
+    where: { slug, deletedAt: null },
     include: {
       courts: {
         include: {
@@ -103,6 +105,7 @@ export async function searchClubs(filters: SearchClubFilters) {
   const where: Prisma.ClubWhereInput = {
     isActive: true,
     approvalStatus: 'APPROVED',
+    deletedAt: null,
   };
 
   if (name) where.name = { contains: name, mode: 'insensitive' };
@@ -135,6 +138,29 @@ export async function searchClubs(filters: SearchClubFilters) {
             }
           }
         } : {})
+      }
+    };
+  }
+
+  // Lọc theo khoảng ngày (date)
+  // Chỉ lấy những CLB có sân có ít nhất 1 TimeSlot trạng thái AVAILABLE trong ngày đó
+  if (filters.date) {
+    const startOfDay = new Date(`${filters.date}T00:00:00.000Z`);
+    const endOfDay = new Date(`${filters.date}T23:59:59.999Z`);
+    
+    where.courts = {
+      ...where.courts,
+      some: {
+        ...(where.courts?.some || {}),
+        timeSlots: {
+          some: {
+            startTime: {
+              gte: startOfDay,
+              lte: endOfDay
+            },
+            status: 'AVAILABLE'
+          }
+        }
       }
     };
   }
@@ -222,7 +248,7 @@ export async function searchClubs(filters: SearchClubFilters) {
  */
 export async function getClubById(id: string, ownerId: string) {
   return prisma.club.findFirst({
-    where: { id, ownerId },
+    where: { id, ownerId, deletedAt: null },
     include: {
       courts: {
         include: {
@@ -246,7 +272,7 @@ export async function getClubById(id: string, ownerId: string) {
  */
 export async function getClubsByOwner(ownerId: string) {
   return prisma.club.findMany({
-    where: { ownerId },
+    where: { ownerId, deletedAt: null },
     include: {
       courts: { select: { id: true, name: true, clubId: true, sportType: true } },
       openingHours: true
@@ -282,7 +308,7 @@ export async function createClub(ownerId: string, data: Omit<Prisma.ClubUnchecke
  */
 export async function updateClub(clubId: string, ownerId: string, data: Prisma.ClubUpdateInput) {
   const club = await prisma.club.findFirst({
-    where: { id: clubId, ownerId },
+    where: { id: clubId, ownerId, deletedAt: null },
   });
 
   if (!club) {

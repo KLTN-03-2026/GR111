@@ -20,8 +20,8 @@ const SALT_ROUNDS = 12;
  */
 export async function registerUser(input: RegisterInput) {
   // Kiểm tra email đã tồn tại chưa
-  const existingUser = await prisma.user.findUnique({
-    where: { email: input.email },
+  const existingUser = await prisma.user.findFirst({
+    where: { email: input.email, deletedAt: null },
   });
   if (existingUser) {
     throw new Error("EMAIL_EXISTS");
@@ -29,8 +29,8 @@ export async function registerUser(input: RegisterInput) {
 
   // Kiểm tra SĐT đã tồn tại chưa
   if (input.phone) {
-    const existingPhone = await prisma.user.findUnique({
-      where: { phone: input.phone },
+    const existingPhone = await prisma.user.findFirst({
+      where: { phone: input.phone, deletedAt: null },
     });
     if (existingPhone) throw new Error("PHONE_EXISTS");
   }
@@ -46,7 +46,8 @@ export async function registerUser(input: RegisterInput) {
       fullName: input.fullName,
       passwordHash,
       role: input.role,
-      profile: { create: {} }, // Tạo profile rỗng đi kèm
+      profile: { create: {} },
+      lastPasswordChangeAt: new Date(),
     },
     select: {
       id: true,
@@ -64,10 +65,10 @@ export async function registerUser(input: RegisterInput) {
 /**
  * Đăng nhập và trả về token
  */
-export async function loginUser(input: LoginInput) {
-  // Tìm user theo email, kèm ownerProfile.kycStatus nếu là OWNER
-  const user = await prisma.user.findUnique({
-    where: { email: input.email },
+export async function loginUser(input: LoginInput, ip?: string, userAgent?: string) {
+  // Tìm user theo email
+  const user = await prisma.user.findFirst({
+    where: { email: input.email, deletedAt: null },
     select: {
       id: true,
       email: true,
@@ -77,8 +78,10 @@ export async function loginUser(input: LoginInput) {
       isActive: true,
       isVerified: true,
       avatarUrl: true,
+      failedLoginAttempts: true,
+      lockoutUntil: true,
       ownerProfile: {
-        select: { kycStatus: true }, // Lấy trạng thái KYC để mở/khóa dashboard
+        select: { kycStatus: true },
       },
     },
   });
@@ -91,23 +94,62 @@ export async function loginUser(input: LoginInput) {
     throw new Error("ACCOUNT_DISABLED");
   }
 
-  // Kiểm tra mật khẩu
+  // A. Kiểm tra Lockout
+  if (user.lockoutUntil && user.lockoutUntil > new Date()) {
+    const minutesLeft = Math.ceil((user.lockoutUntil.getTime() - Date.now()) / 60000);
+    throw new Error(`ACCOUNT_LOCKED:${minutesLeft}`);
+  }
+
+  // B. Kiểm tra mật khẩu
   const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
+  
   if (!isPasswordValid) {
+    // Tăng số lần thử sai
+    const newAttempts = user.failedLoginAttempts + 1;
+    let lockoutUntil = null;
+    
+    if (newAttempts >= 5) {
+      lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // Khóa 15 phút
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        failedLoginAttempts: newAttempts,
+        lockoutUntil
+      },
+    });
+
     throw new Error("INVALID_CREDENTIALS");
   }
 
-  // Cập nhật lastLoginAt
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLoginAt: new Date() },
+  // C. Đăng nhập thành công -> Reset counters & create Session
+  const session = await prisma.session.create({
+    data: {
+      userId: user.id,
+      token: crypto.randomBytes(32).toString("hex"), // Internal reference token
+      ipAddress: ip,
+      userAgent: userAgent,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days matching JWT
+    }
   });
 
-  // Tạo JWT token
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { 
+      lastLoginAt: new Date(),
+      lastLoginIp: ip,
+      failedLoginAttempts: 0,
+      lockoutUntil: null
+    },
+  });
+
+  // D. Tạo JWT token với Session ID
   const token = signToken({
     userId: user.id,
     email: user.email,
     role: user.role,
+    sid: session.id,
   });
 
   return {
@@ -125,33 +167,6 @@ export async function loginUser(input: LoginInput) {
   };
 }
 
-/**
- * Lấy thông tin user hiện tại (profile)
- */
-export async function getMyProfile(userId: string) {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      phone: true,
-      avatarUrl: true,
-      role: true,
-      isEmailVerified: true,
-      isVerified: true,
-      createdAt: true,
-      profile: {
-        select: {
-          address: true,
-          dateOfBirth: true,
-          gender: true,
-          bio: true,
-        },
-      },
-    },
-  });
-}
 
 /**
  * Đăng nhập bằng Facebook
@@ -347,6 +362,20 @@ export async function resetPassword(input: ResetPasswordInput) {
       data: { used: true },
     }),
   ]);
+
+  return true;
+}
+
+/**
+ * Đăng xuất (Revoke session)
+ */
+export async function logoutUser(sessionId: string) {
+  if (!sessionId) return false;
+  
+  await prisma.session.update({
+    where: { id: sessionId },
+    data: { isRevoked: true },
+  });
 
   return true;
 }

@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, courts });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message });
+  } catch (err: unknown) {
+    return NextResponse.json({ 
+      success: false, 
+      error: err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định" 
+    }, { status: 500 });
   }
 }

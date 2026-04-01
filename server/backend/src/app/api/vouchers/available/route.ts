@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser } from "@/middlewares/auth.middleware";
-import { getAvailableVouchers } from "@/services/voucher.service";
+import { getAvailableVouchers } from "@/modules/marketing/voucher.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

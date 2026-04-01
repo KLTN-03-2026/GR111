@@ -1,7 +1,8 @@
+import { checkRateLimit } from "@/lib/rateLimit";
 import { NextRequest } from "next/server";
 import { createBookingSchema } from "@/validations/booking.schema";
-import { createBooking, getMyBookings } from "@/services/booking.service";
-import { createPaymentUrl } from "@/services/payment.service";
+import { createBooking, getMyBookings } from "@/modules/booking/booking.service";
+import { createPaymentUrl } from "@/modules/payment/payment.service";
 import { getAuthUser } from "@/middlewares/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
@@ -21,6 +22,10 @@ export async function GET(req: NextRequest) {
 // POST /api/bookings — Tạo booking mới
 export async function POST(req: NextRequest) {
   try {
+    // Giới hạn đặt sân: 5 lần mỗi phút (Bảo vệ khỏi spam và thử voucher)
+    const rateLimitError = await checkRateLimit(req, 5, 60 * 1000, "Bạn đang thực hiện thao tác quá nhanh. Vui lòng đợi một lát.");
+    if (rateLimitError) return rateLimitError;
+
     const { user, error } = await getAuthUser(req);
     if (error) return error;
 
@@ -31,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
 
     const booking = await createBooking(user.userId, parsed.data);
-    
+
     let paymentUrl = null;
     if (parsed.data.paymentMethod === "VNPAY" || parsed.data.paymentMethod === "MOMO") {
       const ipAddr = req.headers.get("x-forwarded-for") || "127.0.0.1";
@@ -47,6 +52,7 @@ export async function POST(req: NextRequest) {
         SLOT_TAKEN: ["Khung giờ vừa được người khác đặt. Vui lòng chọn lại.", 409],
         VOUCHER_INVALID: ["Mã giảm giá không hợp lệ hoặc đã hết hạn", 422],
         VOUCHER_EXHAUSTED: ["Mã giảm giá đã hết lượt sử dụng", 422],
+        VOUCHER_LIMIT_EXCEEDED: ["Bạn đã hết lượt sử dụng mã này", 422],
         VOUCHER_MIN_ORDER: ["Giá trị đơn hàng chưa đạt tối thiểu để dùng voucher", 422],
       };
       const [msg, status] = errorMap[error.message] || [];

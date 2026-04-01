@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
-import { processRefund } from "@/services/refund.service";
+import { processRefund } from "@/modules/booking/refund.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 /**

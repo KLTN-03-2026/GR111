@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
-import { toggleSlotStatus } from "@/services/slot.service";
+import { toggleSlotStatus } from "@/modules/slot/slot.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { UnknownTypedSql } from "@prisma/client/runtime/library";
+
 
 /**
  * POST /api/owner/slots/lock
@@ -18,13 +18,19 @@ export async function POST(req: NextRequest) {
     if (roleError) return roleError;
 
     const body = await req.json();
-    const { slotId, status } = body;
+    const { courtId, startTime, endTime, status } = body;
 
-    if (!slotId || !status) {
-      return errorResponse("Thiếu thông tin slotId hoặc status", 400);
+    if (!courtId || !startTime || !endTime || !status) {
+      return errorResponse("Thiếu thông tin courtId, startTime, endTime hoặc status", 400);
     }
 
-    const updatedSlot = await toggleSlotStatus(slotId, user.userId, status);
+    const updatedSlot = await toggleSlotStatus(
+      courtId, 
+      new Date(startTime), 
+      new Date(endTime), 
+      user.userId, 
+      status
+    );
 
     const message = status === "LOCKED" ? "Đã khóa khung giờ" : "Đã mở lại khung giờ";
     return successResponse(message, updatedSlot);

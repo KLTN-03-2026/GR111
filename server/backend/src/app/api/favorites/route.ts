@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser } from "@/middlewares/auth.middleware";
-import { getMyFavorites, toggleFavorite } from "@/services/favorite.service";
+import { getMyFavorites, toggleFavorite } from "@/modules/user/favorite.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 /**
@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/favorites
- * Thêm hoặc xóa một sân khỏi danh sách yêu thích
- * body: { courtId: "..." }
+ * Thêm hoặc xóa một cơ sở/sân khỏi danh sách yêu thích
+ * body: { clubId: "..." } HOẶC { courtId: "..." }
  */
 export async function POST(req: NextRequest) {
   try {
@@ -30,13 +30,13 @@ export async function POST(req: NextRequest) {
     if (error) return error;
 
     const body = await req.json();
-    const courtId = body.courtId;
+    const { clubId, courtId } = body;
 
-    if (!courtId) {
-      return errorResponse("Thiếu courtId", 400);
+    if (!clubId && !courtId) {
+      return errorResponse("Thiếu clubId hoặc courtId", 400);
     }
 
-    const favorite = await toggleFavorite(user.userId, courtId);
+    const favorite = await toggleFavorite(user.userId, { clubId, courtId });
     return successResponse("Cập nhật danh sách yêu thích thành công", favorite);
   } catch (error) {
     return serverErrorResponse(error);

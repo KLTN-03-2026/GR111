@@ -8,9 +8,11 @@
         </div>
         <svg width="100" height="100" viewBox="0 0 36 36">
           <circle cx="18" cy="18" r="13" fill="none" stroke="var(--border)" stroke-width="4.5"/>
-          <circle cx="18" cy="18" r="13" fill="none" stroke="#4f6ef7" stroke-width="4.5" stroke-dasharray="38 44"/>
-          <circle cx="18" cy="18" r="13" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-dasharray="22 60"/>
-          <circle cx="18" cy="18" r="13" fill="none" stroke="#f97316" stroke-width="4.5" stroke-dasharray="12 70"/>
+          <circle cx="18" cy="18" r="13" fill="none" stroke="#4f6ef7" stroke-width="4.5" stroke-dasharray="25 75"/>
+          <circle cx="18" cy="18" r="13" fill="none" stroke="#22c55e" stroke-width="4.5" stroke-dasharray="20 80" stroke-dashoffset="-25"/>
+          <circle cx="18" cy="18" r="13" fill="none" stroke="#f97316" stroke-width="4.5" stroke-dasharray="15 85" stroke-dashoffset="-45"/>
+          <circle cx="18" cy="18" r="13" fill="none" stroke="#ec4899" stroke-width="4.5" stroke-dasharray="10 90" stroke-dashoffset="-60"/>
+          <circle cx="18" cy="18" r="13" fill="none" stroke="#eab308" stroke-width="4.5" stroke-dasharray="10 90" stroke-dashoffset="-70"/>
         </svg>
       </div>
       <div class="donut-legend">
@@ -34,9 +36,11 @@ export default {
     data: { 
       type: Array, 
       default: () => [
-        { label: 'Bóng đá', value: 147, color: '#4f6ef7' },
-        { label: 'Cầu lông', value: 84, color: '#22c55e' },
-        { label: 'Tennis', value: 52, color: '#f97316' }
+        { label: 'Bóng đá', value: 0, color: '#4f6ef7' },
+        { label: 'Cầu lông', value: 0, color: '#22c55e' },
+        { label: 'Tennis', value: 0, color: '#f97316' },
+        { label: 'Pickleball', value: 0, color: '#ec4899' },
+        { label: 'Bóng rổ', value: 0, color: '#eab308' }
       ]
     }
   }

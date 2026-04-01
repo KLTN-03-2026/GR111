@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { ApprovalStatus, CourtStatus } from "@/generated/prisma";
+import { notifyNewBooking } from "@/lib/socket";
 
 /**
  * Lấy danh sách tất cả các câu lạc bộ và sân chi tiết (Dành cho Admin)
@@ -51,7 +52,7 @@ export async function getAllClubsAdmin() {
  * Duyệt hoặc từ chối một câu lạc bộ
  */
 export async function updateClubApprovalStatus(clubId: string, status: ApprovalStatus) {
-  return prisma.club.update({
+  const updatedClub = await prisma.club.update({
     where: { id: clubId },
     data: {
       approvalStatus: status,
@@ -59,6 +60,14 @@ export async function updateClubApprovalStatus(clubId: string, status: ApprovalS
       isActive: status === ApprovalStatus.APPROVED,
     }
   });
+
+  // Notify if the club's approval or status might affect availability
+  notifyNewBooking(clubId, {
+    club: updatedClub,
+    type: `club-approval-${status.toLowerCase()}`
+  });
+
+  return updatedClub;
 }
 
 /**
@@ -78,6 +87,12 @@ export async function toggleClubActiveStatus(clubId: string, isActive: boolean) 
       data: {
         status: isActive ? CourtStatus.ACTIVE : CourtStatus.SUSPENDED
       }
+    });
+
+    // Notify update
+    notifyNewBooking(clubId, {
+      club,
+      type: `club-toggled-${isActive ? 'active' : 'inactive'}`
     });
 
     return club;

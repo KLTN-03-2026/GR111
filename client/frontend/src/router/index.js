@@ -198,6 +198,12 @@ const routes = [
     component: () => import("../views/owner/SettingsView.vue"),
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
+  // Redirect missing routes to Home to avoid console warnings
+  { path: "/contact", redirect: "/" },
+  { path: "/features", redirect: "/" },
+  { path: "/promotions", redirect: "/" },
+  { path: "/play", redirect: "/" },
+  { path: "/sports", redirect: "/" },
 ];
 
 const router = createRouter({

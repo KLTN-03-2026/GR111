@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { toggleUserActiveStatus } from "@/services/admin.service";
+import { toggleUserActiveStatus } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

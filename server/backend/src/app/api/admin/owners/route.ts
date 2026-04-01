@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllOwnersAdmin } from "@/services/admin.service";
+import { getAllOwnersAdmin } from "@/modules/admin/admin.service";
 
 export async function GET() {
   try {

@@ -1,5 +1,7 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { notifyNewBooking } from "@/lib/socket";
+import { eventEmitter } from "@/lib/events";
 
 const VNP_TMN_CODE = process.env.VNP_TMN_CODE || "DUMMY123";
 const VNP_HASH_SECRET = process.env.VNP_HASH_SECRET || "DUMMY_SECRET";
@@ -72,10 +74,9 @@ export async function processPaymentWebhook(vnp_Params: Record<string, string>) 
 
   if (responseCode === "00") {
     // Thanh toán thành công
-    await prisma.$transaction(async (tx) => {
+    const updatedBooking = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({ where: { bookingId } });
-      if (!payment) return;
-      if (payment.status === "CONFIRMED") return;
+      if (!payment || payment.status === "CONFIRMED") return null;
 
       await tx.payment.update({
         where: { bookingId },
@@ -86,11 +87,31 @@ export async function processPaymentWebhook(vnp_Params: Record<string, string>) 
         },
       });
 
-      await tx.booking.update({
+      const booking = await tx.booking.update({
         where: { id: bookingId },
         data: { status: "CONFIRMED" },
+        include: { items: { include: { timeSlot: { include: { court: true } } } } }
       });
+
+      return booking;
     });
+
+    if (updatedBooking) {
+      // Notify real-time update
+      if (updatedBooking.clubId) {
+        notifyNewBooking(updatedBooking.clubId, {
+          booking: updatedBooking,
+          type: 'payment-confirmed'
+        });
+
+        // Emit domain event for email/other listeners
+        eventEmitter.emit('booking.status_updated', {
+          clubId: updatedBooking.clubId,
+          booking: updatedBooking,
+          type: 'payment-confirmed'
+        });
+      }
+    }
     return { RspCode: "00", Message: "Confirm Success" };
   } else {
     // Giao dịch lỗi 
@@ -98,10 +119,19 @@ export async function processPaymentWebhook(vnp_Params: Record<string, string>) 
       where: { bookingId },
       data: { status: "CANCELLED" }
     });
-    await prisma.booking.update({
+    const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: { status: "CANCELLED" }
     });
+
+    // Notify real-time update
+    if (updatedBooking.clubId) {
+      notifyNewBooking(updatedBooking.clubId, {
+        booking: updatedBooking,
+        type: 'booking-cancelled'
+      });
+    }
+
     return { RspCode: "02", Message: "Order failed" };
   }
 }
@@ -129,10 +159,20 @@ export async function submitPaymentProof(bookingId: string, proofImageUrl: strin
     });
 
     // 3. Cập nhật trạng thái booking tương ứng
-    return tx.booking.update({
+    const updatedBooking = await tx.booking.update({
       where: { id: bookingId },
       data: { status: "WAITING_PAYMENT" }
     });
+
+    // Notify real-time update
+    if (updatedBooking.clubId) {
+      notifyNewBooking(updatedBooking.clubId, {
+        booking: updatedBooking,
+        type: 'payment-proof-submitted'
+      });
+    }
+
+    return updatedBooking;
   });
 }
 

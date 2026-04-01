@@ -108,3 +108,30 @@ export async function changePassword(userId: string, input: { currentPassword: s
 
   return true;
 }
+/**
+ * Lấy thông tin user hiện tại (profile)
+ */
+export async function getMyProfile(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      phone: true,
+      avatarUrl: true,
+      role: true,
+      isEmailVerified: true,
+      isVerified: true,
+      createdAt: true,
+      profile: {
+        select: {
+          address: true,
+          dateOfBirth: true,
+          gender: true,
+          bio: true,
+        },
+      },
+    },
+  });
+}
