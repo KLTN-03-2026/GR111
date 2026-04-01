@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser } from "@/middlewares/auth.middleware";
-import { getMyNotifications, markAsRead, deleteNotification } from "@/services/notification.service";
+import { getMyNotifications, markAsRead, deleteNotification } from "@/modules/user/notification.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser } from "@/middlewares/auth.middleware";
-import { changePassword } from "@/services/user.service";
+import { changePassword } from "@/modules/user/user.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 /**
@@ -25,9 +25,11 @@ export async function POST(req: NextRequest) {
 
     await changePassword(user.userId, { currentPassword, newPassword });
     return successResponse("Đổi mật khẩu thành công", null);
-  } catch (error: any) {
-    if (error.message === "INVALID_CURRENT_PASSWORD") {
-      return errorResponse("Mật khẩu cũ không chính xác", 400);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      if (error.message === "INVALID_CURRENT_PASSWORD") {
+        return errorResponse("Mật khẩu cũ không chính xác", 400);
+      }
     }
     return serverErrorResponse(error);
   }

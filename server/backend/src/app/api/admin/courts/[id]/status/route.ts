@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { successResponse, errorResponse } from "@/lib/response";
-import { toggleCourtStatus } from "@/services/admin.service";
+import { toggleCourtStatus } from "@/modules/admin/admin.service";
 import { CourtStatus } from "@/generated/prisma";
 
 /**

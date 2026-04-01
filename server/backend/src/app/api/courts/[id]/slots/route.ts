@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
-import { getSlotsByCourtId } from "@/services/slot.service";
+import { getSlotsByCourtId } from "@/modules/slot/slot.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 /**
  * GET /api/courts/[id]/slots?start=2026-03-30&end=2026-03-31
  * Lấy lịch trống của một sân trong khoảng thời gian nhất định (Public API)
  */
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
 
     const startStr = searchParams.get("start");

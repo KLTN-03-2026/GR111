@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
-import { createPost, getPosts, deletePost } from "@/services/post.service";
+import { createPost, getPosts, deletePost } from "@/modules/marketing/post.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 /**

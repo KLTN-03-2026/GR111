@@ -44,5 +44,11 @@ export const bookingService = {
     getBookingById: async (bookingId) => {
         const response = await api.get(`/bookings/${bookingId}`);
         return response.data;
+    },
+
+    // 8. Lấy chi tiết đơn hàng theo mã bookingCode (cho checkout reload)
+    getBookingByCode: async (bookingCode) => {
+        const response = await api.get(`/bookings/${bookingCode}`);
+        return response.data;
     }
 }

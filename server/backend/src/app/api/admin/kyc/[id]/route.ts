@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { updateOwnerKYCStatus } from "@/services/admin.service";
+import { updateOwnerKYCStatus } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse, badRequestResponse } from "@/lib/response";
 import { ApprovalStatus } from "@/generated/prisma";
 

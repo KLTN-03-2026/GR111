@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAllOwnerKYCAdmin } from "@/services/admin.service";
+import { getAllOwnerKYCAdmin } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

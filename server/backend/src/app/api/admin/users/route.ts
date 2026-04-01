@@ -1,4 +1,4 @@
-import { getAllUsersAdmin } from "@/services/admin.service";
+import { getAllUsersAdmin } from "@/modules/admin/admin.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

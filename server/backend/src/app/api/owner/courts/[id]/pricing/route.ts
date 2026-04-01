@@ -7,7 +7,7 @@ import {
   upsertRegularPricing, 
   addSpecialPricing, 
   deletePricing 
-} from "@/services/pricing.service";
+} from "@/modules/club/pricing.service";
 
 /**
  * UTILITY: Kiểm tra Owner có quyền sở hữu sân hay không

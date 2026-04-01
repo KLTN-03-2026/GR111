@@ -63,7 +63,7 @@
               Đối tác
             </span>
             <span v-if="venue.isNew" class="badge badge--new">MỚI</span>
-            <span v-if="venue.isHot" class="badge badge--hot">🔥 HOT</span>
+            <span v-if="venue.isHot" class="badge badge--hot">HOT</span>
           </div>
 
           <!-- Image slider controls -->
@@ -184,12 +184,6 @@
           </svg>
           {{ isFavorited ? 'Đã lưu' : 'Lưu' }}
         </button>
-
-        <!-- Partner note -->
-        <p v-if="venue.isPartner" class="partner-note">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          Đối tác chính thức PlayFinder
-        </p>
       </div>
 
     </div>
@@ -273,9 +267,9 @@ export default {
 <style scoped>
 /* ── Variables ── */
 .venue-card {
-  --green:       #3dd56d;
-  --green-dark:  #28b857;
-  --green-light: rgba(61,213,109,.12);
+  --green:       rgb(22, 163, 74);
+  --green-dark:  rgb(15, 118, 54);
+  --green-light: rgba(22, 163, 74, 0.1);
   --text:        #111827;
   --muted:       #6b7280;
   --border:      #e5e7eb;
@@ -304,11 +298,12 @@ export default {
   box-shadow: var(--shadow);
   overflow: hidden;
   transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
+  min-width: 0;
 }
 
 .card-body:hover {
-  box-shadow: 0 4px 24px rgba(0,0,0,.1), 0 0 0 2px var(--green);
-  border-color: var(--green);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1), 0 0 0 2px rgb(22, 163, 74);
+  border-color: rgb(22, 163, 74);
   transform: translateY(-2px);
 }
 
@@ -383,9 +378,10 @@ export default {
 
 /* ─ Info column ─ */
 .info-col {
-  flex: 1; padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 10px;
+  flex: 1; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 12px;
   min-width: 0;
+  overflow: hidden;
 }
 
 .info-top { display: flex; flex-direction: column; gap: 7px; }
@@ -397,7 +393,7 @@ export default {
 
 .venue-name {
   font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.15rem; font-weight: 800;
+  font-size: 1.25rem; font-weight: 800;
   letter-spacing: 0.01em; margin: 0; line-height: 1.2;
 }
 
@@ -418,7 +414,8 @@ export default {
 .venue-address {
   display: flex; align-items: center; gap: 5px;
   font-style: normal; color: var(--muted);
-  font-size: 12.5px; line-height: 1.4;
+  font-size: 13px; line-height: 1.4;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .venue-address svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
 .distance-chip {
@@ -473,9 +470,9 @@ export default {
 
 /* ─ CTA column ─ */
 .cta-col {
-  flex-shrink: 0; width: 160px; padding: 18px 16px;
+  flex-shrink: 0; width: 180px; padding: 20px 18px;
   display: flex; flex-direction: column;
-  gap: 10px; align-items: stretch;
+  gap: 12px; align-items: stretch;
   border-left: 1.5px solid var(--border);
   background: #fafafa;
 }

@@ -1,5 +1,6 @@
 <template>
   <div class="checkout-page">
+    <LoadingView v-if="isProcessing" />
 
     <!-- HEADER BREADCRUMB -->
     <div class="chk-header">
@@ -39,14 +40,29 @@
       <transition name="fade">
         <div v-if="bookingSuccess" class="chk-success">
           <div class="chk-success__card">
-            <div class="chk-success__anim">
+            <div :class="['chk-success__anim', { 'chk-success__anim--confirmed': paymentConfirmed }]">
               <div class="chk-success__ring"></div>
               <div class="chk-success__icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg v-if="paymentConfirmed || !['bank', 'momo'].includes(payMethod)" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg v-else width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
             </div>
-            <h2 class="fw-black mt-4 mb-1">Đặt sân thành công! 🎉</h2>
-            <p class="text-muted mb-4">Thông tin xác nhận đã được gửi đến <strong>{{ bookingInfo.phone }}</strong></p>
+            <h2 class="fw-black mt-4 mb-1">
+              <template v-if="paymentConfirmed">Thanh toán thành công! 🎉</template>
+              <template v-else-if="['bank', 'momo'].includes(payMethod)">Đang chờ admin kiểm tra! ⏳</template>
+              <template v-else>Đặt sân thành công! 🎉</template>
+            </h2>
+            <p class="text-muted mb-4">
+              <template v-if="paymentConfirmed">
+                Thanh toán đã được xác nhận. Đơn đặt sân đã hoàn tất. Thông tin đã được gửi đến <strong>{{ bookingInfo.phone }}</strong>.
+              </template>
+              <template v-else-if="['bank', 'momo'].includes(payMethod)">
+                Vui lòng chờ admin kiểm tra và xác nhận thanh toán. Chỉ khi thanh toán thành công, đơn đặt sân mới được ghi nhận. Cập nhật sẽ được thông báo qua <strong>{{ bookingInfo.phone }}</strong>.
+              </template>
+              <template v-else>
+                Đơn đặt sân đã được xác nhận. Thông tin đã được gửi đến <strong>{{ bookingInfo.phone }}</strong>.
+              </template>
+            </p>
             <div class="chk-success__code">
               <span class="text-muted small">Mã đặt sân</span>
               <strong class="fs-4">{{ bookingCode }}</strong>
@@ -520,9 +536,34 @@
                   Thời lượng: <strong>{{ totalDuration }}</strong>
                 </div>
                 <div class="chk-divider mt-2"></div>
+                
+                <!-- Voucher Section -->
+                <div class="mb-2">
+                  <div class="chk-sum-row clickable" @click="showVoucherInput = !showVoucherInput" style="cursor: pointer; color: #198754; font-weight: 700; font-size: 13px">
+                    <span class="d-flex align-items-center gap-1">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 4h22v16H1z"/><path d="M1 10h22M1 14h22"/><path d="M7 4v16"/><path d="M17 4v16"/></svg>
+                      {{ discount > 0 ? 'Đã áp dụng mã giảm giá' : 'Bạn có mã giảm giá?' }}
+                    </span>
+                    <svg :style="showVoucherInput ? 'transform:rotate(180deg)' : ''" style="transition:0.2s" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  
+                  <div v-if="showVoucherInput" class="mt-2">
+                    <div class="input-group input-group-sm" style="border-radius: 8px; overflow: hidden; border: 1.5px solid #e2e8f0">
+                      <input v-model="voucherInput" type="text" class="form-control border-0 shadow-none ps-2 fw-bold" placeholder="Nhập mã..." style="font-size: 13px">
+                      <button class="btn btn-success border-0 fw-bold px-3" @click="applyVoucher" :disabled="!voucherInput" style="font-size: 11px">GỬI</button>
+                    </div>
+                    <div v-if="voucherError" class="text-danger small fw-bold mt-1" style="font-size: 11px">{{ voucherErrorMessage }}</div>
+                    <div v-if="discount > 0" class="text-success small fw-bold mt-1 d-flex justify-content-between" style="font-size: 11px">
+                      <span>Giảm giá:</span>
+                      <span>-{{ formatPrice(discount) }} đ</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="discount > 0" class="chk-divider mb-2"></div>
                 <div class="chk-sum-row chk-sum-row--total">
                   <span>Tổng thanh toán</span>
-                  <span class="text-success">{{ formatPrice(bookingInfo.total) }} đ</span>
+                  <span class="text-success">{{ formatPrice(finalCalculatedTotal) }} đ</span>
                 </div>
               </div>
             </div>
@@ -588,6 +629,9 @@
 
 <script>
 import { bookingService } from '@/services/booking.service.js';
+import { socketService } from '@/services/socket.service.js';
+import { voucherService } from '@/services/voucher.service.js';
+import LoadingView from "@/components/common/LoadingView.vue";
 
 export default {
   name: 'CheckoutView',
@@ -605,6 +649,14 @@ export default {
       timerSeconds: 600,
       timerInterval: null,
       errorMessage: '',
+      paymentConfirmed: false,
+      currentBookingId: null,
+      pollingInterval: null,
+      showVoucherInput: false,
+      voucherInput: '',
+      discount: 0,
+      voucherError: false,
+      voucherErrorMessage: '',
       bookingInfo: {
         club_id: '',
         club_slug: '',
@@ -620,6 +672,7 @@ export default {
         email: '',
         note: '',
         voucher_code: '',
+        base_total: 0, // Lưu giá trước giảm để tính lại nếu cần
       },
     };
   },
@@ -627,6 +680,10 @@ export default {
   computed: {
     parsedSlots() {
       try { return JSON.parse(this.bookingInfo.slots); } catch { return []; }
+    },
+    finalCalculatedTotal() {
+      const base = this.bookingInfo.base_total || this.bookingInfo.total;
+      return Math.max(0, base - this.discount);
     },
 
     parsedServices() {
@@ -716,24 +773,42 @@ export default {
   created() {
     this.checkAuth();
     
-    // Nếu phát hiện URL có mang cờ success (do reload trang ấn F5 sau khi mua)
-    const q = this.$route.query;
-    if (q.success === '1') {
-      const target = q.club_slug ? `/clubs/${q.club_slug}` : '/';
-      this.$router.replace(target);
+    let q = { ...this.$route.query };
+
+    // Nếu URL không có dữ liệu (trống trơn), thử lấy từ sessionStorage
+    if (!q.club_id && !q.success) {
+      const stored = sessionStorage.getItem('pending_booking');
+      if (stored) {
+        try {
+          const data = JSON.parse(stored);
+          q = { ...q, ...data };
+        } catch (e) {
+          console.error("Lỗi khi phục hồi dữ liệu từ sessionStorage:", e);
+        }
+      }
+    }
+
+    if (q.success === '1' && q.code) {
+      this.bookingCode = q.code;
+      this.bookingSuccess = true;
+      this.loadBookingFromServer(q.code);
+      this.startStatusPolling(q.code);
+      // Xoá dữ liệu tạm sau khi đã checkout thành công (hoặc chờ xử lý)
+      sessionStorage.removeItem('pending_booking');
       return;
     }
 
-    // Freeze data từ query vào state cục bộ để ko phụ thuộc quá trình xóa tham số URL
+    // Freeze data vào state cục bộ
     this.bookingInfo = {
       club_id: q.club_id || '',
       club_slug: q.club_slug || '',
       venue_name: q.venue_name || '',
-      courts: (() => { try { return JSON.parse(q.courts || '[]'); } catch { return []; } })(),
+      courts: (() => { try { return typeof q.courts === 'string' ? JSON.parse(q.courts) : (q.courts || []); } catch { return []; } })(),
       date: q.date || new Date().toISOString().split('T')[0],
-      slots: q.slots || '[]',
-      time_slot_ids: q.time_slot_ids || '[]',
-      services: q.services || '[]',
+      slots: typeof q.slots === 'string' ? q.slots : JSON.stringify(q.slots || []),
+      booking_slots: typeof q.booking_slots === 'string' ? q.booking_slots : JSON.stringify(q.booking_slots || []),
+      time_slot_ids: typeof q.time_slot_ids === 'string' ? q.time_slot_ids : JSON.stringify(q.time_slot_ids || []),
+      services: typeof q.services === 'string' ? q.services : JSON.stringify(q.services || []),
       total: Number(q.total) || 0,
       name: q.name || '',
       phone: q.phone || '',
@@ -742,10 +817,28 @@ export default {
       voucher_code: q.voucher_code || '',
     };
 
+    // Lưu lại base_total để tính toán voucher
+    this.bookingInfo.base_total = this.bookingInfo.total;
+
+    // Tự động điền voucher nếu đã chọn ở trang trước
+    if (this.bookingInfo.voucher_code) {
+        this.voucherInput = this.bookingInfo.voucher_code;
+        this.applyVoucher(); // Tự động áp dụng để tính toán lại discount
+    }
+
     this.bookingCode = 'TP' + Date.now().toString(36).toUpperCase().slice(-6);
     this.startTimer();
   },
-  beforeUnmount() { clearInterval(this.timerInterval); },
+  beforeUnmount() {
+    clearInterval(this.timerInterval);
+    this.stopStatusPolling();
+    // Dọn dẹp kết nối Socket khi rời trang
+    if (this.currentBookingId) {
+      socketService.offBookingStatusChanged();
+      socketService.leaveBooking(this.currentBookingId);
+      socketService.disconnect();
+    }
+  },
 
   methods: {
     checkAuth() {
@@ -809,12 +902,18 @@ export default {
 
         const payload = {
           clubId: this.bookingInfo.club_id,
-          timeSlotIds: JSON.parse(this.bookingInfo.time_slot_ids),
+          slots: (() => {
+            try {
+              return typeof this.bookingInfo.booking_slots === 'string' 
+                ? JSON.parse(this.bookingInfo.booking_slots) 
+                : (this.bookingInfo.booking_slots || []);
+            } catch { return []; }
+          })(),
           bookerName: this.bookingInfo.name,
           bookerPhone: this.bookingInfo.phone,
           bookerEmail: this.bookingInfo.email || undefined,
           note: this.bookingInfo.note || undefined,
-          voucherCode: this.bookingInfo.voucher_code || undefined,
+          voucherCode: this.voucherInput.trim().toUpperCase() || undefined,
           paymentMethod: paymentMap[this.payMethod] || 'VNPAY'
         };
 
@@ -830,9 +929,15 @@ export default {
             // Khóa timer và đổi trạng thái
             this.bookingSuccess = true;
             clearInterval(this.timerInterval);
+
+            // Lưu bookingId và kết nối Socket để lắng nghe khi owner xác nhận thanh toán
+            if (res.data.booking?.id) {
+              this.currentBookingId = res.data.booking.id;
+              this.connectBookingSocket(res.data.booking.id);
+              this.startStatusPolling(this.bookingCode);
+            }
             
             // Cập nhật lại thanh địa chỉ URL để xóa toàn bộ rác (slots, courts...)
-            // Mục đích: Nếu khách F5, tham số success=1 sẽ sút họ về sân.
             this.$router.replace({ 
               path: '/checkout', 
               query: { 
@@ -851,198 +956,152 @@ export default {
       }
     },
 
+    async applyVoucher() {
+      if (!this.voucherInput.trim()) return;
+      this.voucherError = false;
+      this.voucherErrorMessage = '';
+      
+      const code = this.voucherInput.trim().toUpperCase();
+      const clubId = this.bookingInfo.club_id;
+      // Calculate base amount (court + services) to validate correctly
+      const baseAmount = this.courtSubtotalAll() + this.serviceTotal;
+
+      try {
+        const res = await voucherService.validateVoucher(code, clubId, baseAmount);
+        if (res && res.data) {
+          const v = res.data;
+          if (v.type === 'PERCENTAGE') {
+            let disc = baseAmount * (v.value / 100);
+            if (v.maxDiscountAmount && disc > v.maxDiscountAmount) disc = v.maxDiscountAmount;
+            this.discount = disc;
+          } else {
+            this.discount = v.value;
+          }
+          this.bookingInfo.voucher_code = code;
+          this.showVoucherInput = true;
+        }
+      } catch (err) {
+        console.error("Voucher validation error:", err);
+        this.voucherError = true;
+        this.voucherErrorMessage = err.response?.data?.message || "Mã không hợp lệ";
+        this.discount = 0;
+        this.bookingInfo.voucher_code = '';
+      }
+    },
+
+    courtSubtotalAll() {
+      return this.bookingInfo.courts.reduce((sum, c) => sum + this.courtSubtotal(c.id), 0);
+    },
+
     printConfirmation() { window.print(); },
+
+    /**
+     * Kết nối Socket.io để lắng nghe khi chủ sân xác nhận thanh toán
+     * → Tự động cập nhật UI từ "Đang chờ" → "Thanh toán thành công"
+     */
+    connectBookingSocket(bookingId) {
+      socketService.connect();
+      socketService.joinBooking(bookingId);
+      socketService.onBookingStatusChanged((data) => {
+        console.log('📡 Booking status changed:', data);
+        if (data.status === 'CONFIRMED' || data.status === 'COMPLETED') {
+          this.paymentConfirmed = true;
+          this.stopStatusPolling();
+        }
+      });
+    },
+
+    /**
+     * Polling logic: cứ 3s gọi API check trạng thái 1 lần (vừa hỗ trợ Admin vừa làm fallback cho Socket)
+     */
+    startStatusPolling(code) {
+      this.stopStatusPolling(); // Clear existing if any
+      this.pollingInterval = setInterval(() => {
+        if (!this.paymentConfirmed) {
+          console.log("🔄 Polling booking status for code:", code);
+          this.loadBookingFromServer(code);
+        } else {
+          this.stopStatusPolling();
+        }
+      }, 3000);
+    },
+
+    stopStatusPolling() {
+      if (this.pollingInterval) {
+        clearInterval(this.pollingInterval);
+        this.pollingInterval = null;
+      }
+    },
+
+    /**
+     * Tải lại thông tin booking từ server khi reload trang checkout
+     * Dùng bookingCode để lấy dữ liệu và hiển thị lại trang success
+     */
+    async loadBookingFromServer(bookingCode) {
+      try {
+        const res = await bookingService.getBookingByCode(bookingCode);
+        if (res && res.data) {
+          const b = res.data;
+
+          // Map payment method cho hiển thị
+          const payMap = { BANK_TRANSFER: 'bank', MOMO: 'momo', VNPAY: 'vnpay', CREDIT_CARD: 'card', CASH: 'cash' };
+          this.payMethod = payMap[b.payment?.method] || 'bank';
+
+          // Kiểm tra trạng thái đã xác nhận chưa
+          if (b.status === 'CONFIRMED' || b.status === 'COMPLETED') {
+            this.paymentConfirmed = true;
+            this.stopStatusPolling();
+          }
+
+          // Tái tạo thông tin sân & slots từ dữ liệu server
+          const courtMap = {};
+          const slots = b.items.map(item => {
+            const court = item.timeSlot.court;
+            const courtId = item.timeSlot.courtId;
+            if (!courtMap[courtId]) courtMap[courtId] = { id: courtId, name: court.name };
+
+            const start = new Date(item.timeSlot.startTime);
+            const end = new Date(item.timeSlot.endTime);
+            return {
+              courtId,
+              courtName: court.name,
+              time: `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
+              price: Number(item.price),
+            };
+          });
+
+          const firstSlot = b.items[0]?.timeSlot;
+          const bookingDate = firstSlot ? new Date(firstSlot.startTime).toISOString().split('T')[0] : '';
+
+          this.bookingInfo = {
+            club_id: b.clubId || '',
+            club_slug: b.club?.slug || '',
+            venue_name: b.club?.name || '',
+            courts: Object.values(courtMap),
+            date: bookingDate,
+            slots: JSON.stringify(slots),
+            time_slot_ids: '[]',
+            services: '[]',
+            total: Number(b.finalAmount),
+            name: b.bookerName,
+            phone: b.bookerPhone,
+            email: b.bookerEmail || '',
+            note: b.note || '',
+            voucher_code: '',
+          };
+
+          // Kết nối socket để tiếp tục lắng nghe trạng thái
+          if (b.id && !this.paymentConfirmed) {
+            this.currentBookingId = b.id;
+            this.connectBookingSocket(b.id);
+          }
+        }
+      } catch (err) {
+        console.error('Không thể tải thông tin booking:', err);
+      }
+    },
   },
 };
 </script>
 
-<style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap');
-
-.checkout-page { font-family:'Lexend',sans-serif; background:#f8fafc; min-height:100vh; }
-
-/* HEADER */
-.chk-header { background:#fff; border-bottom:1px solid #e2e8f0; padding:16px 0 20px; position:sticky; top:0; z-index:100; box-shadow:0 2px 8px rgba(0,0,0,.04); }
-.chk-back-btn { background:#f1f5f9; border:none; border-radius:8px; width:32px; height:32px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:background .2s; color:#374151; }
-.chk-back-btn:hover { background:#e2e8f0; }
-
-/* Progress */
-.chk-progress { display:flex; align-items:center; max-width:320px; }
-.chk-step { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:#94a3b8; }
-.chk-step__circle { width:28px; height:28px; border-radius:50%; background:#e2e8f0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; color:#94a3b8; }
-.chk-step--done .chk-step__circle { background:#22c55e; color:#fff; }
-.chk-step--active .chk-step__circle { background:#16a34a; color:#fff; box-shadow:0 0 0 4px #bbf7d0; }
-.chk-step--active { color:#0f172a; }
-.chk-step__line { flex:1; height:2px; background:#e2e8f0; min-width:40px; margin:0 8px; }
-.chk-step__line--done { background:#22c55e; }
-
-.chk-main { padding:28px 12px 60px; }
-
-/* CARDS */
-.chk-card { background:#fff; border-radius:16px; border:1px solid #e2e8f0; overflow:hidden; transition:box-shadow .2s; }
-.chk-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.06); }
-.chk-card__header { display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid #f1f5f9; font-size:13.5px; font-weight:800; color:#0f172a; letter-spacing:-.2px; }
-.chk-card__icon { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.chk-card__icon--green  { background:#dcfce7; color:#16a34a; }
-.chk-card__icon--blue   { background:#dbeafe; color:#2563eb; }
-.chk-card__icon--purple { background:#f3e8ff; color:#9333ea; }
-.chk-card__icon--amber  { background:#fef3c7; color:#d97706; }
-.chk-card__body { padding:20px; }
-
-/* Read-only */
-.chk-readonly-badge { display:inline-flex; align-items:center; gap:5px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:20px; padding:3px 10px; font-size:10px; font-weight:600; color:#94a3b8; }
-.chk-readonly-field { display:flex; align-items:center; gap:9px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; padding:10px 13px; font-size:13px; font-weight:600; color:#0f172a; min-height:42px; }
-
-/* Booking banner */
-.chk-booking-banner { background:linear-gradient(135deg,#0f172a,#1e3a5f); border-radius:12px; padding:18px 20px; display:flex; align-items:center; justify-content:space-between; gap:16px; }
-.chk-booking-banner__venue { color:#fff; font-weight:800; font-size:15px; margin-bottom:6px; }
-.chk-booking-banner__court { color:#86efac; font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:4px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); border-radius:20px; padding:3px 10px; }
-.chk-booking-banner__meta { display:flex; flex-wrap:wrap; gap:12px; margin-top:4px; }
-.chk-booking-banner__meta span { color:#7dd3fc; font-size:12px; font-weight:600; display:flex; align-items:center; gap:4px; }
-.chk-booking-banner__badge { font-size:48px; line-height:1; flex-shrink:0; opacity:.5; }
-
-/* Court label in slots */
-.chk-court-label { display:inline-flex; align-items:center; gap:5px; background:#dcfce7; color:#15803d; border-radius:6px; padding:3px 10px; font-size:11px; font-weight:700; }
-
-/* Slots list */
-.chk-slots-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; margin-bottom:8px; }
-.chk-slots-list { background:#f8fafc; border-radius:10px; overflow:hidden; border:1px solid #e2e8f0; margin-bottom:4px; }
-.chk-slot-row { display:flex; justify-content:space-between; align-items:center; padding:9px 14px; border-bottom:1px solid #e2e8f0; font-size:12.5px; }
-.chk-slot-row:last-child { border-bottom:none; }
-.chk-slot-row__time  { font-weight:600; color:#374151; }
-.chk-slot-row__price { font-weight:800; color:#16a34a; }
-.chk-slot-row--subtotal { background:#f0fdf4; }
-.chk-slot-row--subtotal .chk-slot-row__time { color:#94a3b8; }
-
-/* Summary court label */
-.chk-sum-court-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px; color:#16a34a; margin:8px 0 2px; padding-left:2px; }
-
-/* Form inputs */
-.chk-label { display:block; font-size:12px; font-weight:700; color:#374151; margin-bottom:5px; }
-.chk-input { width:100%; border:1.5px solid #e2e8f0; border-radius:10px; padding:9px 13px; font-size:13px; font-family:'Lexend',sans-serif; font-weight:500; color:#0f172a; background:#f8fafc; transition:border-color .2s,box-shadow .2s; outline:none; }
-.chk-input:focus { border-color:#22c55e; background:#fff; box-shadow:0 0 0 3px #dcfce7; }
-
-/* Pay methods */
-.chk-pay-methods { display:flex; flex-direction:column; gap:8px; }
-.chk-pay-method { display:flex; align-items:center; gap:12px; padding:13px 15px; border-radius:12px; border:2px solid #e2e8f0; cursor:pointer; transition:all .2s; background:#fff; }
-.chk-pay-method:hover { border-color:#86efac; background:#f0fdf4; }
-.chk-pay-method.active { border-color:#22c55e; background:#f0fdf4; box-shadow:0 0 0 3px #dcfce7; }
-.chk-pay-method__radio { width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:border-color .2s; }
-.chk-pay-method.active .chk-pay-method__radio { border-color:#22c55e; }
-.chk-radio-dot { width:9px; height:9px; border-radius:50%; background:#22c55e; }
-.chk-pay-method__icon { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-.chk-pay-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; flex-shrink:0; }
-.chk-pay-badge--blue { background:#dbeafe; color:#1d4ed8; }
-.chk-pay-badge--pink { background:#fce7f3; color:#be185d; }
-.chk-pay-badge--gray { background:#f1f5f9; color:#64748b; }
-
-/* Card type logos */
-.chk-card-logo { padding:1px 5px; border-radius:4px; font-size:9px; font-weight:800; letter-spacing:.4px; }
-.chk-card-logo--visa { background:#1a1f71; color:#fff; }
-.chk-card-logo--mc   { background:#eb001b; color:#fff; }
-.chk-card-logo--jcb  { background:#003087; color:#fff; }
-
-/* Pay detail panels */
-.chk-pay-detail { background:#f8fafc; border-radius:12px; padding:20px; margin-top:4px; border:1px solid #e2e8f0; }
-.chk-pay-detail--momo { background:#fdf2f8; border-color:#fbcfe8; text-align:center; }
-.chk-pay-detail--cash { background:#f0fdf4; border-color:#bbf7d0; }
-
-/* Bank info */
-.chk-bank-qr-wrap { display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; }
-.chk-bank-qr { text-align:center; flex-shrink:0; }
-.chk-bank-qr__label { font-size:10px; color:#94a3b8; font-weight:600; margin-top:6px; }
-.chk-bank-info { flex:1; min-width:180px; }
-.chk-bank-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #e2e8f0; gap:8px; flex-wrap:wrap; }
-.chk-bank-row:last-child { border-bottom:none; }
-.chk-bank-row__label { font-size:11px; color:#94a3b8; font-weight:600; flex-shrink:0; }
-.chk-bank-row__value { font-size:13px; color:#0f172a; text-align:right; }
-.chk-bank-row--highlight { background:#f0fdf4; border-radius:8px; padding:8px 10px; margin:4px 0; border:none; }
-.chk-copy-btn { background:#f1f5f9; border:1px solid #e2e8f0; border-radius:6px; padding:3px 6px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .2s; color:#64748b; flex-shrink:0; }
-.chk-copy-btn:hover { background:#e2e8f0; }
-.chk-copy-btn.copied { background:#dcfce7; border-color:#86efac; color:#16a34a; }
-.chk-momo-amount { font-size:28px; font-weight:900; color:#ae2070; letter-spacing:-.5px; }
-
-/* Notes */
-.chk-note { display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:10px 14px; font-size:12px; line-height:1.6; }
-.chk-note--amber { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
-.chk-note--red   { background:#fff5f5; border:1px solid #fca5a5; color:#991b1b; }
-
-/* Card visual */
-.chk-card-scene { width:100%; max-width:340px; height:200px; perspective:1000px; margin:0 auto; }
-.chk-card-flip { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .6s cubic-bezier(.4,0,.2,1); }
-.chk-card-flip.flipped { transform:rotateY(180deg); }
-.chk-card-front, .chk-card-back { position:absolute; inset:0; border-radius:18px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
-.chk-card-front { background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 60%,#7c3aed 100%); box-shadow:0 12px 40px rgba(37,99,235,.4); padding:22px 24px; display:flex; flex-direction:column; justify-content:space-between; }
-.chk-card-front__chip { width:38px; height:28px; border-radius:6px; background:linear-gradient(135deg,#fbbf24,#f59e0b); }
-.chk-card-front__number { font-family:'Courier New',monospace; font-size:18px; font-weight:700; color:#fff; letter-spacing:3px; word-spacing:8px; text-shadow:0 1px 3px rgba(0,0,0,.3); }
-.chk-card-front__bottom { display:flex; justify-content:space-between; align-items:flex-end; }
-.chk-card-front__label  { font-size:9px; font-weight:700; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.5px; margin-bottom:3px; }
-.chk-card-front__holder { font-size:13px; font-weight:700; color:#fff; letter-spacing:1px; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.chk-card-front__exp    { font-size:14px; font-weight:700; color:#fff; }
-.chk-card-front__brand  { position:absolute; top:20px; right:20px; }
-.chk-card-front__type   { font-size:13px; font-weight:900; color:#fff; letter-spacing:1px; text-shadow:0 1px 4px rgba(0,0,0,.4); }
-.chk-card-back  { background:linear-gradient(135deg,#374151,#1f2937); transform:rotateY(180deg); overflow:hidden; }
-.chk-card-back__stripe { height:44px; background:#111; margin-top:32px; }
-.chk-card-back__cvc-area { display:flex; align-items:center; justify-content:flex-end; gap:12px; padding:16px 24px 0; }
-.chk-card-back__cvc-label { font-size:11px; font-weight:700; color:rgba(255,255,255,.6); }
-.chk-card-back__cvc-box { background:#fff; border-radius:6px; padding:6px 16px; font-family:'Courier New',monospace; font-size:16px; font-weight:700; color:#0f172a; letter-spacing:4px; min-width:70px; text-align:center; }
-
-/* Card form */
-.chk-input-icon-wrap { position:relative; display:flex; align-items:center; }
-.chk-input-icon { position:absolute; left:12px; pointer-events:none; z-index:1; }
-.chk-input-icon--right { left:auto; right:12px; }
-.chk-input--pl { padding-left:36px; }
-.chk-input--pr { padding-right:36px; }
-.chk-detected-type { position:absolute; right:10px; font-size:10px; font-weight:800; background:#f0fdf4; border:1px solid #86efac; border-radius:4px; padding:1px 6px; color:#16a34a; letter-spacing:.4px; }
-
-/* Checkbox */
-.chk-checkbox-wrap { display:flex; align-items:flex-start; gap:10px; cursor:pointer; }
-.chk-checkbox { width:18px; height:18px; border-radius:5px; border:2px solid #cbd5e1; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .2s; margin-top:1px; }
-.chk-checkbox.checked { background:#22c55e; border-color:#22c55e; }
-
-/* Summary */
-.chk-sum-row { display:flex; justify-content:space-between; align-items:center; padding:4px 0; font-size:13px; color:#64748b; font-weight:500; }
-.chk-sum-row span:last-child { font-weight:700; color:#0f172a; }
-.chk-sum-row--total { padding:10px 0 0; font-size:16px; font-weight:900 !important; }
-.chk-sum-row--total span { color:#0f172a !important; }
-.chk-sum-row--total span:last-child { font-size:20px; }
-.chk-divider { height:1px; background:#e2e8f0; margin:8px 0; }
-.chk-duration-badge { display:inline-flex; align-items:center; gap:5px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:20px; padding:4px 12px; font-size:12px; color:#16a34a; font-weight:600; }
-
-/* Timer */
-.chk-timer { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:12px; transition:all .3s; }
-.chk-timer--urgent { background:#fff5f5; border-color:#fca5a5; animation:pulse-red 1.5s ease-in-out infinite; }
-@keyframes pulse-red { 0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,.2); } 50% { box-shadow:0 0 0 6px rgba(239,68,68,.0); } }
-.chk-timer__icon  { font-size:22px; }
-.chk-timer__label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:#94a3b8; }
-.chk-timer__time  { font-size:22px; font-weight:900; color:#0f172a; letter-spacing:1px; line-height:1.1; }
-.chk-timer--urgent .chk-timer__time { color:#ef4444; }
-.chk-timer__sub   { font-size:10px; font-weight:600; margin-top:1px; }
-
-/* CTA */
-.chk-cta-btn { width:100%; background:linear-gradient(135deg,#16a34a,#22c55e); color:#fff; border:none; border-radius:14px; padding:16px; font-size:15px; font-weight:800; font-family:'Lexend',sans-serif; cursor:pointer; transition:all .2s; letter-spacing:-.2px; box-shadow:0 4px 20px rgba(34,197,94,.35); }
-.chk-cta-btn:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 24px rgba(34,197,94,.45); }
-.chk-cta-btn:active:not(:disabled) { transform:translateY(0); }
-.chk-cta-btn--disabled { background:linear-gradient(135deg,#94a3b8,#cbd5e1); box-shadow:none; cursor:not-allowed; }
-.chk-cta-btn--loading  { opacity:.8; cursor:wait; }
-.chk-spinner { display:inline-block; width:16px; height:16px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-
-/* Success */
-.chk-success { display:flex; justify-content:center; align-items:flex-start; padding:40px 0; }
-.chk-success__card { background:#fff; border-radius:24px; border:1px solid #e2e8f0; padding:40px 36px; max-width:460px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.08); }
-.chk-success__anim { position:relative; width:90px; height:90px; margin:0 auto; }
-.chk-success__ring { position:absolute; inset:0; border-radius:50%; border:3px solid #22c55e; animation:expand-ring .8s ease-out forwards; opacity:0; }
-@keyframes expand-ring { 0% { transform:scale(.6); opacity:1; } 100% { transform:scale(1.3); opacity:0; } }
-.chk-success__icon { width:90px; height:90px; border-radius:50%; background:linear-gradient(135deg,#16a34a,#22c55e); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 30px rgba(34,197,94,.4); animation:pop-in .4s cubic-bezier(.34,1.56,.64,1) forwards; }
-@keyframes pop-in { 0% { transform:scale(0); } 100% { transform:scale(1); } }
-.chk-success__code { background:#f0fdf4; border:1.5px dashed #86efac; border-radius:12px; padding:14px 20px; display:flex; flex-direction:column; gap:2px; align-items:center; }
-.chk-success__summary { width:100%; }
-
-/* Transitions */
-.slide-down-enter-active,.slide-down-leave-active { transition:all .3s ease; overflow:hidden; }
-.slide-down-enter-from,.slide-down-leave-to { max-height:0; opacity:0; transform:translateY(-8px); }
-.slide-down-enter-to,.slide-down-leave-from { max-height:700px; opacity:1; transform:translateY(0); }
-.fade-enter-active,.fade-leave-active { transition:opacity .4s; }
-.fade-enter-from,.fade-leave-to { opacity:0; }
-</style>
+<style scoped src="@/assets/checkout.css"></style>
