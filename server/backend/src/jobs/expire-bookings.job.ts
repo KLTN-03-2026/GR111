@@ -6,7 +6,7 @@ import cron from "node-cron";
  * Tự động hủy các đơn đặt sân quá hạn thanh toán
  * Một đơn hàng được coi là quá hạn nếu:
  * 1. Trạng thái là WAITING_PAYMENT
- * 2. Được tạo cách đây hơn 30 phút (hoặc tùy chỉnh qua biến môi trường)
+ * 2. Được tạo cách đây hơn 5 phút (hoặc tùy chỉnh qua biến môi trường)
  */
 export async function expirePendingBookings() {
   const EXPIRE_TIME_MINUTES = Number(process.env.BOOKING_EXPIRE_MINUTES) || 30;
@@ -82,14 +82,13 @@ export async function expirePendingBookings() {
 }
 
 /**
- * Khởi tạo Cron Job chạy mỗi 5 phút
+ * Khởi tạo Cron Job chạy mỗi 1 phút
  */
 export function initBookingJobs() {
-  // Chạy mỗi 5 phút: "*/5 * * * *"
-  // Chạy mỗi phút (test): "* * * * *"
-  cron.schedule("*/5 * * * *", async () => {
+  // Chạy mỗi phút: "* * * * *"
+  cron.schedule("* * * * *", async () => {
     await expirePendingBookings();
   });
 
-  console.log("[CRON] Booking expiration job scheduled (every 5 minutes)");
+  console.log("[CRON] Booking expiration job scheduled (every 1 minute)");
 }
