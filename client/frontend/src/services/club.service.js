@@ -30,18 +30,19 @@ export const clubService = {
     },
     
     //thêm mới câu lạc bộ
-    addClub(clubId, clubData) {
-        return api.post(`/owner/clubs/${clubId}/amenities`, clubData);
+    addClub(clubData) {
+        return api.post(`/owner/clubs`, clubData);
     },
 
     //chỉnh sửa câu lạc bộ
     editClub(clubId, clubData) {
-        return api.put(`/owner/clubs/${clubId}`, clubData);
+        return api.patch(`/owner/clubs/${clubId}`, clubData);
     },
 
     //lấy toàn bộ thông tin câu lạc bộ
-    Getallthedetails(clubId) {
-        return api.get(`/owner/clubs/${clubId}`);
+    Getallthedetails() {
+        return api.get(`/owner/clubs`);
+        
     },
 
     /**
