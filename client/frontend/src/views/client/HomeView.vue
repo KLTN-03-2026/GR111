@@ -164,6 +164,8 @@ export default {
       danhSachSan: [],
       loading: true,
       error: null,
+      DEFAULT_LAT,
+      DEFAULT_LNG,
     };
   },
 
