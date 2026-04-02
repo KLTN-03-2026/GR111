@@ -193,6 +193,7 @@ export default {
     user() {
       const userData = localStorage.getItem("user");
       return userData ? JSON.parse(userData) : null;
+      console.log(userData);
     }
   },
   methods: {
