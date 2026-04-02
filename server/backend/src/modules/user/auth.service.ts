@@ -102,19 +102,19 @@ export async function loginUser(input: LoginInput, ip?: string, userAgent?: stri
 
   // B. Kiểm tra mật khẩu
   const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
-  
+
   if (!isPasswordValid) {
     // Tăng số lần thử sai
     const newAttempts = user.failedLoginAttempts + 1;
     let lockoutUntil = null;
-    
+
     if (newAttempts >= 5) {
       lockoutUntil = new Date(Date.now() + 15 * 60 * 1000); // Khóa 15 phút
     }
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { 
+      data: {
         failedLoginAttempts: newAttempts,
         lockoutUntil
       },
@@ -136,7 +136,7 @@ export async function loginUser(input: LoginInput, ip?: string, userAgent?: stri
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { 
+    data: {
       lastLoginAt: new Date(),
       lastLoginIp: ip,
       failedLoginAttempts: 0,
@@ -157,7 +157,7 @@ export async function loginUser(input: LoginInput, ip?: string, userAgent?: stri
     user: {
       id: user.id,
       email: user.email,
-      name: user.fullName,
+      fullName: user.fullName,
       role: user.role,
       avatarUrl: user.avatarUrl,
       isVerified: user.isVerified,
@@ -313,7 +313,7 @@ export async function loginWithGoogle(idToken: string, role: "USER" | "OWNER" = 
  */
 export async function forgotPassword(email: string) {
   const user = await prisma.user.findUnique({ where: { email } });
-  
+
   // Để bảo mật, không báo lỗi nếu email không tồn tại
   if (!user) return true;
 
@@ -371,7 +371,7 @@ export async function resetPassword(input: ResetPasswordInput) {
  */
 export async function logoutUser(sessionId: string) {
   if (!sessionId) return false;
-  
+
   await prisma.session.update({
     where: { id: sessionId },
     data: { isRevoked: true },

@@ -39,6 +39,8 @@
         <div v-for="a in venue.amenities" :key="a.id" class="col-6 d-flex align-items-center gap-2">
           <div class="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center" style="width:26px;height:26px;flex-shrink:0"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg></div>
           <span class="small">{{ a.name }}</span>
+          <span v-if="a.price > 0" class="badge rounded-pill bg-success-subtle text-success border border-success-subtle" style="font-size:10px">{{ formatPrice(a.price) }}</span>
+          <span v-else class="text-muted" style="font-size:10px; font-style: italic;">Miễn phí</span>
         </div>
       </div>
 
@@ -95,6 +97,7 @@ export default {
     }
   },
   methods: {
+    formatPrice(v) { return new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0}).format(v); },
     prevImage() { this.galleryIndex=(this.galleryIndex-1+this.venueImages.length)%this.venueImages.length; },
     nextImage() { this.galleryIndex=(this.galleryIndex+1)%this.venueImages.length; }
   }

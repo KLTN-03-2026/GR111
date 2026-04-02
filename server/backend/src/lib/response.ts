@@ -52,11 +52,9 @@ export function badRequestResponse(message: string, errors?: Record<string, stri
  */
 export function serverErrorResponse(error: unknown): NextResponse<ErrorResponse> {
   console.error("[SERVER_ERROR]", error);
-  if (error instanceof Error) {
-    console.error("Stack trace:", error.stack);
-  }
+  const message = error instanceof Error ? error.message : String(error);
   return NextResponse.json(
-    { success: false, message: "Lỗi máy chủ nội bộ. Vui lòng thử lại sau." },
+    { success: false, message: "Server Error: " + message },
     { status: 500 }
   );
 }

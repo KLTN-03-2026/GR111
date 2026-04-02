@@ -2,21 +2,6 @@ import { PrismaClient } from '../src/generated/prisma';
 
 const prisma = new PrismaClient();
 
-// Owner IDs - chia đều giữa các chủ sân
-const ownerIds = [
-  'cmncy3xli000859kxozb8ysns', // owner1
-  'cmncy3xlk000a59kxkc3gsjye', // owner2
-  'cmnd23ilf000559fhjzb2sw8g', // owner3 (vidinhnguyen04)
-];
-
-// Amenity IDs
-const amenityIds = {
-  wifi: 'cmncy3x6w000059kxbu3ghkp1',
-  parking: 'cmncy3x70000159kx2wbpfr5v',
-  canteen: 'cmncy3x73000259kxs39iqrq1',
-  shower: 'cmncy3x74000359kx8haai7rz',
-};
-
 // 10 Câu lạc bộ tại Đà Nẵng (vị trí thực tế)
 const danangClubs = [
   {
@@ -30,8 +15,6 @@ const danangClubs = [
     latitude: 16.0544,
     longitude: 108.2022,
     phone: '0236 111 0001',
-    ownerId: ownerIds[0],
-    amenityIds: [amenityIds.wifi, amenityIds.parking, amenityIds.shower],
     sportType: 'FOOTBALL' as const,
     courts: ['Sân 5 số 1', 'Sân 5 số 2', 'Sân 7 số 1', 'Sân 7 số 2'],
     surfaces: ['Cỏ nhân tạo', 'Cỏ nhân tạo', 'Cỏ nhân tạo', 'Cỏ nhân tạo'],
@@ -49,8 +32,6 @@ const danangClubs = [
     latitude: 16.0778,
     longitude: 108.2287,
     phone: '0236 222 0002',
-    ownerId: ownerIds[1],
-    amenityIds: [amenityIds.wifi, amenityIds.canteen, amenityIds.shower],
     sportType: 'BADMINTON' as const,
     courts: ['Sân Thảm A', 'Sân Thảm B', 'Sân Thảm C (VIP)', 'Sân Thảm D (VIP)'],
     surfaces: ['Thảm Yonex', 'Thảm Yonex', 'Thảm Yonex Pro', 'Thảm Yonex Pro'],
@@ -68,8 +49,6 @@ const danangClubs = [
     latitude: 16.0395,
     longitude: 108.2114,
     phone: '0236 333 0003',
-    ownerId: ownerIds[2],
-    amenityIds: [amenityIds.wifi, amenityIds.parking, amenityIds.canteen, amenityIds.shower],
     sportType: 'TENNIS' as const,
     courts: ['Sân Tennis A', 'Sân Tennis B', 'Sân Tennis C', 'Sân Center Court'],
     surfaces: ['Hard Court', 'Hard Court', 'Hard Court', 'Hard Court'],
@@ -87,8 +66,6 @@ const danangClubs = [
     latitude: 16.0677,
     longitude: 108.1937,
     phone: '0236 444 0004',
-    ownerId: ownerIds[0],
-    amenityIds: [amenityIds.wifi, amenityIds.parking],
     sportType: 'PICKLEBALL' as const,
     courts: ['Pickleball 01', 'Pickleball 02', 'Pickleball 03', 'Pickleball 04'],
     surfaces: ['Acrylic', 'Acrylic', 'Acrylic', 'Acrylic'],
@@ -106,8 +83,6 @@ const danangClubs = [
     latitude: 16.0856,
     longitude: 108.1515,
     phone: '0236 555 0005',
-    ownerId: ownerIds[1],
-    amenityIds: [amenityIds.parking, amenityIds.canteen, amenityIds.shower],
     sportType: 'BASKETBALL' as const,
     courts: ['Full Court A', 'Full Court B', 'Half Court 1', 'Half Court 2'],
     surfaces: ['Sàn gỗ', 'Sàn gỗ', 'Sàn gỗ', 'Sàn gỗ'],
@@ -125,8 +100,6 @@ const danangClubs = [
     latitude: 16.0206,
     longitude: 108.2401,
     phone: '0236 666 0006',
-    ownerId: ownerIds[2],
-    amenityIds: [amenityIds.wifi, amenityIds.parking, amenityIds.shower],
     sportType: 'FOOTBALL' as const,
     courts: ['Sân 5 A', 'Sân 5 B', 'Sân 7 Premium', 'Sân 11 người'],
     surfaces: ['Cỏ nhân tạo', 'Cỏ nhân tạo', 'Cỏ nhân tạo', 'Cỏ nhân tạo'],
@@ -144,8 +117,6 @@ const danangClubs = [
     latitude: 16.0200,
     longitude: 108.2050,
     phone: '0236 777 0007',
-    ownerId: ownerIds[0],
-    amenityIds: [amenityIds.parking, amenityIds.canteen],
     sportType: 'BADMINTON' as const,
     courts: ['Sân PVC 1', 'Sân PVC 2', 'Sân PVC 3', 'Sân PVC 4'],
     surfaces: ['PVC', 'PVC', 'PVC', 'PVC'],
@@ -163,8 +134,6 @@ const danangClubs = [
     latitude: 16.0595,
     longitude: 108.2477,
     phone: '0236 888 0008',
-    ownerId: ownerIds[1],
-    amenityIds: [amenityIds.wifi, amenityIds.shower],
     sportType: 'VOLLEYBALL' as const,
     courts: ['Beach Court 1', 'Beach Court 2', 'Beach Court 3', 'Beach Court 4'],
     surfaces: ['Cát biển', 'Cát biển', 'Cát biển', 'Cát biển'],
@@ -182,8 +151,6 @@ const danangClubs = [
     latitude: 16.0092,
     longitude: 108.2213,
     phone: '0236 999 0009',
-    ownerId: ownerIds[2],
-    amenityIds: [amenityIds.wifi, amenityIds.parking, amenityIds.canteen, amenityIds.shower],
     sportType: 'FOOTBALL' as const,
     courts: ['Sân Futsal Premier', 'Sân 7 người Gold', 'Sân Pickleball Mix', 'Sân Cầu Lông Mix'],
     surfaces: ['Cỏ nhân tạo', 'Cỏ nhân tạo', 'Acrylic', 'Thảm Yonex'],
@@ -202,8 +169,6 @@ const danangClubs = [
     latitude: 16.0680,
     longitude: 108.2200,
     phone: '0236 100 0010',
-    ownerId: ownerIds[0],
-    amenityIds: [amenityIds.wifi, amenityIds.parking, amenityIds.canteen, amenityIds.shower],
     sportType: 'TENNIS' as const,
     courts: ['Grand Court 1', 'Grand Court 2', 'Training Court A', 'Training Court B'],
     surfaces: ['Hard Court', 'Hard Court', 'Clay', 'Clay'],
@@ -214,6 +179,24 @@ const danangClubs = [
 
 async function main() {
   console.log('🏙️ Bắt đầu nạp 10 Câu lạc bộ tại Đà Nẵng...\n');
+
+  // Lấy danh sách owners thực tế từ DB
+  const owners = await prisma.user.findMany({ 
+    where: { role: 'OWNER' }, 
+    take: 3,
+    select: { id: true }
+  });
+  if (owners.length === 0) throw new Error("Chưa có chủ sân (OWNER) trong DB. Hãy chạy seed chính trước.");
+  const ownerIds = owners.map(o => o.id);
+
+  // Lấy các amenities thực tế từ DB
+  const amenities = await prisma.amenity.findMany();
+  const getAmenityId = (name: string) => amenities.find(a => a.name.toLowerCase().includes(name.toLowerCase()))?.id || amenities[0]?.id;
+
+  const wifiId = getAmenityId('WiFi');
+  const parkingId = getAmenityId('Bãi xe');
+  const canteenId = getAmenityId('Căng tin');
+  const showerId = getAmenityId('Phòng tắm');
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -229,7 +212,7 @@ async function main() {
     // Tạo Club
     const club = await prisma.club.create({
       data: {
-        ownerId: c.ownerId,
+        ownerId: ownerIds[i % ownerIds.length],
         name: c.name,
         slug: c.slug,
         description: c.description,
@@ -244,7 +227,12 @@ async function main() {
         coverImageUrl: `https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200&r=${i}`,
         approvalStatus: 'APPROVED',
         amenities: {
-          create: c.amenityIds.map((aid) => ({ amenityId: aid })),
+          create: [
+            { amenityId: wifiId, price: 0 },
+            { amenityId: parkingId, price: 5000 },
+            { amenityId: showerId, price: 10000 },
+            { amenityId: canteenId, price: 0 },
+          ].slice(0, 2 + Math.floor(Math.random() * 3)), // Gán ngẫu nhiên 2-4 tiện ích
         },
         openingHours: {
           create: [0, 1, 2, 3, 4, 5, 6].map((day) => ({

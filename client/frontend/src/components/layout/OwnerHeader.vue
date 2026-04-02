@@ -13,10 +13,7 @@
     
     <div class="header-right">
       <div class="header-notifications">
-        <button class="notif-btn">
-          <span class="material-icons notif-icon">notifications</span>
-          <span class="notif-badge">3</span>
-        </button>
+        <NotificationDropdown theme="light" />
       </div>
       <div class="user-profile">
         <div class="user-info">
@@ -30,8 +27,13 @@
 </template>
 
 <script>
+import NotificationDropdown from '@/components/common/NotificationDropdown.vue';
+
 export default {
   name: 'OwnerHeader',
+  components: {
+    NotificationDropdown
+  },
   emits: ['toggle-sidebar'],
   data() {
     return {
