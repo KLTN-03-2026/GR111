@@ -40,6 +40,7 @@
       <div class="navbar-right desktop-only">
         <template v-if="user">
           <span class="welcome-text">Chào, {{ user.fullName }}</span>
+          <NotificationDropdown theme="dark" />
           <router-link to="/order" class="nav-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -155,7 +156,10 @@
               <div class="user-info-mobile">
                 <span class="welcome-text">Chào, {{ user.fullName }}</span>
               </div>
-              <router-link @click="closeMenu" to="/order " class="mobile-nav-item">
+              <div class="mobile-nav-item" style="padding-top:0; padding-bottom: 0;">
+                <NotificationDropdown theme="dark" />
+              </div>
+              <router-link @click="closeMenu" to="/order" class="mobile-nav-item">
                 QUẢN LÝ ĐẶT CHỖ
               </router-link>
               <button @click="handleLogout" class="mobile-nav-item btn-logout-mobile">
@@ -179,8 +183,13 @@
 </template>
 
 <script>
+import NotificationDropdown from '@/components/common/NotificationDropdown.vue';
+
 export default {
   name: "ClientHeader",
+  components: {
+    NotificationDropdown
+  },
   data() {
     return {
       isMenuOpen: false,
