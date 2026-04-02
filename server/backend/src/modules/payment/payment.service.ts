@@ -1,13 +1,14 @@
 import crypto from "crypto";
+import axios from "axios";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { notifyNewBooking } from "@/lib/socket";
 import { eventEmitter } from "@/lib/events";
 
-const VNP_TMN_CODE = process.env.VNP_TMN_CODE || "DUMMY123";
-const VNP_HASH_SECRET = process.env.VNP_HASH_SECRET || "DUMMY_SECRET";
-const VNP_URL = process.env.VNP_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-const VNP_RETURN_URL = process.env.VNP_RETURN_URL || "http://localhost:3000/api/bookings/vnpay-return";
+const VNP_TMN_CODE = process.env.VNP_TMN_CODE || "";
+const VNP_HASH_SECRET = process.env.VNP_HASH_SECRET || "";
+const VNP_URL = process.env.VNP_URL || "";
+const VNP_RETURN_URL = process.env.VNP_RETURN_URL || "";
 
 // ── Stripe ──────────────────────────────────────────────
 function getStripe(): Stripe {
@@ -24,6 +25,7 @@ export async function createPaymentUrl(bookingId: string, amount: number, method
     return await createStripeCheckoutSession(bookingId, amount);
   }
   if (method === "MOMO") {
+    return await createMoMoPaymentUrl(bookingId, amount);
     // Placeholder – MoMo handled on separate branch
     return `https://test-payment.momo.vn/pay?amount=${amount}&orderId=${bookingId}`;
   }
@@ -202,8 +204,8 @@ export async function processPaymentWebhook(vnp_Params: Record<string, string>) 
   delete vnp_Params["vnp_SecureHash"];
   delete vnp_Params["vnp_SecureHashType"];
 
-  vnp_Params = sortObject(vnp_Params);
-  const signData = new URLSearchParams(vnp_Params).toString();
+  const sortedParams = sortObject(vnp_Params);
+  const signData = new URLSearchParams(sortedParams).toString();
   const hmac = crypto.createHmac("sha512", VNP_HASH_SECRET);
   const signed = hmac.update(Buffer.from(signData, "utf-8")).digest("hex");
 
@@ -259,6 +261,8 @@ async function handleSuccessfulPayment(bookingId: string, transactionRef: string
       type: "payment-confirmed",
     });
   }
+
+  return { RspCode: "02", Message: "Order failed" };
 }
 
 async function handleFailedPayment(bookingId: string) {

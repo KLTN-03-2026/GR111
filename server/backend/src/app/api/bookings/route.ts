@@ -54,11 +54,21 @@ export async function POST(req: NextRequest) {
         VOUCHER_EXHAUSTED: ["Mã giảm giá đã hết lượt sử dụng", 422],
         VOUCHER_LIMIT_EXCEEDED: ["Bạn đã hết lượt sử dụng mã này", 422],
         VOUCHER_MIN_ORDER: ["Giá trị đơn hàng chưa đạt tối thiểu để dùng voucher", 422],
+        MOMO_GATEWAY_ERROR: ["Lỗi kết nối cổng thanh toán MoMo. Vui lòng thử lại sau.", 502],
+        MOMO_CONFIG_MISSING: ["Cấu hình MoMo chưa hoàn tất. Vui lòng liên hệ Admin.", 500],
         STRIPE_CONFIG_MISSING: ["Cấu hình thanh toán thẻ chưa hoàn tất. Vui lòng liên hệ Admin.", 500],
         STRIPE_SESSION_URL_MISSING: ["Không thể tạo phiên thanh toán. Vui lòng thử lại.", 502],
       };
       const [msg, status] = errorMap[error.message] || [];
       if (msg) return errorResponse(msg, status);
+
+      // Special case: Gateway error might contain more info in the message itself
+      if (error.message.startsWith("MOMO_ERROR:")) {
+        return errorResponse(error.message.replace("MOMO_ERROR: ", ""), 502);
+      }
+
+      console.error("[POST /api/bookings] Server Error:", error);
+      return serverErrorResponse(error);
     }
     return serverErrorResponse(error);
   }
