@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     const booking = await createBooking(user.userId, parsed.data);
 
     let paymentUrl = null;
-    if (parsed.data.paymentMethod === "VNPAY" || parsed.data.paymentMethod === "MOMO") {
+    if (parsed.data.paymentMethod === "VNPAY" || parsed.data.paymentMethod === "MOMO" || parsed.data.paymentMethod === "CREDIT_CARD") {
       const ipAddr = req.headers.get("x-forwarded-for") || "127.0.0.1";
       paymentUrl = await createPaymentUrl(booking.id, Number(booking.finalAmount), parsed.data.paymentMethod, ipAddr);
     }
@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
         VOUCHER_MIN_ORDER: ["Giá trị đơn hàng chưa đạt tối thiểu để dùng voucher", 422],
         MOMO_GATEWAY_ERROR: ["Lỗi kết nối cổng thanh toán MoMo. Vui lòng thử lại sau.", 502],
         MOMO_CONFIG_MISSING: ["Cấu hình MoMo chưa hoàn tất. Vui lòng liên hệ Admin.", 500],
+        STRIPE_CONFIG_MISSING: ["Cấu hình thanh toán thẻ chưa hoàn tất. Vui lòng liên hệ Admin.", 500],
+        STRIPE_SESSION_URL_MISSING: ["Không thể tạo phiên thanh toán. Vui lòng thử lại.", 502],
       };
       const [msg, status] = errorMap[error.message] || [];
       if (msg) return errorResponse(msg, status);

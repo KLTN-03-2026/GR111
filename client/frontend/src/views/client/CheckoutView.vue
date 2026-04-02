@@ -382,7 +382,7 @@
                   </div>
                 </transition>
 
-                <!-- Thẻ quốc tế -->
+                <!-- Thẻ quốc tế (Stripe) -->
                 <div :class="['chk-pay-method', {active: payMethod==='card'}]" @click="payMethod='card'">
                   <div class="chk-pay-method__radio"><div class="chk-radio-dot" v-if="payMethod==='card'"></div></div>
                   <div class="chk-pay-method__icon" style="background:#f5f3ff">
@@ -396,66 +396,24 @@
                       <span class="chk-card-logo chk-card-logo--jcb">JCB</span>
                     </div>
                   </div>
+                  <span class="chk-pay-badge" style="background:#ede9fe;color:#7c3aed">Secure</span>
                 </div>
                 <transition name="slide-down">
                   <div v-if="payMethod==='card'" class="chk-pay-detail">
-                    <!-- Card visual preview -->
-                    <div class="chk-card-scene">
-                      <div class="chk-card-flip" :class="{flipped: cardFlipped}">
-                        <div class="chk-card-front">
-                          <div class="chk-card-front__chip"></div>
-                          <div class="chk-card-front__number">{{ formattedCardNumber }}</div>
-                          <div class="chk-card-front__bottom">
-                            <div>
-                              <div class="chk-card-front__label">Tên chủ thẻ</div>
-                              <div class="chk-card-front__holder">{{ cardForm.holder ? cardForm.holder.toUpperCase() : 'TÊN CHỦ THẺ' }}</div>
-                            </div>
-                            <div class="text-end">
-                              <div class="chk-card-front__label">Hết hạn</div>
-                              <div class="chk-card-front__exp">{{ cardForm.expiry || 'MM/YY' }}</div>
-                            </div>
-                          </div>
-                          <div class="chk-card-front__brand">
-                            <span v-if="detectedCardType" class="chk-card-front__type">{{ detectedCardType }}</span>
-                            <span v-else style="font-size:11px;opacity:.5">CREDIT</span>
-                          </div>
-                        </div>
-                        <div class="chk-card-back">
-                          <div class="chk-card-back__stripe"></div>
-                          <div class="chk-card-back__cvc-area">
-                            <span class="chk-card-back__cvc-label">CVC</span>
-                            <div class="chk-card-back__cvc-box">{{ cardForm.cvc ? '•'.repeat(cardForm.cvc.length) : '•••' }}</div>
-                          </div>
-                        </div>
+                    <div class="text-center py-2">
+                      <div style="font-size:44px;line-height:1;margin-bottom:12px"></div>
+                      <p class="fw-bold mb-1">Thanh toán an toàn qua Stripe</p>
+                      <p class="text-muted small mb-3">Bạn sẽ được chuyển đến trang thanh toán bảo mật của Stripe để nhập thông tin thẻ.</p>
+                      <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                        <span class="chk-card-logo chk-card-logo--visa" style="font-size:11px;padding:3px 8px">VISA</span>
+                        <span class="chk-card-logo chk-card-logo--mc" style="font-size:11px;padding:3px 8px">Mastercard</span>
+                        <span class="chk-card-logo chk-card-logo--jcb" style="font-size:11px;padding:3px 8px">JCB</span>
+                        <span style="background:#f1f5f9;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;color:#64748b">AMEX</span>
                       </div>
-                    </div>
-                    <!-- Card inputs -->
-                    <div class="chk-card-form mt-4">
-                      <div class="mb-3">
-                        <label class="chk-label">Số thẻ <span class="text-danger">*</span></label>
-                        <div class="chk-input-icon-wrap">
-                          <svg class="chk-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                          <input v-model="cardForm.number" type="text" class="chk-input chk-input--pl" placeholder="0000 0000 0000 0000" maxlength="19" @input="formatCardNumber" @focus="cardFlipped=false"/>
-                          <span v-if="detectedCardType" class="chk-detected-type">{{ detectedCardType }}</span>
-                        </div>
-                      </div>
-                      <div class="row g-3 mb-3">
-                        <div class="col-5">
-                          <label class="chk-label">Ngày hết hạn <span class="text-danger">*</span></label>
-                          <input v-model="cardForm.expiry" type="text" class="chk-input" placeholder="MM/YY" maxlength="5" @input="formatExpiry" @focus="cardFlipped=false"/>
-                        </div>
-                        <div class="col-4">
-                          <label class="chk-label">CVC <span class="text-danger">*</span></label>
-                          <div class="chk-input-icon-wrap">
-                            <input v-model="cardForm.cvc" type="password" class="chk-input chk-input--pr" placeholder="•••" maxlength="4" @input="cardForm.cvc=cardForm.cvc.replace(/\D/g,'')" @focus="cardFlipped=true" @blur="cardFlipped=false"/>
-                            <svg class="chk-input-icon chk-input-icon--right" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label class="chk-label">Tên chủ sở hữu thẻ <span class="text-danger">*</span></label>
-                        <input v-model="cardForm.holder" type="text" class="chk-input" placeholder="NGUYEN VAN A" @focus="cardFlipped=false" style="text-transform:uppercase"/>
-                        <p class="text-muted mt-1 mb-0" style="font-size:11px">Nhập đúng tên in trên thẻ, không dấu</p>
+                      <div class="chk-momo-amount">{{ formatPrice(bookingInfo.total) }} đ</div>
+                      <div class="chk-note mt-3" style="border-color:#e9d5ff;background:#faf5ff">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Thông tin thẻ được mã hoá SSL 256-bit bởi Stripe. Chúng tôi không lưu trữ dữ liệu thẻ.
                       </div>
                     </div>
                   </div>
@@ -770,12 +728,11 @@ export default {
 
     canSubmit() {
       if (!this.agreed) return false;
-      if (this.payMethod === 'card') return this.isCardValid;
       return true;
     },
   },
 
-  created() {
+  async created() {
     this.checkAuth();
     
     let q = { ...this.$route.query };
@@ -791,6 +748,28 @@ export default {
           console.error("Lỗi khi phục hồi dữ liệu từ sessionStorage:", e);
         }
       }
+    }
+
+    if (q.success === '1' && q.session_id) {
+      // Stripe redirect back – verify the session
+      this.isProcessing = true;
+      this.bookingSuccess = true;
+      try {
+        const verifyRes = await bookingService.verifyStripeSession(q.session_id);
+        if (verifyRes?.data?.bookingId) {
+          this.bookingCode = verifyRes.data.bookingId;
+          this.loadBookingFromServer(verifyRes.data.bookingId);
+          this.startStatusPolling(verifyRes.data.bookingId);
+        }
+      } catch (err) {
+        console.error("Stripe verify error:", err);
+        this.errorMessage = "Không thể xác minh thanh toán thẻ. Vui lòng liên hệ hỗ trợ.";
+        this.bookingSuccess = false;
+      } finally {
+        this.isProcessing = false;
+      }
+      sessionStorage.removeItem('pending_booking');
+      return;
     }
 
     if (q.success === '1' && q.code) {
