@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
 
     const bookings = await getMyBookings(user.userId);
     return successResponse("Lấy danh sách đặt sân thành công", bookings);
-  } catch (error) {
+  } catch (error: unknown) {
+    console.error("[BOOKING_API_ERROR]", error);
     return serverErrorResponse(error);
   }
 }
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
       console.error("[POST /api/bookings] Server Error:", error);
       return serverErrorResponse(error);
     }
+    console.error("[CREATE_BOOKING_ERROR]", error);
     return serverErrorResponse(error);
   }
 }
