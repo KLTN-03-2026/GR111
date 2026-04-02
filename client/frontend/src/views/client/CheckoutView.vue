@@ -317,9 +317,13 @@
                 <transition name="slide-down">
                   <div v-if="payMethod==='momo'" class="chk-pay-detail chk-pay-detail--momo">
                     <div style="font-size:44px;line-height:1;margin-bottom:10px">📱</div>
-                    <p class="text-muted small mb-3">Mở app MoMo → Quét mã → Xác nhận thanh toán</p>
+                    <p class="fw-bold mb-1">Thanh toán tự động qua MoMo</p>
+                    <p class="text-muted small mb-3">Bạn sẽ được chuyển đến ứng dụng MoMo để hoàn tất thanh toán an toàn.</p>
                     <div class="chk-momo-amount">{{ formatPrice(bookingInfo.total) }} đ</div>
-                    <p class="text-muted mt-2 mb-0" style="font-size:12px">SĐT nhận: <strong style="color:#ae2070">0901 234 567</strong></p>
+                    <div class="chk-note chk-note--pink mt-3" style="border-color:#fbcfe8;background:#fff1f2">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#be185d" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      Xác nhận tức thì sau khi thanh toán thành công.
+                    </div>
                   </div>
                 </transition>
 
@@ -593,6 +597,7 @@ import LoadingView from "@/components/common/LoadingView.vue";
 
 export default {
   name: 'CheckoutView',
+  components: { LoadingView },
 
   data() {
     return {
