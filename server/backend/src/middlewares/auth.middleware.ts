@@ -32,7 +32,7 @@ export async function getAuthUser(
     };
   }
 
-  // Kiếm tra session còn hiệu lực không (Nếu có SID)
+  // 1. Kiểm tra session (Nếu có SID)
   if (payload.sid) {
     const session = await prisma.session.findUnique({
       where: { id: payload.sid },
@@ -44,6 +44,19 @@ export async function getAuthUser(
         error: errorResponse("Phiên đăng nhập đã hết hạn hoặc bị thu hồi. Vui lòng đăng nhập lại.", 401),
       };
     }
+  }
+
+  // 2. Kiểm tra User tồn tại trong DB (Tránh trường hợp DB vừa bị seed/wipe)
+  const userExists = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true }
+  });
+
+  if (!userExists) {
+    return {
+      user: null,
+      error: errorResponse("Tài khoản không tồn tại trên hệ thống. Vui lòng đăng nhập lại.", 401),
+    };
   }
 
   return { user: payload, error: null };

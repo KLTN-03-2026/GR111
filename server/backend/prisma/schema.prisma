@@ -159,6 +159,7 @@ model Amenity {
   icon      String?
   createdAt DateTime      @default(now())
   clubs     ClubAmenity[]
+  services  BookingService[]
 
   @@map("amenities")
 }
@@ -168,6 +169,7 @@ model ClubAmenity {
   clubId    String
   amenityId String
   note      String?
+  price     Decimal  @default(0) @db.Decimal(12, 2)
   createdAt DateTime @default(now())
   amenity   Amenity  @relation(fields: [amenityId], references: [id], onDelete: Cascade)
   club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
@@ -283,6 +285,7 @@ model Booking {
   clubId         String?
   deletedAt      DateTime?
   items          BookingItem[]
+  services       BookingService[]
   statusHistory  BookingStatusHistory[]
   club           Club?                  @relation(fields: [clubId], references: [id])
   courts         Court?                 @relation(fields: [courtId], references: [id])
@@ -306,6 +309,19 @@ model BookingItem {
 
   @@unique([bookingId, timeSlotId])
   @@map("booking_items")
+}
+
+model BookingService {
+  id        String   @id @default(cuid())
+  bookingId String
+  amenityId String
+  price     Decimal  @db.Decimal(12, 2)
+  quantity  Int      @default(1)
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amenity   Amenity  @relation(fields: [amenityId], references: [id])
+
+  @@unique([bookingId, amenityId])
+  @@map("booking_services")
 }
 
 model Payment {

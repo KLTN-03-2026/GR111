@@ -237,7 +237,9 @@
             </div>
             <div v-if="!svcOpen && selectedServices.length" class="d-flex flex-wrap gap-2 mt-2">
               <span v-for="sid in selectedServices" :key="sid" class="badge rounded-pill d-flex align-items-center gap-1" style="background:#dcfce7;color:#15803d;border:1px solid #bbf7d0;font-size:12px;font-weight:600;padding:4px 12px">
-                {{ getServiceName(sid) }}<button @click.stop="toggleService(sid)" class="btn-close btn-close-sm ms-1" style="width:10px;height:10px"></button>
+                {{ getServiceName(sid) }}
+                <span v-if="getServicePrice(sid) > 0" class="ms-1" style="opacity:0.8">(+{{ formatPrice(getServicePrice(sid)) }})</span>
+                <button @click.stop="toggleService(sid)" class="btn-close btn-close-sm ms-1" style="width:10px;height:10px"></button>
               </span>
             </div>
             <transition name="acc">
@@ -248,7 +250,8 @@
                       <div :class="['p-2 rounded-2 d-flex', isServiceSelected(svc.id)?'bg-success text-white':'bg-success-subtle text-success']" v-html="svc.icon"></div>
                       <div class="flex-grow-1">
                         <div class="fw-bold small text-dark">{{ svc.name }}</div>
-                        <div class="text-success fw-bold" style="font-size:12px">+{{ formatPrice(svc.price) }} đ</div>
+                        <div v-if="svc.price > 0" class="text-success fw-bold" style="font-size:12px">+{{ formatPrice(svc.price) }} đ</div>
+                        <div v-else class="text-muted" style="font-size:11px; font-style: italic;">Miễn phí</div>
                       </div>
                       <div :class="['rounded-circle border-2 border d-flex align-items-center justify-content-center', isServiceSelected(svc.id)?'bg-success border-success text-white':'border-secondary']" style="width:20px;height:20px;flex-shrink:0">
                         <svg v-if="isServiceSelected(svc.id)" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
@@ -324,7 +327,7 @@
                 <div class="border rounded-4 p-2 bg-white shadow-sm" style="border: 1.5px solid #e2e8f0 !important; border-radius: 12px !important">
                   <div v-for="sid in selectedServices" :key="sid" class="d-flex align-items-center gap-2 p-2 rounded-3 mb-1 vdp-slot-row">
                     <span class="flex-grow-1 small fw-bold text-dark">{{ getServiceName(sid) }}</span>
-                    <span class="fw-bold text-success small">{{ formatPrice(getServicePrice(sid)) }} đ</span>
+                    <span v-if="getServicePrice(sid) > 0" class="fw-bold text-success small">{{ formatPrice(getServicePrice(sid)) }} đ</span>
                     <button class="vdp-rm-btn shadow-sm" @click="toggleService(sid)">×</button>
                   </div>
                 </div>
@@ -354,7 +357,7 @@
                 </div>
                 <div class="mb-3">
                   <label class="form-label small fw-bold mb-1 text-dark">Họ và tên <span class="text-danger">*</span></label>
-                  <input v-model="form.name" type="text" class="form-control py-2 shadow-sm" style="border-radius:12px; font-weight:600; border: 1.5px solid #e2e8f0" placeholder="..."/>
+                  <input v-model="form.fullname" type="text" class="form-control py-2 shadow-sm" style="border-radius:12px; font-weight:600; border: 1.5px solid #e2e8f0" placeholder="..."/>
                 </div>
                 <div class="mb-3">
                   <label class="form-label small fw-bold mb-1 text-dark">Số điện thoại <span class="text-danger">*</span></label>
@@ -381,11 +384,11 @@
                   <span class="fw-black text-success" style="font-size:26px; line-height: 1">{{ formatPrice(grandTotal) }} đ</span>
                 </div>
 
-                <button class="btn btn-success w-100 fw-black shadow px-4 py-3 mt-4 d-flex align-items-center justify-content-center gap-2" style="font-size:16px; border-radius:12px; letter-spacing:1px" :disabled="!form.name||!form.phone" @click="handleBooking">
+                <button class="btn btn-success w-100 fw-black shadow px-4 py-3 mt-4 d-flex align-items-center justify-content-center gap-2" style="font-size:16px; border-radius:12px; letter-spacing:1px" :disabled="!form.fullname||!form.phone" @click="handleBooking">
                   XÁC NHẬN ĐẶT SÂN
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </button>
-                <div v-if="!form.name||!form.phone" class="text-danger text-center mt-3 fw-bold" style="font-size:13px;">Vui lòng điền họ tên và số điện thoại!</div>
+                <div v-if="!form.fullname||!form.phone" class="text-danger text-center mt-3 fw-bold" style="font-size:13px;">Vui lòng điền họ tên và số điện thoại!</div>
                 <div class="text-muted text-center mt-2 fw-semibold" style="font-size:12px; opacity:0.8;">Bằng việc xác nhận, bạn đồng ý với chính sách hoàn hủy.</div>
               </div>
             </div>
@@ -416,7 +419,7 @@
         <div class="text-muted fw-bold text-uppercase" style="font-size: 11px; letter-spacing: 0.5px">Tổng cộng giỏ</div>
         <div class="fw-black text-success fs-4 lh-1 mt-1">{{ formatPrice(grandTotal) }} đ</div>
       </div>
-      <button class="btn btn-success fw-bold px-4 py-2 rounded-pill shadow-sm d-flex align-items-center gap-2" :disabled="!form.name||!form.phone||totalSelectedSlotsCount===0" @click="handleBooking" style="font-size: 15px">
+      <button class="btn btn-success fw-bold px-4 py-2 rounded-pill shadow-sm d-flex align-items-center gap-2" :disabled="!form.fullname||!form.phone||totalSelectedSlotsCount===0" @click="handleBooking" style="font-size: 15px">
         ĐẶT SÂN
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
       </button>
@@ -449,6 +452,7 @@ import VenueInfoTab from '@/components/client/venue/VenueInfoTab.vue';
 import VenueReviewTab from '@/components/client/venue/VenueReviewTab.vue';
 import LoadingView from '@/components/common/LoadingView.vue';
 import { socketService } from '@/services/socket.service.js';
+import { authService } from '@/services/auth.service.js';
 
 export default {
   name: 'VenueDetailView',
@@ -489,7 +493,7 @@ export default {
       voucherError: false,
       voucherErrorMessage: '',
       discount: 0,
-      form: { name:'', phone:'', email:'', note:'', voucher:'' },
+      form: { fullname:'', phone:'', email:'', note:'', voucher:'' },
 
       tabs: [
         { id:'booking', label:'Đặt sân',   icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>' },
@@ -497,14 +501,7 @@ export default {
         { id:'review',  label:'Đánh giá',  icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>' },
       ],
 
-      services: [
-        { id:'s1', name:'Thuê đồ thi đấu',      price:100000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z"/></svg>' },
-        { id:'s2', name:'Quay video/Livestream', price:200000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>' },
-        { id:'s3', name:'Thuê giày bóng đá',     price: 50000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>' },
-        { id:'s4', name:'Nước uống (12 chai)',    price: 80000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/></svg>' },
-        { id:'s5', name:'Thuê trọng tài',         price:150000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>' },
-        { id:'s6', name:'Thuê bóng đá',           price: 30000, icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 00-6.88 17.19L12 12l6.88 7.19A10 10 0 0012 2z"/></svg>' },
-      ],
+      services: [],
 
       // ── Venue data (fetched from API) ──────────────────────────
       clubId: '',
@@ -525,6 +522,27 @@ export default {
     };
   },
 
+  async created() {
+    // 1. Tải thông tin người dùng từ localStorage nếu có
+    const savedInfo = localStorage.getItem('user_booking_info');
+    if (savedInfo) {
+      try {
+        const info = JSON.parse(savedInfo);
+        this.form.fullname = info.fullname || '';
+        this.form.phone = info.phone || '';
+        this.form.email = info.email || '';
+      } catch (e) {
+        console.error("Lỗi khi tải thông tin người dùng từ localStorage:", e);
+      }
+    }
+
+    // 2. Lấy thông tin từ API nếu đã đăng nhập và thiếu thông tin (tên/sđt)
+    const token = localStorage.getItem('token');
+    if (token && (!this.form.fullname || !this.form.phone)) {
+      await this.fetchUserProfile();
+    }
+  },
+
   watch: {
     dateOffset() {
       // Khi đổi ngày → fetch lại slots + reset selection
@@ -533,6 +551,10 @@ export default {
       this.selectedSlotsByCourtId = { ...resetSlots };
       this.fetchSlots();
     },
+    // Lưu thông tin người dùng vào localStorage khi có thay đổi
+    'form.fullname'(val) { this.saveUserInfo(); },
+    'form.phone'(val) { this.saveUserInfo(); },
+    'form.email'(val) { this.saveUserInfo(); },
   },
 
   async mounted() {
@@ -627,7 +649,10 @@ export default {
             image: apiClub.coverImageUrl || '',
             description: apiClub.description || '',
             amenities: apiClub.amenities?.map(a => ({
-              id: a.amenity.id, name: a.amenity.name, icon: a.amenity.icon
+              id: a.amenity.id, 
+              name: a.amenity.name, 
+              icon: a.amenity.icon,
+              price: Number(a.price || 0)
             })) || [],
             courts: apiClub.courts?.map(c => ({
               id: c.id, 
@@ -646,6 +671,9 @@ export default {
               }
             }) || []
           };
+
+          // Sử dụng chính danh sách amenities làm các dịch vụ/tiện ích có thể chọn ở Step 4
+          this.services = [...this.venue.amenities];
           
           // Set venueImages if empty
           if (this.venueImages.length === 0 && apiClub.images) {
@@ -908,6 +936,7 @@ export default {
         toast.error("Vui lòng chọn ít nhất 1 khung giờ!", { position: 'top-center' });
         return;
       }
+      
       // Gom tất cả slot của các sân thành 1 array flat để truyền sang checkout
       const allSelectedSlots = Object.entries(this.selectedSlotsByCourtId).flatMap(([courtId, slots]) =>
         slots.map(s => ({ ...s, courtId, courtName: this.getCourtName(courtId) }))
@@ -935,7 +964,7 @@ export default {
         booking_slots: JSON.stringify(slots),
         services: JSON.stringify(selectedServicesData),
         total: this.grandTotal,
-        name: this.form.name,
+        name: this.form.fullname,
         phone: this.form.phone,
         email: this.form.email,
         note: this.form.note,
@@ -944,6 +973,30 @@ export default {
 
       sessionStorage.setItem('pending_booking', JSON.stringify(bookingData));
       this.$router.push({ path: "/checkout" });
+    },
+
+    saveUserInfo() {
+      localStorage.setItem('user_booking_info', JSON.stringify({
+        fullname: this.form.fullname,
+        phone: this.form.phone,
+        email: this.form.email
+      }));
+    },
+
+    async fetchUserProfile() {
+      try {
+        const res = await authService.getMe();
+        if (res.data && res.data.data) {
+          const u = res.data.data;
+          // Chỉ ghi đè nếu trường đó đang trống (ưu tiên thông tin thủ công/localStorage)
+          if (!this.form.fullname) this.form.fullname = u.fullName || u.name || '';
+          if (!this.form.phone) this.form.phone = u.phone || '';
+          if (!this.form.email) this.form.email = u.email || '';
+          this.saveUserInfo();
+        }
+      } catch (err) {
+        console.log("Lỗi fetchUserProfile (có thể do token hết hạn):", err);
+      }
     },
   },
 };

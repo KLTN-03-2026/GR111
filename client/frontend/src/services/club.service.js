@@ -21,10 +21,7 @@ export const clubService = {
         return api.get(`/clubs/${slug}`);
     },
 
-    /**
-     * Tìm kiếm danh sách các sân (venues) với bộ lọc
-     * @param {Object} filters 
-     */
+    // Tìm kiếm danh sách các sân (venues) với bộ lọc
     searchVenues(filters) {
         return api.get('/clubs', { params: filters });
     },
@@ -45,11 +42,16 @@ export const clubService = {
         
     },
 
-    /**
-     * Lấy danh sách time slots của tất cả sân trong CLB theo ngày
-     * @param {string} slug - Slug CLB
-     * @param {string} date - Ngày (YYYY-MM-DD)
-     */
+    // Tiện ích / Dịch vụ
+    getClubAmenities(clubId) {
+        return api.get(`/owner/clubs/${clubId}/amenities`);
+    },
+
+    updateClubAmenities(clubId, amenities) {
+        return api.post(`/owner/clubs/${clubId}/amenities`, { amenities });
+    },
+
+    // Lấy danh sách time slots của tất cả sân trong CLB theo ngày
     getSlotsByClub(slug, date) {
         return api.get(`/clubs/${slug}/slots`, { params: { date } });
     },
