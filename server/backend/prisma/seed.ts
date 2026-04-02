@@ -121,8 +121,8 @@ async function main() {
       approvalStatus: "APPROVED",
       amenities: {
         create: [
-          { amenityId: wifi.id, note: "Sóng mạnh" },
-          { amenityId: parking.id },
+          { amenityId: wifi.id, note: "Sóng mạnh", price: 0 },
+          { amenityId: parking.id, price: 10000 },
         ],
       },
       openingHours: {
@@ -150,8 +150,8 @@ async function main() {
       approvalStatus: "APPROVED",
       amenities: {
         create: [
-          { amenityId: shower.id },
-          { amenityId: canteen.id },
+          { amenityId: shower.id, price: 5000 },
+          { amenityId: canteen.id, price: 0 },
         ],
       },
       openingHours: {
@@ -179,9 +179,9 @@ async function main() {
       approvalStatus: "APPROVED",
       amenities: {
         create: [
-          { amenityId: wifi.id },
-          { amenityId: parking.id },
-          { amenityId: shower.id },
+          { amenityId: wifi.id, price: 0 },
+          { amenityId: parking.id, price: 5000 },
+          { amenityId: shower.id, price: 10000 },
         ],
       },
       openingHours: {
@@ -209,8 +209,8 @@ async function main() {
       approvalStatus: "APPROVED",
       amenities: {
         create: [
-          { amenityId: wifi.id },
-          { amenityId: canteen.id },
+          { amenityId: wifi.id, price: 0 },
+          { amenityId: canteen.id, price: 0 },
         ],
       },
       openingHours: {
@@ -225,7 +225,7 @@ async function main() {
 
   // 5. Create Courts & Pricing
   console.log("🏟 Creating courts and pricing...");
-  
+
   // Football Courts
   const court1 = await prisma.court.create({
     data: {
@@ -361,7 +361,7 @@ async function main() {
   }
 
   const allCourtIds = [court1.id, courtF2.id, court2.id, courtB2.id, courtT1.id, courtP1.id, courtBB1.id];
-  
+
   for (const id of allCourtIds) {
     await createSlots(id, today);
     await createSlots(id, tomorrow);
@@ -418,7 +418,7 @@ async function main() {
         }
       }
     });
-    await prisma.timeSlot.update({ where: { id: court1Slots[2].id }, data: { status: "BOOKED" }});
+    await prisma.timeSlot.update({ where: { id: court1Slots[2].id }, data: { status: "BOOKED" } });
   }
 
   if (court1Slots.length > 4) {
@@ -436,7 +436,7 @@ async function main() {
         }
       }
     });
-    await prisma.timeSlot.update({ where: { id: court1Slots[4].id }, data: { status: "LOCKED" }});
+    await prisma.timeSlot.update({ where: { id: court1Slots[4].id }, data: { status: "LOCKED" } });
   }
 
   if (courtF2Slots.length > 12) {
@@ -454,7 +454,7 @@ async function main() {
         }
       }
     });
-    await prisma.timeSlot.update({ where: { id: courtF2Slots[12].id }, data: { status: "BOOKED" }});
+    await prisma.timeSlot.update({ where: { id: courtF2Slots[12].id }, data: { status: "BOOKED" } });
   }
 
   // Mock for court 2 (Badminton)
@@ -478,7 +478,7 @@ async function main() {
         }
       }
     });
-    await prisma.timeSlot.update({ where: { id: court2Slots[13].id }, data: { status: "BOOKED" }});
+    await prisma.timeSlot.update({ where: { id: court2Slots[13].id }, data: { status: "BOOKED" } });
   }
 
   console.log("✅ Seed completed successfully!");

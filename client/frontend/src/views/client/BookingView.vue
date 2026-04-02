@@ -285,6 +285,7 @@ export default {
       pageSize:           8,
       totalCount:         0,
       currentSort:        "distance",
+      userCoords:         null, // { lat: number, lng: number }
       // Map state
       bookingMap:         null,
       bookingMarkers:     [],
@@ -337,11 +338,11 @@ export default {
         { value: "50", label: "Trong 50 km" },
       ],
       facilityOptions: [
-        { value: "changing_room", label: "Phòng thay đồ" },
-        { value: "free_parking",  label: "Đỗ xe miễn phí" },
-        { value: "wifi",          label: "Wifi miễn phí" },
-        { value: "canteen",       label: "Căng tin" },
-        { value: "shower",        label: "Phòng tắm" },
+        { value: "WiFi",          label: "Wifi miễn phí" },
+        { value: "Bãi xe",        label: "Đỗ xe miễn phí" },
+        { value: "Căng tin",      label: "Căng tin" },
+        { value: "Phòng tắm",     label: "Phòng tắm" },
+        // { value: "changing_room", label: "Phòng thay đồ" },
       ],
     };
   },
@@ -424,6 +425,7 @@ export default {
   },
 
   async mounted() {
+    await this.getUserLocation();
     await this.fetchVenues();
   },
 
@@ -440,6 +442,8 @@ export default {
           format:   this.filters.format,
           surface:  this.filters.surface,
           facility: this.filters.facility,
+          lat:      this.userCoords?.lat,
+          lng:      this.userCoords?.lng,
         };
         const res = await clubService.searchVenues(params);
         this.venues     = this.mapVenues(res.data.data);
@@ -449,6 +453,31 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+
+    async getUserLocation() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          console.warn("Geolocation is not supported by this browser.");
+          return resolve();
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            this.userCoords = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            console.log("User location acquired:", this.userCoords);
+            resolve();
+          },
+          (error) => {
+            console.warn("Error getting user location:", error.message);
+            resolve();
+          },
+          { timeout: 5000 }
+        );
+      });
     },
 
     mapVenues(data = []) {

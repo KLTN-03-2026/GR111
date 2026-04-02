@@ -297,7 +297,7 @@
                     </div>
                     <div class="chk-note chk-note--amber mt-3">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      Vui lòng chuyển khoản trong vòng <strong>10 phút</strong>. Sân sẽ được xác nhận sau khi nhận được thanh toán.
+                      Vui lòng chuyển khoản trong vòng <strong>5 phút</strong>. Sân sẽ được xác nhận sau khi nhận được thanh toán.
                     </div>
                   </div>
                 </transition>
@@ -438,7 +438,7 @@
                       <div>
                         <p class="fw-bold small mb-1">Hướng dẫn thanh toán tiền mặt</p>
                         <ul class="text-muted small mb-0 ps-3" style="line-height:2.1">
-                          <li>Sân sẽ giữ lịch trong <strong>10 phút</strong></li>
+                          <li>Sân sẽ giữ lịch trong <strong>5 phút</strong></li>
                           <li>Đến sân và báo mã đặt sân cho nhân viên</li>
                           <li>Thanh toán đủ số tiền: <strong class="text-success">{{ formatPrice(bookingInfo.total) }} đ</strong></li>
                           <li>Nhận biên nhận và vào sân thi đấu</li>
@@ -530,21 +530,21 @@
               </div>
             </div>
 
-            <!-- Timer 10 phút -->
-            <div class="chk-timer mb-3" :class="{'chk-timer--urgent': timerSeconds < 120}">
+            <!-- Timer 5 phút -->
+            <div class="chk-timer mb-3" :class="{'chk-timer--urgent': timerSeconds < 60}">
               <div class="chk-timer__icon">⏱</div>
               <div class="flex-grow-1">
                 <div class="chk-timer__label">Thời gian giữ sân</div>
                 <div class="chk-timer__time">{{ timerDisplay }}</div>
-                <div class="chk-timer__sub" :class="timerSeconds < 120 ? 'text-danger' : 'text-muted'">
-                  {{ timerSeconds < 120 ? 'Sắp hết hạn!' : 'Hoàn thành trước khi hết giờ' }}
+                <div class="chk-timer__sub" :class="timerSeconds < 60 ? 'text-danger' : 'text-muted'">
+                  {{ timerSeconds < 60 ? 'Sắp hết hạn!' : 'Hoàn thành trước khi hết giờ' }}
                 </div>
               </div>
               <div class="chk-timer__ring">
                 <svg viewBox="0 0 36 36" width="48" height="48">
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
                   <circle cx="18" cy="18" r="15.9" fill="none"
-                    :stroke="timerSeconds < 120 ? '#ef4444' : timerSeconds < 300 ? '#f59e0b' : '#22c55e'"
+                    :stroke="timerSeconds < 60 ? '#ef4444' : timerSeconds < 150 ? '#f59e0b' : '#22c55e'"
                     stroke-width="3" stroke-dasharray="100"
                     :stroke-dashoffset="100 - timerPercent"
                     stroke-linecap="round" transform="rotate(-90 18 18)"
@@ -594,6 +594,7 @@ import { bookingService } from '@/services/booking.service.js';
 import { socketService } from '@/services/socket.service.js';
 import { voucherService } from '@/services/voucher.service.js';
 import LoadingView from "@/components/common/LoadingView.vue";
+import '@/assets/checkout.css';
 
 export default {
   name: 'CheckoutView',
@@ -609,7 +610,7 @@ export default {
       copiedField: '',
       cardFlipped: false,
       cardForm: { number: '', expiry: '', cvc: '', holder: '' },
-      timerSeconds: 600,
+      timerSeconds: 300,
       timerInterval: null,
       errorMessage: '',
       paymentConfirmed: false,
@@ -703,7 +704,7 @@ export default {
     timerDisplay() {
       return `${String(Math.floor(this.timerSeconds / 60)).padStart(2, '0')}:${String(this.timerSeconds % 60).padStart(2, '0')}`;
     },
-    timerPercent() { return Math.round((this.timerSeconds / 600) * 100); },
+    timerPercent() { return Math.round((this.timerSeconds / 300) * 100); },
 
     formattedCardNumber() {
       if (!this.cardForm.number) return '•••• •••• •••• ••••';
@@ -853,9 +854,33 @@ export default {
     },
 
     startTimer() {
-      this.timerInterval = setInterval(() => {
-        if (this.timerSeconds > 0) this.timerSeconds--;
-        else clearInterval(this.timerInterval);
+      this.timerInterval = setInterval(async () => {
+        if (this.timerSeconds > 0) {
+          this.timerSeconds--;
+        } else {
+          clearInterval(this.timerInterval);
+          // Only cancel if there's a booking code and payment hasn't been confirmed
+          if (this.bookingCode && !this.paymentConfirmed) {
+            try {
+              // Call API to release booking
+              await bookingService.cancelBooking(this.bookingCode);
+              
+              // Disconnect from socket
+              if (this.currentBookingId) {
+                socketService.leaveBooking(this.currentBookingId);
+                socketService.disconnect();
+              }
+            } catch (err) {
+              console.error("Lỗi khi hủy booking hết hạn:", err);
+            }
+          }
+          
+          alert("Thời gian giữ sân đã hết hạn. Bạn sẽ được chuyển về trang sân bóng.");
+          
+          // Redirect back to venue or home
+          const backUrl = this.bookingInfo.club_slug ? `/venue/${this.bookingInfo.club_slug}` : '/';
+          this.$router.push(backUrl);
+        }
       }, 1000);
     },
 
@@ -875,7 +900,6 @@ export default {
       this.errorMessage = '';
       
       try {
-        // Map UI method -> API Method enum
         const paymentMap = {
           'bank': 'BANK_TRANSFER',
           'momo': 'MOMO',
@@ -898,7 +922,15 @@ export default {
           bookerEmail: this.bookingInfo.email || undefined,
           note: this.bookingInfo.note || undefined,
           voucherCode: this.voucherInput.trim().toUpperCase() || undefined,
-          paymentMethod: paymentMap[this.payMethod] || 'VNPAY'
+          paymentMethod: paymentMap[this.payMethod] || 'VNPAY',
+          serviceIds: (() => {
+            try {
+              const svcs = typeof this.bookingInfo.services === 'string' 
+                ? JSON.parse(this.bookingInfo.services) 
+                : (this.bookingInfo.services || []);
+              return svcs.map(s => s.id);
+            } catch { return []; }
+          })(),
         };
 
         const res = await bookingService.createBooking(payload);
@@ -947,7 +979,6 @@ export default {
       
       const code = this.voucherInput.trim().toUpperCase();
       const clubId = this.bookingInfo.club_id;
-      // Calculate base amount (court + services) to validate correctly
       const baseAmount = this.courtSubtotalAll() + this.serviceTotal;
 
       try {
@@ -979,10 +1010,6 @@ export default {
 
     printConfirmation() { window.print(); },
 
-    /**
-     * Kết nối Socket.io để lắng nghe khi chủ sân xác nhận thanh toán
-     * → Tự động cập nhật UI từ "Đang chờ" → "Thanh toán thành công"
-     */
     connectBookingSocket(bookingId) {
       socketService.connect();
       socketService.joinBooking(bookingId);
@@ -994,10 +1021,6 @@ export default {
         }
       });
     },
-
-    /**
-     * Polling logic: cứ 3s gọi API check trạng thái 1 lần (vừa hỗ trợ Admin vừa làm fallback cho Socket)
-     */
     startStatusPolling(code) {
       this.stopStatusPolling(); // Clear existing if any
       this.pollingInterval = setInterval(() => {
@@ -1017,10 +1040,6 @@ export default {
       }
     },
 
-    /**
-     * Tải lại thông tin booking từ server khi reload trang checkout
-     * Dùng bookingCode để lấy dữ liệu và hiển thị lại trang success
-     */
     async loadBookingFromServer(bookingCode) {
       try {
         const res = await bookingService.getBookingByCode(bookingCode);
@@ -1074,6 +1093,12 @@ export default {
             voucher_code: '',
           };
 
+          // Cập nhật lại timer dựa trên thời gian tạo đơn (giả sử hold 5 phút = 300s)
+          if (b.status === 'WAITING_PAYMENT' && b.createdAt) {
+            const elapsed = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 1000);
+            this.timerSeconds = Math.max(0, 300 - elapsed);
+          }
+
           // Kết nối socket để tiếp tục lắng nghe trạng thái
           if (b.id && !this.paymentConfirmed) {
             this.currentBookingId = b.id;
@@ -1088,4 +1113,6 @@ export default {
 };
 </script>
 
-<style scoped src="@/assets/checkout.css"></style>
+
+
+

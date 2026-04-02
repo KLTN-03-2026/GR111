@@ -24,3 +24,26 @@ export async function GET(
     return serverErrorResponse(err);
   }
 }
+
+// DELETE /api/bookings/[code] — Hủy đơn đặt sân theo bookingCode
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
+  try {
+    const { user, error } = await getAuthUser(req);
+    if (error) return error;
+
+    const { code } = await params;
+    const { cancelBookingByCode } = await import("@/modules/booking/booking.service");
+    
+    await cancelBookingByCode(user.userId, code);
+
+    return successResponse("Hủy đơn đặt sân thành công", null);
+  } catch (err) {
+    if (err instanceof Error && err.message === "BOOKING_NOT_FOUND") {
+      return errorResponse("Không tìm thấy đơn đặt sân", 404);
+    }
+    return serverErrorResponse(err);
+  }
+}

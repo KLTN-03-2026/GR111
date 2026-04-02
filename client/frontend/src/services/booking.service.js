@@ -58,5 +58,11 @@ export const bookingService = {
             params: { session_id: sessionId }
         });
         return response.data;
+    },
+
+    // 10. Hủy đơn đặt sân (Người dùng tự hủy hoặc khi hết hạn hold time)
+    cancelBooking: async (bookingCode) => {
+        const response = await api.delete(`/bookings/${bookingCode}`);
+        return response.data;
     }
 }
