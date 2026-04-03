@@ -2,56 +2,68 @@ import api from '../api/axios';
 
 export const clubService = {
     /**
-     * Lấy danh sách các sân bóng (club) gần vị trí hiện tại của người dùng
-     * @param {number} lat - Vĩ độ
-     * @param {number} lng - Kinh độ
-     * @param {number} [radius=20] - Bán kính (mặc định 20km)
+     * Lấy danh sách các sân bóng gần vị trí hiện tại
      */
     getNearbyClubs(lat, lng, radius = 20) {
-        return api.get('/clubs/nearby', {
-            params: { lat, lng, radius }
-        });
+        return api.get('/clubs/nearby', { params: { lat, lng, radius } });
     },
 
-    /**
-     * Lấy thông tin chi tiết một câu lạc bộ thông qua slug
-     * @param {string} slug 
-     */
+    /** Lấy thông tin chi tiết một câu lạc bộ theo slug */
     getClubBySlug(slug) {
         return api.get(`/clubs/${slug}`);
     },
 
-    // Tìm kiếm danh sách các sân (venues) với bộ lọc
+    /** Tìm kiếm venues */
     searchVenues(filters) {
         return api.get('/clubs', { params: filters });
     },
-    
-    //thêm mới câu lạc bộ
-    addClub(clubData) {
-        return api.post(`/owner/clubs`, clubData);
+
+    /** Lấy toàn bộ CLB của owner hiện tại */
+    Getallthedetails() {
+        return api.get('/owner/clubs');
     },
 
-    //chỉnh sửa câu lạc bộ
+    /** Thêm mới câu lạc bộ */
+    addClub(clubData) {
+        return api.post('/owner/clubs', clubData);
+    },
+
+    /** Chỉnh sửa câu lạc bộ */
     editClub(clubId, clubData) {
         return api.patch(`/owner/clubs/${clubId}`, clubData);
     },
 
-    //lấy toàn bộ thông tin câu lạc bộ
-    Getallthedetails() {
-        return api.get(`/owner/clubs`);
-        
+    /** Xóa mềm câu lạc bộ */
+    deleteClub(clubId) {
+        return api.delete(`/owner/clubs/${clubId}`);
     },
 
-    // Tiện ích / Dịch vụ
+    /**
+     * Upload ảnh lên Cloudinary qua backend
+     * @param {FormData} formData - Cần có: file, type; Tùy chọn: entityId
+     * @param {function} onProgress  - Callback(percent: number)
+     */
+    uploadImage(formData, onProgress = null) {
+        return api.post('/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress
+                ? (e) => {
+                      const pct = Math.round((e.loaded * 100) / (e.total || 1));
+                      onProgress(pct);
+                  }
+                : undefined,
+        });
+    },
+
+    // ── Amenities ──────────────────────────────────────────────
     getClubAmenities(clubId) {
         return api.get(`/owner/clubs/${clubId}/amenities`);
     },
-
     updateClubAmenities(clubId, amenities) {
         return api.post(`/owner/clubs/${clubId}/amenities`, { amenities });
     },
 
-    // Lấy danh sách time slots của tất cả sân trong CLB theo ngày
+    // ── Slots ──────────────────────────────────────────────────
     getSlotsByClub(slug, date) {
         return api.get(`/clubs/${slug}/slots`, { params: { date } });
     },
