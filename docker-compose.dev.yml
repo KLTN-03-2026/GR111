@@ -44,7 +44,7 @@ services:
       JWT_SECRET: dev-secret-key-not-for-production
       JWT_EXPIRES_IN: 7d
       NODE_ENV: development
-    # Cài deps, chạy migrate rồi mới start dev server
+    # Cài deps, chạy migrate rồi mới tart dev servers
     command: sh -c "npm install && npx prisma migrate deploy && npx prisma generate && npm run dev"
     depends_on:
       postgres:

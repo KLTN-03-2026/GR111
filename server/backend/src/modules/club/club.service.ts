@@ -307,8 +307,21 @@ export async function updateClub(clubId: string, ownerId: string, data: Prisma.C
 }
 
 /**
- * Lấy danh sách tất cả tiện ích hệ thống (để chủ sân chọn thêm)
+ * Xoá mềm câu lạc bộ (soft delete)
  */
+export async function deleteClub(clubId: string, ownerId: string) {
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId, deletedAt: null },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  return prisma.club.update({
+    where: { id: clubId },
+    data: { deletedAt: new Date(), isActive: false },
+  });
+}
+
+
 export async function getAllAmenities() {
   return prisma.amenity.findMany({
     orderBy: { name: 'asc' }
