@@ -187,6 +187,18 @@ const routes = [
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
   {
+    path: "/owner/reviews",
+    name: "owner-reviews",
+    component: () => import("../views/owner/ReviewsView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
+    path: "/owner/vouchers",
+    name: "owner-vouchers",
+    component: () => import("../views/owner/VouchersView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
     path: "/owner/onboarding",
     name: "owner-onboarding",
     component: () => import("../views/owner/OwnerOnboardingView.vue"),
