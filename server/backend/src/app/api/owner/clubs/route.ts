@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
   } catch (error: unknown) {
     return serverErrorResponse(error);
   }
+   
+  
 }
 
 /**

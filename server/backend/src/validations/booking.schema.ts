@@ -31,6 +31,8 @@ export const createBookingSchema = z.object({
   voucherCode: z.string().optional(),
 
   paymentMethod: z.enum(["BANK_TRANSFER", "CREDIT_CARD", "MOMO", "VNPAY", "CASH"]).default("VNPAY"),
+  
+  serviceIds: z.array(z.string().cuid()).optional(),
 });
 
 export const cancelBookingSchema = z.object({

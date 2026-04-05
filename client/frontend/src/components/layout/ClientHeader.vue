@@ -155,7 +155,7 @@
               <div class="user-info-mobile">
                 <span class="welcome-text">Chào, {{ user.fullName }}</span>
               </div>
-              <router-link @click="closeMenu" to="/order " class="mobile-nav-item">
+              <router-link @click="closeMenu" to="/order" class="mobile-nav-item">
                 QUẢN LÝ ĐẶT CHỖ
               </router-link>
               <button @click="handleLogout" class="mobile-nav-item btn-logout-mobile">
@@ -179,8 +179,11 @@
 </template>
 
 <script>
+
 export default {
   name: "ClientHeader",
+  components: {
+  },
   data() {
     return {
       isMenuOpen: false,
@@ -193,6 +196,7 @@ export default {
     user() {
       const userData = localStorage.getItem("user");
       return userData ? JSON.parse(userData) : null;
+      console.log(userData);
     }
   },
   methods: {

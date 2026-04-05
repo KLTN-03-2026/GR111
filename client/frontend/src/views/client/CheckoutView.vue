@@ -297,7 +297,7 @@
                     </div>
                     <div class="chk-note chk-note--amber mt-3">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                      Vui lòng chuyển khoản trong vòng <strong>10 phút</strong>. Sân sẽ được xác nhận sau khi nhận được thanh toán.
+                      Vui lòng chuyển khoản trong vòng <strong>5 phút</strong>. Sân sẽ được xác nhận sau khi nhận được thanh toán.
                     </div>
                   </div>
                 </transition>
@@ -317,9 +317,13 @@
                 <transition name="slide-down">
                   <div v-if="payMethod==='momo'" class="chk-pay-detail chk-pay-detail--momo">
                     <div style="font-size:44px;line-height:1;margin-bottom:10px">📱</div>
-                    <p class="text-muted small mb-3">Mở app MoMo → Quét mã → Xác nhận thanh toán</p>
+                    <p class="fw-bold mb-1">Thanh toán tự động qua MoMo</p>
+                    <p class="text-muted small mb-3">Bạn sẽ được chuyển đến ứng dụng MoMo để hoàn tất thanh toán an toàn.</p>
                     <div class="chk-momo-amount">{{ formatPrice(bookingInfo.total) }} đ</div>
-                    <p class="text-muted mt-2 mb-0" style="font-size:12px">SĐT nhận: <strong style="color:#ae2070">0901 234 567</strong></p>
+                    <div class="chk-note chk-note--pink mt-3" style="border-color:#fbcfe8;background:#fff1f2">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#be185d" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      Xác nhận tức thì sau khi thanh toán thành công.
+                    </div>
                   </div>
                 </transition>
 
@@ -378,7 +382,7 @@
                   </div>
                 </transition>
 
-                <!-- Thẻ quốc tế -->
+                <!-- Thẻ quốc tế (Stripe) -->
                 <div :class="['chk-pay-method', {active: payMethod==='card'}]" @click="payMethod='card'">
                   <div class="chk-pay-method__radio"><div class="chk-radio-dot" v-if="payMethod==='card'"></div></div>
                   <div class="chk-pay-method__icon" style="background:#f5f3ff">
@@ -392,66 +396,24 @@
                       <span class="chk-card-logo chk-card-logo--jcb">JCB</span>
                     </div>
                   </div>
+                  <span class="chk-pay-badge" style="background:#ede9fe;color:#7c3aed">Secure</span>
                 </div>
                 <transition name="slide-down">
                   <div v-if="payMethod==='card'" class="chk-pay-detail">
-                    <!-- Card visual preview -->
-                    <div class="chk-card-scene">
-                      <div class="chk-card-flip" :class="{flipped: cardFlipped}">
-                        <div class="chk-card-front">
-                          <div class="chk-card-front__chip"></div>
-                          <div class="chk-card-front__number">{{ formattedCardNumber }}</div>
-                          <div class="chk-card-front__bottom">
-                            <div>
-                              <div class="chk-card-front__label">Tên chủ thẻ</div>
-                              <div class="chk-card-front__holder">{{ cardForm.holder ? cardForm.holder.toUpperCase() : 'TÊN CHỦ THẺ' }}</div>
-                            </div>
-                            <div class="text-end">
-                              <div class="chk-card-front__label">Hết hạn</div>
-                              <div class="chk-card-front__exp">{{ cardForm.expiry || 'MM/YY' }}</div>
-                            </div>
-                          </div>
-                          <div class="chk-card-front__brand">
-                            <span v-if="detectedCardType" class="chk-card-front__type">{{ detectedCardType }}</span>
-                            <span v-else style="font-size:11px;opacity:.5">CREDIT</span>
-                          </div>
-                        </div>
-                        <div class="chk-card-back">
-                          <div class="chk-card-back__stripe"></div>
-                          <div class="chk-card-back__cvc-area">
-                            <span class="chk-card-back__cvc-label">CVC</span>
-                            <div class="chk-card-back__cvc-box">{{ cardForm.cvc ? '•'.repeat(cardForm.cvc.length) : '•••' }}</div>
-                          </div>
-                        </div>
+                    <div class="text-center py-2">
+                      <div style="font-size:44px;line-height:1;margin-bottom:12px"></div>
+                      <p class="fw-bold mb-1">Thanh toán an toàn qua Stripe</p>
+                      <p class="text-muted small mb-3">Bạn sẽ được chuyển đến trang thanh toán bảo mật của Stripe để nhập thông tin thẻ.</p>
+                      <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
+                        <span class="chk-card-logo chk-card-logo--visa" style="font-size:11px;padding:3px 8px">VISA</span>
+                        <span class="chk-card-logo chk-card-logo--mc" style="font-size:11px;padding:3px 8px">Mastercard</span>
+                        <span class="chk-card-logo chk-card-logo--jcb" style="font-size:11px;padding:3px 8px">JCB</span>
+                        <span style="background:#f1f5f9;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:600;color:#64748b">AMEX</span>
                       </div>
-                    </div>
-                    <!-- Card inputs -->
-                    <div class="chk-card-form mt-4">
-                      <div class="mb-3">
-                        <label class="chk-label">Số thẻ <span class="text-danger">*</span></label>
-                        <div class="chk-input-icon-wrap">
-                          <svg class="chk-input-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                          <input v-model="cardForm.number" type="text" class="chk-input chk-input--pl" placeholder="0000 0000 0000 0000" maxlength="19" @input="formatCardNumber" @focus="cardFlipped=false"/>
-                          <span v-if="detectedCardType" class="chk-detected-type">{{ detectedCardType }}</span>
-                        </div>
-                      </div>
-                      <div class="row g-3 mb-3">
-                        <div class="col-5">
-                          <label class="chk-label">Ngày hết hạn <span class="text-danger">*</span></label>
-                          <input v-model="cardForm.expiry" type="text" class="chk-input" placeholder="MM/YY" maxlength="5" @input="formatExpiry" @focus="cardFlipped=false"/>
-                        </div>
-                        <div class="col-4">
-                          <label class="chk-label">CVC <span class="text-danger">*</span></label>
-                          <div class="chk-input-icon-wrap">
-                            <input v-model="cardForm.cvc" type="password" class="chk-input chk-input--pr" placeholder="•••" maxlength="4" @input="cardForm.cvc=cardForm.cvc.replace(/\D/g,'')" @focus="cardFlipped=true" @blur="cardFlipped=false"/>
-                            <svg class="chk-input-icon chk-input-icon--right" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label class="chk-label">Tên chủ sở hữu thẻ <span class="text-danger">*</span></label>
-                        <input v-model="cardForm.holder" type="text" class="chk-input" placeholder="NGUYEN VAN A" @focus="cardFlipped=false" style="text-transform:uppercase"/>
-                        <p class="text-muted mt-1 mb-0" style="font-size:11px">Nhập đúng tên in trên thẻ, không dấu</p>
+                      <div class="chk-momo-amount">{{ formatPrice(bookingInfo.total) }} đ</div>
+                      <div class="chk-note mt-3" style="border-color:#e9d5ff;background:#faf5ff">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Thông tin thẻ được mã hoá SSL 256-bit bởi Stripe. Chúng tôi không lưu trữ dữ liệu thẻ.
                       </div>
                     </div>
                   </div>
@@ -476,7 +438,7 @@
                       <div>
                         <p class="fw-bold small mb-1">Hướng dẫn thanh toán tiền mặt</p>
                         <ul class="text-muted small mb-0 ps-3" style="line-height:2.1">
-                          <li>Sân sẽ giữ lịch trong <strong>10 phút</strong></li>
+                          <li>Sân sẽ giữ lịch trong <strong>5 phút</strong></li>
                           <li>Đến sân và báo mã đặt sân cho nhân viên</li>
                           <li>Thanh toán đủ số tiền: <strong class="text-success">{{ formatPrice(bookingInfo.total) }} đ</strong></li>
                           <li>Nhận biên nhận và vào sân thi đấu</li>
@@ -568,21 +530,21 @@
               </div>
             </div>
 
-            <!-- Timer 10 phút -->
-            <div class="chk-timer mb-3" :class="{'chk-timer--urgent': timerSeconds < 120}">
+            <!-- Timer 5 phút -->
+            <div class="chk-timer mb-3" :class="{'chk-timer--urgent': timerSeconds < 60}">
               <div class="chk-timer__icon">⏱</div>
               <div class="flex-grow-1">
                 <div class="chk-timer__label">Thời gian giữ sân</div>
                 <div class="chk-timer__time">{{ timerDisplay }}</div>
-                <div class="chk-timer__sub" :class="timerSeconds < 120 ? 'text-danger' : 'text-muted'">
-                  {{ timerSeconds < 120 ? 'Sắp hết hạn!' : 'Hoàn thành trước khi hết giờ' }}
+                <div class="chk-timer__sub" :class="timerSeconds < 60 ? 'text-danger' : 'text-muted'">
+                  {{ timerSeconds < 60 ? 'Sắp hết hạn!' : 'Hoàn thành trước khi hết giờ' }}
                 </div>
               </div>
               <div class="chk-timer__ring">
                 <svg viewBox="0 0 36 36" width="48" height="48">
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" stroke-width="3"/>
                   <circle cx="18" cy="18" r="15.9" fill="none"
-                    :stroke="timerSeconds < 120 ? '#ef4444' : timerSeconds < 300 ? '#f59e0b' : '#22c55e'"
+                    :stroke="timerSeconds < 60 ? '#ef4444' : timerSeconds < 150 ? '#f59e0b' : '#22c55e'"
                     stroke-width="3" stroke-dasharray="100"
                     :stroke-dashoffset="100 - timerPercent"
                     stroke-linecap="round" transform="rotate(-90 18 18)"
@@ -632,9 +594,11 @@ import { bookingService } from '@/services/booking.service.js';
 import { socketService } from '@/services/socket.service.js';
 import { voucherService } from '@/services/voucher.service.js';
 import LoadingView from "@/components/common/LoadingView.vue";
+import '@/assets/checkout.css';
 
 export default {
   name: 'CheckoutView',
+  components: { LoadingView },
 
   data() {
     return {
@@ -646,7 +610,7 @@ export default {
       copiedField: '',
       cardFlipped: false,
       cardForm: { number: '', expiry: '', cvc: '', holder: '' },
-      timerSeconds: 600,
+      timerSeconds: 300,
       timerInterval: null,
       errorMessage: '',
       paymentConfirmed: false,
@@ -740,7 +704,7 @@ export default {
     timerDisplay() {
       return `${String(Math.floor(this.timerSeconds / 60)).padStart(2, '0')}:${String(this.timerSeconds % 60).padStart(2, '0')}`;
     },
-    timerPercent() { return Math.round((this.timerSeconds / 600) * 100); },
+    timerPercent() { return Math.round((this.timerSeconds / 300) * 100); },
 
     formattedCardNumber() {
       if (!this.cardForm.number) return '•••• •••• •••• ••••';
@@ -765,12 +729,11 @@ export default {
 
     canSubmit() {
       if (!this.agreed) return false;
-      if (this.payMethod === 'card') return this.isCardValid;
       return true;
     },
   },
 
-  created() {
+  async created() {
     this.checkAuth();
     
     let q = { ...this.$route.query };
@@ -786,6 +749,28 @@ export default {
           console.error("Lỗi khi phục hồi dữ liệu từ sessionStorage:", e);
         }
       }
+    }
+
+    if (q.success === '1' && q.session_id) {
+      // Stripe redirect back – verify the session
+      this.isProcessing = true;
+      this.bookingSuccess = true;
+      try {
+        const verifyRes = await bookingService.verifyStripeSession(q.session_id);
+        if (verifyRes?.data?.bookingId) {
+          this.bookingCode = verifyRes.data.bookingId;
+          this.loadBookingFromServer(verifyRes.data.bookingId);
+          this.startStatusPolling(verifyRes.data.bookingId);
+        }
+      } catch (err) {
+        console.error("Stripe verify error:", err);
+        this.errorMessage = "Không thể xác minh thanh toán thẻ. Vui lòng liên hệ hỗ trợ.";
+        this.bookingSuccess = false;
+      } finally {
+        this.isProcessing = false;
+      }
+      sessionStorage.removeItem('pending_booking');
+      return;
     }
 
     if (q.success === '1' && q.code) {
@@ -869,9 +854,33 @@ export default {
     },
 
     startTimer() {
-      this.timerInterval = setInterval(() => {
-        if (this.timerSeconds > 0) this.timerSeconds--;
-        else clearInterval(this.timerInterval);
+      this.timerInterval = setInterval(async () => {
+        if (this.timerSeconds > 0) {
+          this.timerSeconds--;
+        } else {
+          clearInterval(this.timerInterval);
+          // Only cancel if there's a booking code and payment hasn't been confirmed
+          if (this.bookingCode && !this.paymentConfirmed) {
+            try {
+              // Call API to release booking
+              await bookingService.cancelBooking(this.bookingCode);
+              
+              // Disconnect from socket
+              if (this.currentBookingId) {
+                socketService.leaveBooking(this.currentBookingId);
+                socketService.disconnect();
+              }
+            } catch (err) {
+              console.error("Lỗi khi hủy booking hết hạn:", err);
+            }
+          }
+          
+          alert("Thời gian giữ sân đã hết hạn. Bạn sẽ được chuyển về trang sân bóng.");
+          
+          // Redirect back to venue or home
+          const backUrl = this.bookingInfo.club_slug ? `/venue/${this.bookingInfo.club_slug}` : '/';
+          this.$router.push(backUrl);
+        }
       }, 1000);
     },
 
@@ -891,7 +900,6 @@ export default {
       this.errorMessage = '';
       
       try {
-        // Map UI method -> API Method enum
         const paymentMap = {
           'bank': 'BANK_TRANSFER',
           'momo': 'MOMO',
@@ -914,7 +922,15 @@ export default {
           bookerEmail: this.bookingInfo.email || undefined,
           note: this.bookingInfo.note || undefined,
           voucherCode: this.voucherInput.trim().toUpperCase() || undefined,
-          paymentMethod: paymentMap[this.payMethod] || 'VNPAY'
+          paymentMethod: paymentMap[this.payMethod] || 'VNPAY',
+          serviceIds: (() => {
+            try {
+              const svcs = typeof this.bookingInfo.services === 'string' 
+                ? JSON.parse(this.bookingInfo.services) 
+                : (this.bookingInfo.services || []);
+              return svcs.map(s => s.id);
+            } catch { return []; }
+          })(),
         };
 
         const res = await bookingService.createBooking(payload);
@@ -963,7 +979,6 @@ export default {
       
       const code = this.voucherInput.trim().toUpperCase();
       const clubId = this.bookingInfo.club_id;
-      // Calculate base amount (court + services) to validate correctly
       const baseAmount = this.courtSubtotalAll() + this.serviceTotal;
 
       try {
@@ -995,10 +1010,6 @@ export default {
 
     printConfirmation() { window.print(); },
 
-    /**
-     * Kết nối Socket.io để lắng nghe khi chủ sân xác nhận thanh toán
-     * → Tự động cập nhật UI từ "Đang chờ" → "Thanh toán thành công"
-     */
     connectBookingSocket(bookingId) {
       socketService.connect();
       socketService.joinBooking(bookingId);
@@ -1010,10 +1021,6 @@ export default {
         }
       });
     },
-
-    /**
-     * Polling logic: cứ 3s gọi API check trạng thái 1 lần (vừa hỗ trợ Admin vừa làm fallback cho Socket)
-     */
     startStatusPolling(code) {
       this.stopStatusPolling(); // Clear existing if any
       this.pollingInterval = setInterval(() => {
@@ -1033,10 +1040,6 @@ export default {
       }
     },
 
-    /**
-     * Tải lại thông tin booking từ server khi reload trang checkout
-     * Dùng bookingCode để lấy dữ liệu và hiển thị lại trang success
-     */
     async loadBookingFromServer(bookingCode) {
       try {
         const res = await bookingService.getBookingByCode(bookingCode);
@@ -1090,6 +1093,12 @@ export default {
             voucher_code: '',
           };
 
+          // Cập nhật lại timer dựa trên thời gian tạo đơn (giả sử hold 5 phút = 300s)
+          if (b.status === 'WAITING_PAYMENT' && b.createdAt) {
+            const elapsed = Math.floor((Date.now() - new Date(b.createdAt).getTime()) / 1000);
+            this.timerSeconds = Math.max(0, 300 - elapsed);
+          }
+
           // Kết nối socket để tiếp tục lắng nghe trạng thái
           if (b.id && !this.paymentConfirmed) {
             this.currentBookingId = b.id;
@@ -1104,4 +1113,6 @@ export default {
 };
 </script>
 
-<style scoped src="@/assets/checkout.css"></style>
+
+
+

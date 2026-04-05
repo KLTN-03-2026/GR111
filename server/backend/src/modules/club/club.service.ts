@@ -17,6 +17,7 @@ export interface SearchClubFilters {
   radiusKm?: number;
   limit?: number;
   date?: string;
+  startTime?: string;
 }
 
 
@@ -66,6 +67,8 @@ export async function searchClubs(filters: SearchClubFilters) {
     minPrice, 
     maxPrice, 
     minRating, 
+    date,
+    startTime,
     lat, 
     lng, 
     radiusKm = 20, 
@@ -114,9 +117,15 @@ export async function searchClubs(filters: SearchClubFilters) {
 
   // Lọc theo khoảng ngày (date)
   // Chỉ lấy những CLB có sân có ít nhất 1 TimeSlot trạng thái AVAILABLE trong ngày đó
-  if (filters.date) {
-    const startOfDay = new Date(`${filters.date}T00:00:00.000Z`);
-    const endOfDay = new Date(`${filters.date}T23:59:59.999Z`);
+  if (date) {
+    let gte = new Date(`${date}T00:00:00.000Z`);
+    let lte = new Date(`${date}T23:59:59.999Z`);
+
+    // Nếu có chọn giờ cụ thể (HH:mm)
+    if (startTime) {
+      gte = new Date(`${date}T${startTime}:00.000Z`);
+      lte = new Date(`${date}T${startTime}:59.999Z`);
+    }
     
     where.courts = {
       ...where.courts,
@@ -124,10 +133,7 @@ export async function searchClubs(filters: SearchClubFilters) {
         ...(where.courts?.some || {}),
         timeSlots: {
           some: {
-            startTime: {
-              gte: startOfDay,
-              lte: endOfDay
-            },
+            startTime: { gte, lte },
             status: 'AVAILABLE'
           }
         }
@@ -137,13 +143,17 @@ export async function searchClubs(filters: SearchClubFilters) {
 
   // Lọc theo tiện ích (amenities)
   if (facility && facility.length > 0) {
-    where.amenities = {
-      some: {
-        amenity: {
-          name: { in: Array.isArray(facility) ? facility : [facility], mode: 'insensitive' }
-        }
-      }
-    };
+    const facilityList = Array.isArray(facility) ? facility : [facility];
+    // Sử dụng logic AND: Club phải có TẤT CẢ các tiện ích được chọn
+    where.AND = facilityList.map((fName: string) => ({
+      amenities: {
+        some: {
+          amenity: {
+            name: { equals: fName, mode: "insensitive" },
+          },
+        },
+      },
+    }));
   }
 
   const clubs = await prisma.club.findMany({
@@ -201,7 +211,12 @@ export async function searchClubs(filters: SearchClubFilters) {
       reviewCount: club._count.bookings + 5,
       isPartner: true,
       hasOnlineBooking: club.courts.length > 0,
-      amenities: club.amenities.map((a) => a.amenity.name)
+      amenities: club.amenities.map((a) => ({
+        id: a.amenity.id,
+        name: a.amenity.name,
+        price: Number(a.price),
+        key: a.amenity.name.toLowerCase().replace(/\s+/g, '_')
+      }))
     };
   });
 
@@ -288,5 +303,64 @@ export async function updateClub(clubId: string, ownerId: string, data: Prisma.C
   return prisma.club.update({
     where: { id: clubId },
     data,
+  });
+}
+
+/**
+ * Xoá mềm câu lạc bộ (soft delete)
+ */
+export async function deleteClub(clubId: string, ownerId: string) {
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId, deletedAt: null },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  return prisma.club.update({
+    where: { id: clubId },
+    data: { deletedAt: new Date(), isActive: false },
+  });
+}
+
+
+export async function getAllAmenities() {
+  return prisma.amenity.findMany({
+    orderBy: { name: 'asc' }
+  });
+}
+
+/**
+ * Cập nhật danh sách tiện ích của CLB (Kèm giá tiền)
+ * logic: Xoá hết amenities cũ và insert lại bộ mới (hoặc sync thông minh)
+ */
+export async function updateClubAmenities(clubId: string, ownerId: string, amenities: { amenityId: string, price: number }[]) {
+  // 1. Verify ownership
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId, deletedAt: null },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // 2. Clear old ones and create new ones (Transaction)
+  return prisma.$transaction(async (tx) => {
+    // Xoá tất cả tiện ích cũ
+    await tx.clubAmenity.deleteMany({
+      where: { clubId }
+    });
+
+    // Tạo mới các tiện ích được chọn
+    if (amenities.length > 0) {
+      await tx.clubAmenity.createMany({
+        data: amenities.map(a => ({
+          clubId,
+          amenityId: a.amenityId,
+          price: a.price || 0
+        }))
+      });
+    }
+
+    // Trả về danh sách đã cập nhật
+    return tx.clubAmenity.findMany({
+      where: { clubId },
+      include: { amenity: true }
+    });
   });
 }

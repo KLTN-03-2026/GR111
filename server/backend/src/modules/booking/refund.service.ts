@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { RefundStatus, PaymentStatus } from "@/generated/prisma";
+import { RefundStatus } from "@/generated/prisma";
 
 /**
  * Tính toán số tiền hoàn dựa trên chính sách của sân
@@ -18,12 +18,12 @@ export async function calculateRefundAmount(bookingId: string) {
     }
   });
 
-  if (!booking || !booking.payment || booking.payment.status !== "CONFIRMED") {
+  if (!booking || !booking.payment || booking.payment.status !== "CONFIRMED" || !booking.club || booking.items.length === 0) {
     throw new Error("BOOKING_NOT_FOUND_OR_NOT_PAID");
   }
 
   // Lấy thời gian bắt đầu của slot sớm nhất trong đơn
-  const earliestSlotStart = booking.items.reduce((prev, curr) => {
+  const earliestSlotStart = booking.items.reduce((prev: Date, curr: { timeSlot: { startTime: Date } }) => {
     return (prev < curr.timeSlot.startTime) ? prev : curr.timeSlot.startTime;
   }, booking.items[0].timeSlot.startTime);
 
