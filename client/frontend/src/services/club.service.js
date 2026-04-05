@@ -2,6 +2,13 @@ import api from '../api/axios';
 
 export const clubService = {
     /**
+     * Lấy danh sách câu lạc bộ của chủ sân đang đăng nhập
+     */
+    getOwnerClubs() {
+        return api.get('/owner/clubs');
+    },
+
+    /**
      * Lấy danh sách các sân bóng (club) gần vị trí hiện tại của người dùng
      * @param {number} lat - Vĩ độ
      * @param {number} lng - Kinh độ
