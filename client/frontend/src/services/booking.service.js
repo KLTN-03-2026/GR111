@@ -50,5 +50,19 @@ export const bookingService = {
     getBookingByCode: async (bookingCode) => {
         const response = await api.get(`/bookings/${bookingCode}`);
         return response.data;
+    },
+
+    // 9. Xác minh thanh toán Stripe
+    verifyStripeSession: async (sessionId) => {
+        const response = await api.get("/payments/stripe-verify", {
+            params: { session_id: sessionId }
+        });
+        return response.data;
+    },
+
+    // 10. Hủy đơn đặt sân (Người dùng tự hủy hoặc khi hết hạn hold time)
+    cancelBooking: async (bookingCode) => {
+        const response = await api.delete(`/bookings/${bookingCode}`);
+        return response.data;
     }
 }

@@ -16,8 +16,12 @@ export async function GET(req: NextRequest) {
       district: searchParams.get("district") || undefined,
       surface: searchParams.get("surface") || undefined,
       format: searchParams.get("format") || undefined,
-      facility: searchParams.getAll("facility"), // Nhận mảng nếu có nhiều facility
+      facility: searchParams.getAll("facility"),
       date: searchParams.get("date") || undefined,
+      startTime: searchParams.get("startTime") || undefined,
+      lat: searchParams.get("lat") ? parseFloat(searchParams.get("lat")!) : undefined,
+      lng: searchParams.get("lng") ? parseFloat(searchParams.get("lng")!) : undefined,
+      radiusKm: searchParams.get("radius") ? parseFloat(searchParams.get("radius")!) : undefined,
       limit: parseInt(searchParams.get("limit") || "50"),
     };
 

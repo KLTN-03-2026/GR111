@@ -24,7 +24,7 @@ export const initBookingListeners = () => {
   eventEmitter.on('booking.created', async ({ clubId, booking, type }) => {
     // 1. Real-time Socket notification (cho Owner dashboard)
     if (clubId) {
-      notifyNewBooking(clubId, {
+      await notifyNewBooking(clubId, {
         booking,
         type: type || 'new-booking'
       });
@@ -94,7 +94,7 @@ export const initBookingListeners = () => {
   eventEmitter.on('booking.status_updated', async ({ clubId, booking, type }) => {
     // 1. Thông báo cho Owner dashboard (venue room)
     if (clubId) {
-      notifyNewBooking(clubId, {
+      await notifyNewBooking(clubId, {
         booking,
         type: type || 'booking-status-updated'
       });
@@ -122,9 +122,9 @@ export const initBookingListeners = () => {
   /**
    * Listen for cancellations
    */
-  eventEmitter.on('booking.cancelled', ({ clubId, booking }) => {
+  eventEmitter.on('booking.cancelled', async ({ clubId, booking }) => {
       if (clubId) {
-        notifyNewBooking(clubId, {
+        await notifyNewBooking(clubId, {
           booking,
           type: 'booking-cancelled'
         });
