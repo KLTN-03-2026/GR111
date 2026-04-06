@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CreateCourtInput } from "@/validations/court.schema";
 
-
 /**
  * Tạo mới một sân (court) thuộc một câu lạc bộ (club)
  */
@@ -15,24 +14,21 @@ export async function createCourt(clubId: string, ownerId: string, input: Create
     throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
   }
 
+  const { images, ...data } = input;
+
   const court = await prisma.court.create({
     data: {
+      ...data,
       clubId,
-      name: input.name,
-      description: input.description,
-      sportType: input.sportType,
-      capacity: input.capacity,
-      surface: input.surface,
-      indoorOutdoor: input.indoorOutdoor,
+      images: images ? {
+        create: images.map(url => ({ url }))
+      } : undefined
     },
     include: {
       pricings: true,
       images: true,
     }
   });
-
-  // Slots are now generated on-demand via the hybrid logic
-  // await generateSlotsForWeek(court.id);
 
   return court;
 }
@@ -61,9 +57,17 @@ export async function updateCourt(courtId: string, ownerId: string, input: Parti
 
   if (!court) throw new Error("COURT_NOT_FOUND_OR_UNAUTHORIZED");
 
+  const { images, ...data } = input;
+
   return prisma.court.update({
     where: { id: courtId },
-    data: input,
+    data: {
+      ...data,
+      images: images ? {
+        deleteMany: {},
+        create: images.map(url => ({ url }))
+      } : undefined
+    },
     include: { pricings: true, images: true }
   });
 }
@@ -82,5 +86,42 @@ export async function deleteCourt(courtId: string, ownerId: string) {
   return prisma.court.update({
     where: { id: courtId },
     data: { status: "INACTIVE" }
+  });
+}
+
+/**
+ * Cập nhật bảng giá cho sân
+ */
+export async function updateCourtPricing(courtId: string, ownerId: string, pricings: { dayOfWeek?: number, startTime: string, endTime: string, pricePerHour: number }[]) {
+  const court = await prisma.court.findFirst({
+    where: { id: courtId, club: { ownerId } },
+  });
+  if (!court) throw new Error("COURT_NOT_FOUND_OR_UNAUTHORIZED");
+
+  return prisma.$transaction(async (tx) => {
+    // 1. CLEAR old ones
+    await tx.courtPricing.deleteMany({ where: { courtId } });
+
+    // 2. CREATE new ones
+    if (pricings.length > 0) {
+      const toTime = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        const d = new Date();
+        d.setUTCHours(h, m, 0, 0);
+        return d;
+      };
+
+      await tx.courtPricing.createMany({
+        data: pricings.map(p => ({
+          courtId,
+          dayOfWeek: p.dayOfWeek,
+          startTime: toTime(p.startTime),
+          endTime: toTime(p.endTime),
+          pricePerHour: p.pricePerHour
+        }))
+      });
+    }
+
+    return tx.courtPricing.findMany({ where: { courtId } });
   });
 }
