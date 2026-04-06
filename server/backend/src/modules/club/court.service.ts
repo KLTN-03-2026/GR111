@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CreateCourtInput } from "@/validations/court.schema";
-import { generateSlotsForWeek } from "./slot.service";
+
 
 /**
  * Tạo mới một sân (court) thuộc một câu lạc bộ (club)
@@ -31,8 +31,8 @@ export async function createCourt(clubId: string, ownerId: string, input: Create
     }
   });
 
-  // 2. Tự động sinh lịch sân cho 7 ngày tới
-  await generateSlotsForWeek(court.id);
+  // Slots are now generated on-demand via the hybrid logic
+  // await generateSlotsForWeek(court.id);
 
   return court;
 }

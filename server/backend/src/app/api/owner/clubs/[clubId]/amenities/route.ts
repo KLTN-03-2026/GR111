@@ -7,7 +7,7 @@ import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
  * [GET] /api/owner/clubs/[clubId]/amenities
  * Lấy danh sách tiện ích hiện tại của CLB và tất cả tiện ích hệ thống
  */
-export async function GET(req: NextRequest, { params }: { params: { clubId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ clubId: string }> }) {
   try {
     const { user, error } = await getAuthUser(req);
     if (error) return error;
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: { params: { clubId: stri
     const roleError = requireRole(user, ["OWNER", "ADMIN"]);
     if (roleError) return roleError;
 
-    const { clubId } = params;
+    const { clubId } = await params;
     const club = await getClubById(clubId, user.userId);
     if (!club) return errorResponse("Không tìm thấy CLB hoặc bạn không có quyền", 404);
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: { clubId: stri
  * [POST] /api/owner/clubs/[clubId]/amenities
  * Cập nhật danh sách tiện ích và giá tiền
  */
-export async function POST(req: NextRequest, { params }: { params: { clubId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ clubId: string }> }) {
   try {
     const { user, error } = await getAuthUser(req);
     if (error) return error;
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: { clubId: str
     const roleError = requireRole(user, ["OWNER", "ADMIN"]);
     if (roleError) return roleError;
 
-    const { clubId } = params;
+    const { clubId } = await params;
     const body = await req.json();
     const { amenities } = body; // [{ amenityId: string, price: number }]
 
