@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ club
     if (!club) return errorResponse("Không tìm thấy CLB hoặc bạn không có quyền", 404);
 
     const allAmenities = await getAllAmenities();
-    
+
     const currentMap = new Map();
     club.amenities.forEach(ca => {
       currentMap.set(ca.amenityId, Number(ca.price));
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ clu
     if (roleError) return roleError;
 
     const body = await req.json();
-    const { amenities } = body; 
+    const { amenities } = body;
 
     if (!Array.isArray(amenities)) {
       return errorResponse("Dữ liệu không hợp lệ (Expect array 'amenities')", 400);
