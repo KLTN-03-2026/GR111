@@ -122,3 +122,68 @@ export async function getCustomerBookingHistory(clubId: string, userId: string, 
     orderBy: { createdAt: "desc" }
   });
 }
+
+/**
+ * Thêm khách hàng vào CLB bằng số điện thoại
+ * Tìm user theo SĐT → nếu chưa có trong CLB → tạo record ClubCustomer
+ */
+export async function addCustomerByPhone(clubId: string, phone: string, ownerId: string) {
+  // 1. Xác nhận quyền sở hữu CLB
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId, deletedAt: null },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // 2. Tìm user theo SĐT
+  const user = await prisma.user.findFirst({
+    where: { phone },
+    select: { id: true, fullName: true, email: true, phone: true, avatarUrl: true },
+  });
+  if (!user) throw new Error("USER_NOT_FOUND");
+
+  // 3. Kiểm tra đã là khách của CLB chưa
+  const existing = await prisma.clubCustomer.findUnique({
+    where: { clubId_userId: { clubId, userId: user.id } },
+  });
+  if (existing) throw new Error("CUSTOMER_ALREADY_EXISTS");
+
+  // 4. Tạo liên kết ClubCustomer mới
+  const newCustomer = await prisma.clubCustomer.create({
+    data: {
+      clubId,
+      userId: user.id,
+      tier: "NORMAL",
+      totalBookings: 0,
+      totalSpent: 0,
+    },
+    include: {
+      user: {
+        select: { fullName: true, email: true, phone: true, avatarUrl: true },
+      },
+    },
+  });
+
+  return newCustomer;
+}
+
+/**
+ * Xóa liên kết ClubCustomer (xóa khỏi danh sách khách của CLB)
+ * Không xóa tài khoản user thật trên hệ thống
+ */
+export async function removeClubCustomer(clubId: string, userId: string, ownerId: string) {
+  // Xác nhận quyền sở hữu CLB
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId, deletedAt: null },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // Kiểm tra record tồn tại
+  const customer = await prisma.clubCustomer.findUnique({
+    where: { clubId_userId: { clubId, userId } },
+  });
+  if (!customer) throw new Error("CUSTOMER_NOT_FOUND");
+
+  return prisma.clubCustomer.delete({
+    where: { clubId_userId: { clubId, userId } },
+  });
+}
