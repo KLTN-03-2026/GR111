@@ -2,7 +2,17 @@ import api from '../api/axios';
 
 export const clubService = {
     /**
-     * Lấy danh sách các sân bóng gần vị trí hiện tại
+     * Lấy danh sách câu lạc bộ của chủ sân đang đăng nhập
+     */
+    getOwnerClubs() {
+        return api.get('/owner/clubs');
+    },
+
+    /**
+     * Lấy danh sách các sân bóng (club) gần vị trí hiện tại của người dùng
+     * @param {number} lat - Vĩ độ
+     * @param {number} lng - Kinh độ
+     * @param {number} [radius=20] - Bán kính (mặc định 20km)
      */
     getNearbyClubs(lat, lng, radius = 20) {
         return api.get('/clubs/nearby', { params: { lat, lng, radius } });
@@ -66,5 +76,9 @@ export const clubService = {
     // ── Slots ──────────────────────────────────────────────────
     getSlotsByClub(slug, date) {
         return api.get(`/clubs/${slug}/slots`, { params: { date } });
+    },
+    // ── Opening Hours ──────────────────────────────────────────
+    updateOpeningHours(clubId, hours) {
+        return api.put(`/owner/clubs/${clubId}/opening-hours`, hours);
     },
 };

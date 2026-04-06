@@ -16,17 +16,8 @@
             <span class="material-icons">groups</span>
           </div>
           <div class="stat-info">
-            <span class="stat-value">2,840</span>
+            <span class="stat-value">{{ customers.length }}</span>
             <span class="stat-label">Tổng khách</span>
-          </div>
-        </div>
-        <div class="pc-stat-glass">
-          <div class="stat-icon-wrap bg-green">
-            <span class="material-icons">trending_up</span>
-          </div>
-          <div class="stat-info">
-            <span class="stat-value">+142</span>
-            <span class="stat-label">Khách mới (Tháng)</span>
           </div>
         </div>
         <div class="pc-stat-glass">
@@ -34,8 +25,19 @@
             <span class="material-icons">diamond</span>
           </div>
           <div class="stat-info">
-            <span class="stat-value">315</span>
+            <span class="stat-value">{{ vipCount }}</span>
             <span class="stat-label">Khách VIP</span>
+          </div>
+        </div>
+        <div class="pc-stat-glass">
+          <div class="stat-icon-wrap bg-green">
+            <span class="material-icons">payments</span>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{
+              formatShortCurrency(totalRevenue)
+            }}</span>
+            <span class="stat-label">Tổng doanh thu</span>
           </div>
         </div>
       </div>
@@ -43,7 +45,31 @@
 
     <!-- Toolbar: Search & Filters inside Glass Panel -->
     <div class="pc-toolbar pc-glass-panel">
-      <div class="pc-search-box">
+      <!-- Club Selector -->
+      <div class="pc-select-wrapper" style="min-width: 200px">
+        <span class="material-icons select-icon">store</span>
+        <select
+          v-model="selectedClubId"
+          @change="fetchCustomers"
+          class="pc-select"
+          style="
+            width: 100%;
+            font-weight: 700;
+            padding-left: 40px;
+            color: #2563eb;
+          "
+        >
+          <option v-for="club in clubs" :key="club.id" :value="club.id">
+            {{ club.name }}
+          </option>
+          <option v-if="loadingClubs" value="" disabled>Đang tải CLB...</option>
+          <option v-if="!loadingClubs && clubs.length === 0" value="" disabled>
+            Bạn chưa có CLB nào
+          </option>
+        </select>
+      </div>
+
+      <div class="pc-search-box" style="flex: 1">
         <span class="material-icons search-icon">search</span>
         <input
           type="text"
@@ -71,13 +97,22 @@
 
         <div class="pc-select-wrapper">
           <span class="material-icons select-icon">sort</span>
-          <select v-model="sortBy" class="pc-select">
-            <option value="recent">Mới tương tác</option>
-            <option value="spending">Chi tiêu cao</option>
+          <select v-model="sortBy" class="pc-select" style="padding-left: 36px">
+            <option value="recent">Mức chi tiêu cao</option>
             <option value="bookings">Lượt đặt nhiều</option>
           </select>
         </div>
       </div>
+
+      <!-- Add Customer Button -->
+      <button
+        class="pc-btn-add"
+        @click="showAddModal = true"
+        :disabled="!selectedClubId"
+      >
+        <span class="material-icons">person_add</span>
+        Thêm Khách
+      </button>
     </div>
 
     <!-- Main Content Grid -->
@@ -97,78 +132,109 @@
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="(customer, index) in filteredCustomers"
-                :key="customer.id"
-                class="pc-table-row"
-                :class="{ 'row-selected': selectedCustomerId === customer.id }"
-                @click="selectedCustomerId = customer.id"
-                :style="{ animationDelay: `${index * 0.05}s` }"
-              >
-                <td>
-                  <div class="pc-user-cell">
-                    <div
-                      class="pc-avatar-ring"
-                      :class="`ring-${customer.tier}`"
-                    >
-                      <img
-                        :src="customer.avatar"
-                        :alt="customer.name"
-                        class="pc-avatar"
-                      />
-                      <div v-if="customer.isOnline" class="online-dot"></div>
+              <!-- Loading skeleton -->
+              <template v-if="loading">
+                <tr v-for="i in 5" :key="'skel-' + i" class="pc-table-row">
+                  <td>
+                    <div class="skeleton-row">
+                      <div class="skel-avatar"></div>
+                      <div class="skel-lines">
+                        <div class="skel-line w-32"></div>
+                        <div class="skel-line w-20 short"></div>
+                      </div>
                     </div>
-                    <div class="pc-user-text">
-                      <h4 class="pc-name">{{ customer.name }}</h4>
-                      <p class="pc-phone">{{ customer.phone }}</p>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <div class="pc-badge" :class="`badge-${customer.tier}`">
-                    <span class="material-icons tier-icon">{{
-                      getTierIcon(customer.tier)
-                    }}</span>
-                    {{ getTierLabel(customer.tier) }}
-                  </div>
-                </td>
-                <td>
-                  <div class="pc-number-box">
-                    <span class="pc-num-main">{{
-                      customer.totalBookings
-                    }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="pc-currency-box">
-                    <span class="pc-money">{{
-                      formatShortCurrency(customer.totalSpent)
-                    }}</span>
-                  </div>
-                </td>
-                <td>
-                  <div class="pc-status" :class="`status-${customer.status}`">
-                    <div class="status-indicator"></div>
-                    {{
-                      customer.status === "active" ? "Hoạt động" : "Tạm khóa"
-                    }}
-                  </div>
-                </td>
-                <td>
-                  <button class="pc-icon-btn">
-                    <span class="material-icons">chevron_right</span>
-                  </button>
-                </td>
-              </tr>
+                  </td>
+                  <td><div class="skel-badge"></div></td>
+                  <td><div class="skel-line w-10"></div></td>
+                  <td><div class="skel-line w-20"></div></td>
+                  <td><div class="skel-line w-16"></div></td>
+                  <td></td>
+                </tr>
+              </template>
 
-              <tr v-if="filteredCustomers.length === 0">
-                <td colspan="6" class="pc-empty-cell">
-                  <div class="empty-state">
-                    <span class="material-icons">sentiment_dissatisfied</span>
-                    <p>Không tìm thấy khách hàng nào</p>
-                  </div>
-                </td>
-              </tr>
+              <template v-else>
+                <tr
+                  v-for="(customer, index) in filteredCustomers"
+                  :key="customer.id"
+                  class="pc-table-row"
+                  :class="{
+                    'row-selected': selectedCustomerId === customer.id,
+                  }"
+                  @click="selectedCustomerId = customer.id"
+                  :style="{ animationDelay: `${index * 0.05}s` }"
+                >
+                  <td>
+                    <div class="pc-user-cell">
+                      <div
+                        class="pc-avatar-ring"
+                        :class="`ring-${customer.tier?.toLowerCase()}`"
+                      >
+                        <img
+                          :src="customer.avatar"
+                          :alt="customer.name"
+                          class="pc-avatar"
+                        />
+                      </div>
+                      <div class="pc-user-text">
+                        <h4 class="pc-name">{{ customer.name }}</h4>
+                        <p class="pc-phone">{{ customer.phone }}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div
+                      class="tier-pill"
+                      :class="`tier-pill-${customer.tier?.toLowerCase()}`"
+                    >
+                      <span class="tier-dot"></span>
+                      <span class="material-icons tier-pill-icon">{{
+                        getTierIcon(customer.tier)
+                      }}</span>
+                      {{ getTierLabel(customer.tier) }}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="pc-number-box">
+                      <span class="pc-num-main">{{
+                        customer.totalBookings
+                      }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="pc-currency-box">
+                      <span class="pc-money">{{
+                        formatShortCurrency(customer.totalSpent)
+                      }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="pc-status status-active">
+                      <div class="status-indicator"></div>
+                      Hoạt động
+                    </div>
+                  </td>
+                  <td>
+                    <button class="pc-icon-btn">
+                      <span class="material-icons">chevron_right</span>
+                    </button>
+                  </td>
+                </tr>
+
+                <tr v-if="filteredCustomers.length === 0">
+                  <td colspan="6" class="pc-empty-cell">
+                    <div class="empty-state">
+                      <span class="material-icons">person_search</span>
+                      <p>
+                        {{
+                          selectedClubId
+                            ? "Chưa có khách hàng nào"
+                            : "Vui lòng chọn câu lạc bộ"
+                        }}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -249,11 +315,20 @@
                 >
                   <div class="timeline-dot"></div>
                   <div class="timeline-content">
-                    <h4>{{ history.courtName }}</h4>
-                    <p>{{ history.date }} • {{ history.time }}</p>
+                    <h4>
+                      {{
+                        history.items?.[0]?.timeSlot?.court?.name || "Sân bóng"
+                      }}
+                    </h4>
+                    <p>
+                      {{
+                        new Date(history.createdAt).toLocaleDateString("vi-VN")
+                      }}
+                      • Mã: {{ history.bookingCode }}
+                    </p>
                   </div>
                   <div class="timeline-price">
-                    {{ formatShortCurrency(history.price) }}
+                    {{ formatShortCurrency(history.finalAmount) }}
                   </div>
                 </div>
                 <div
@@ -265,6 +340,12 @@
               </div>
             </div>
 
+            <!-- Notes section -->
+            <div v-if="selectedCustomer.notes" class="d-notes-section">
+              <h3 class="d-section-title">📝 Ghi chú</h3>
+              <p class="d-notes-text">{{ selectedCustomer.notes }}</p>
+            </div>
+
             <!-- Actions -->
             <div class="d-action-group">
               <button class="pc-btn-primary w-full" @click="openMessageModal">
@@ -272,26 +353,10 @@
               </button>
               <div class="d-action-row mt-3">
                 <button class="pc-btn-outline flex-1" @click="openEditModal">
-                  <span class="material-icons">edit</span> Sửa thông tin
+                  <span class="material-icons">edit</span> Cập nhật hạng
                 </button>
-                <button
-                  class="pc-btn-outline flex-1"
-                  :class="{
-                    danger: selectedCustomer.status !== 'blocked',
-                    safe: selectedCustomer.status === 'blocked',
-                  }"
-                  @click="toggleBlockStatus"
-                >
-                  <span class="material-icons">{{
-                    selectedCustomer.status === "blocked"
-                      ? "lock_open"
-                      : "block"
-                  }}</span>
-                  {{
-                    selectedCustomer.status === "blocked"
-                      ? "Mở Khóa"
-                      : "Khóa TK"
-                  }}
+                <button class="pc-btn-danger" @click="confirmDelete">
+                  <span class="material-icons">person_remove</span>
                 </button>
               </div>
             </div>
@@ -332,19 +397,64 @@
             <div class="modal-body">
               <div class="form-group">
                 <label>Phân hạng thành viên</label>
-                <div class="pc-select-wrapper">
-                  <span class="material-icons select-icon">military_tech</span>
-                  <select
-                    v-model="editForm.tier"
-                    class="pc-search-input ml-0 w-full pl-10"
-                    style="padding-left: 40px; margin-left: 0; width: 100%"
+                <div class="tier-picker">
+                  <label
+                    v-for="t in [
+                      {
+                        id: 'NORMAL',
+                        label: 'Thường',
+                        icon: 'person',
+                        color: '#64748b',
+                      },
+                      {
+                        id: 'SILVER',
+                        label: 'Bạc',
+                        icon: 'military_tech',
+                        color: '#94a3b8',
+                      },
+                      {
+                        id: 'GOLD',
+                        label: 'Vàng',
+                        icon: 'workspace_premium',
+                        color: '#f59e0b',
+                      },
+                      {
+                        id: 'VIP',
+                        label: 'VIP',
+                        icon: 'diamond',
+                        color: '#a855f7',
+                      },
+                    ]"
+                    :key="t.id"
+                    class="tier-pick-card"
+                    :class="{ 'tier-pick-selected': editForm.tier === t.id }"
+                    :style="
+                      editForm.tier === t.id
+                        ? `border-color:${t.color};box-shadow:0 0 0 3px ${t.color}22`
+                        : ''
+                    "
                   >
-                    <option value="normal">Khách Thường</option>
-                    <option value="bronze">Khách Bronze</option>
-                    <option value="silver">Khách Silver</option>
-                    <option value="gold">Khách Gold</option>
-                    <option value="vip">Khách VIP</option>
-                  </select>
+                    <input
+                      type="radio"
+                      v-model="editForm.tier"
+                      :value="t.id"
+                      hidden
+                    />
+                    <span
+                      class="material-icons"
+                      :style="`color:${t.color};font-size:28px`"
+                      >{{ t.icon }}</span
+                    >
+                    <span
+                      class="tier-pick-label"
+                      :style="
+                        editForm.tier === t.id
+                          ? `color:${t.color};font-weight:700`
+                          : ''
+                      "
+                      >{{ t.label }}</span
+                    >
+                  </label>
                 </div>
               </div>
               <div class="form-group mt-3">
@@ -429,239 +539,366 @@
       </transition>
     </Teleport>
   </div>
+
+  <!-- Modal: Thêm Khách Hàng Bằng SĐT -->
+  <Teleport to="body">
+    <transition name="modal-fade">
+      <div
+        v-if="showAddModal"
+        class="pc-modal-backdrop"
+        @click.self="closeAddModal"
+      >
+        <div class="pc-modal-content pc-glass-panel">
+          <div class="modal-header">
+            <div class="modal-title-group">
+              <span class="material-icons modal-icon text-green"
+                >person_add</span
+              >
+              <h3>Thêm Khách Hàng</h3>
+            </div>
+            <button class="pc-icon-btn" @click="closeAddModal">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <p class="add-modal-desc">
+              Nhập số điện thoại của khách hàng đã có tài khoản trên hệ thống để
+              thêm vào sổ của CLB.
+            </p>
+
+            <div class="form-group">
+              <label>Số điện thoại</label>
+              <div class="pc-search-box mt-2" style="margin-top: 8px">
+                <span class="material-icons search-icon">phone</span>
+                <input
+                  type="tel"
+                  v-model="addForm.phone"
+                  @keyup.enter="searchUserByPhone"
+                  placeholder="VD: 0912345678"
+                  class="pc-search-input"
+                  :disabled="addSearching"
+                />
+              </div>
+            </div>
+
+            <!-- Preview kết quả tìm kiếm -->
+            <transition name="modal-fade">
+              <div v-if="addPreviewUser" class="add-preview-card">
+                <img
+                  :src="addPreviewUser.avatar"
+                  alt="avatar"
+                  class="preview-avatar"
+                />
+                <div class="preview-info">
+                  <h4>{{ addPreviewUser.fullName }}</h4>
+                  <p>{{ addPreviewUser.email }}</p>
+                  <p>{{ addPreviewUser.phone }}</p>
+                </div>
+                <span class="material-icons preview-check">verified</span>
+              </div>
+            </transition>
+
+            <p v-if="addError" class="add-error-msg">
+              <span class="material-icons">error_outline</span> {{ addError }}
+            </p>
+          </div>
+
+          <div class="modal-footer">
+            <button class="pc-btn-outline" @click="closeAddModal">Hủy</button>
+            <button
+              v-if="!addPreviewUser"
+              class="pc-btn-primary"
+              @click="searchUserByPhone"
+              :disabled="addSearching || !addForm.phone"
+              style="margin-left: 12px"
+            >
+              <span class="material-icons" style="font-size: 18px">{{
+                addSearching ? "hourglass_empty" : "search"
+              }}</span>
+              {{ addSearching ? "Đang tìm..." : "Tìm kiếm" }}
+            </button>
+            <button
+              v-if="addPreviewUser"
+              class="pc-btn-primary bg-green"
+              @click="confirmAddCustomer"
+              :disabled="addSearching"
+              style="margin-left: 12px"
+            >
+              <span class="material-icons" style="font-size: 18px"
+                >person_add</span
+              >
+              Xác nhận Thêm
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
+
+  <!-- Modal: Xác nhận Xóa Khách -->
+  <Teleport to="body">
+    <transition name="modal-fade">
+      <div
+        v-if="showDeleteModal"
+        class="pc-modal-backdrop"
+        @click.self="showDeleteModal = false"
+      >
+        <div class="pc-modal-content pc-glass-panel" style="max-width: 420px">
+          <div class="modal-header">
+            <div class="modal-title-group">
+              <h3>Xác nhận Xóa</h3>
+            </div>
+          </div>
+          <div class="modal-body">
+            <p class="delete-confirm-text">
+              Bạn có chắc muốn xóa
+              <strong>{{ selectedCustomer?.name }}</strong> khỏi danh sách khách
+              của CLB này không?
+            </p>
+            <p class="delete-warn-text">
+              Thao tác này sẽ xóa toàn bộ lịch sử theo dõi của khách này tại
+              CLB. Tài khoản thật của họ vẫn được giữ nguyên.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button class="pc-btn-outline" @click="showDeleteModal = false">
+              Hủy
+            </button>
+            <button
+              class="pc-btn-danger-full"
+              @click="doDeleteCustomer"
+              :disabled="deleting"
+              style="margin-left: 12px"
+            >
+              <span class="material-icons" style="font-size: 18px">{{
+                deleting ? "hourglass_empty" : "delete"
+              }}</span>
+              {{ deleting ? "Đang xóa..." : "Xóa Khỏi Danh Sách" }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </Teleport>
+
+  <!-- Toast Notification -->
+  <Teleport to="body">
+    <transition name="toast-slide">
+      <div v-if="toast.show" class="pc-toast" :class="`toast-${toast.type}`">
+        <span class="material-icons toast-icon">{{
+          toast.type === "success" ? "check_circle" : "error"
+        }}</span>
+        <span>{{ toast.message }}</span>
+      </div>
+    </transition>
+  </Teleport>
 </template>
 
 <script>
+import { clubService } from "@/services/club.service";
+import { customerService } from "@/services/customer.service";
+
 export default {
   name: "PremiumCustomersView",
   data() {
     return {
       searchQuery: "",
-      selectedTier: "all",
+      selectedTier: "ALL",
       sortBy: "recent",
       selectedCustomerId: null,
+      selectedCustomerDetails: null,
       showEditModal: false,
       showMessageModal: false,
+      saving: false,
       messageBody: "",
-      editForm: {
-        id: null,
-        tier: "normal",
-        notes: "",
-      },
+      editForm: { id: null, tier: "NORMAL", notes: "" },
       tiers: [
-        { id: "all", label: "Tất cả" },
-        { id: "vip", label: "VIP" },
-        { id: "gold", label: "Vàng" },
-        { id: "silver", label: "Bạc" },
-        { id: "bronze", label: "Đồng" },
+        { id: "ALL", label: "Tất cả" },
+        { id: "VIP", label: "VIP" },
+        { id: "GOLD", label: "Vàng" },
+        { id: "SILVER", label: "Bạc" },
+        { id: "NORMAL", label: "Thường" },
       ],
-      customers: [
-        {
-          id: 1,
-          name: "Nguyễn Đình Vĩ",
-          phone: "0987 654 321",
-          email: "vi.nguyen@gmail.com",
-          avatar:
-            "https://ui-avatars.com/api/?name=Nguyen+Dinh+Vi&background=0284c7&color=fff",
-          tier: "vip",
-          totalBookings: 85,
-          totalSpent: 45000000,
-          status: "active",
-          isOnline: true,
-          points: 4500,
-          notes: "Đại gia chuyên bao sân VIP cho anh em.",
-          history: [
-            {
-              id: 101,
-              courtName: "Sân VIP 1 (Thành Phát)",
-              date: "18/03/2026",
-              time: "18:00",
-              price: 500000,
-            },
-            {
-              id: 102,
-              courtName: "Sân 7 (Viettel)",
-              date: "15/03/2026",
-              time: "19:30",
-              price: 800000,
-            },
-            {
-              id: 103,
-              courtName: "Sân VIP 1 (Thành Phát)",
-              date: "10/03/2026",
-              time: "17:00",
-              price: 500000,
-            },
-          ],
-        },
-        {
-          id: 2,
-          name: "Phan Tuấn Anh",
-          phone: "0912 333 888",
-          email: "anh.phan@yahoo.com",
-          avatar:
-            "https://ui-avatars.com/api/?name=Phan+Tuan+Anh&background=16a34a&color=fff",
-          tier: "gold",
-          totalBookings: 32,
-          totalSpent: 12500000,
-          status: "active",
-          isOnline: false,
-          points: 1250,
-          history: [
-            {
-              id: 201,
-              courtName: "Sân 5 số 2",
-              date: "17/03/2026",
-              time: "20:00",
-              price: 300000,
-            },
-            {
-              id: 202,
-              courtName: "Sân 5 số 2",
-              date: "14/03/2026",
-              time: "20:00",
-              price: 300000,
-            },
-          ],
-        },
-        {
-          id: 3,
-          name: "Lê Văn Cường",
-          phone: "0345 888 999",
-          email: "cuong.le@outlook.com",
-          avatar:
-            "https://ui-avatars.com/api/?name=Le+Van+Cuong&background=f59e0b&color=fff",
-          tier: "silver",
-          totalBookings: 15,
-          totalSpent: 4800000,
-          status: "active",
-          isOnline: true,
-          points: 480,
-          history: [
-            {
-              id: 301,
-              courtName: "Sân cầu lông số 1",
-              date: "10/03/2026",
-              time: "18:00",
-              price: 120000,
-            },
-          ],
-        },
-        {
-          id: 4,
-          name: "Hoàng Minh Thu",
-          phone: "0901 000 111",
-          email: "thu.hoang@gmail.com",
-          avatar:
-            "https://ui-avatars.com/api/?name=Hoang+Minh+Thu&background=6d28d9&color=fff",
-          tier: "bronze",
-          totalBookings: 3,
-          totalSpent: 900000,
-          status: "blocked",
-          isOnline: false,
-          points: 90,
-          history: [],
-        },
-        {
-          id: 5,
-          name: "Trương Tuấn Tú",
-          phone: "0988 123 456",
-          email: "tutuong102@gmail.com",
-          avatar:
-            "https://ui-avatars.com/api/?name=Truong+Tuan+Tu&background=e11d48&color=fff",
-          tier: "silver",
-          totalBookings: 19,
-          totalSpent: 5200000,
-          status: "active",
-          isOnline: true,
-          points: 520,
-          history: [
-            {
-              id: 501,
-              courtName: "Sân tennis A",
-              date: "19/03/2026",
-              time: "06:00",
-              price: 200000,
-            },
-          ],
-        },
-      ],
+      clubs: [],
+      selectedClubId: "",
+      customers: [],
+      loading: false,
+      loadingClubs: true,
+      toast: { show: false, message: "", type: "success" },
+      // --- Add Customer ---
+      showAddModal: false,
+      addForm: { phone: "" },
+      addPreviewUser: null,
+      addError: "",
+      addSearching: false,
+      // --- Delete Customer ---
+      showDeleteModal: false,
+      deleting: false,
     };
   },
   computed: {
     selectedCustomer() {
-      return this.customers.find((c) => c.id === this.selectedCustomerId);
+      const basicInfo = this.customers.find(
+        (c) => c.userId === this.selectedCustomerId,
+      );
+      if (!basicInfo) return null;
+      return {
+        ...basicInfo,
+        history: this.selectedCustomerDetails?.history || [],
+      };
     },
     filteredCustomers() {
       let result = this.customers.filter((c) => {
+        const q = this.searchQuery.toLowerCase();
         const matchesQuery =
-          c.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-          c.phone.includes(this.searchQuery) ||
-          c.email.toLowerCase().includes(this.searchQuery.toLowerCase());
+          !q ||
+          (c.name && c.name.toLowerCase().includes(q)) ||
+          (c.phone && c.phone.includes(q)) ||
+          (c.email && c.email.toLowerCase().includes(q));
         const matchesTier =
-          this.selectedTier === "all" || c.tier === this.selectedTier;
+          this.selectedTier === "ALL" || c.tier === this.selectedTier;
         return matchesQuery && matchesTier;
       });
-
-      if (this.sortBy === "spending") {
-        result.sort((a, b) => b.totalSpent - a.totalSpent);
+      if (this.sortBy === "recent" || this.sortBy === "spending") {
+        result.sort((a, b) => (b.totalSpent || 0) - (a.totalSpent || 0));
       } else if (this.sortBy === "bookings") {
-        result.sort((a, b) => b.totalBookings - a.totalBookings);
+        result.sort((a, b) => (b.totalBookings || 0) - (a.totalBookings || 0));
       }
-
       return result;
+    },
+    vipCount() {
+      return this.customers.filter((c) => c.tier === "VIP").length;
+    },
+    totalRevenue() {
+      return this.customers.reduce(
+        (sum, c) => sum + (parseFloat(c.totalSpent) || 0),
+        0,
+      );
+    },
+  },
+  async mounted() {
+    await this.fetchClubs();
+  },
+  watch: {
+    async selectedCustomerId(newId) {
+      if (newId) {
+        await this.loadCustomerHistory(newId);
+      } else {
+        this.selectedCustomerDetails = null;
+      }
     },
   },
   methods: {
+    async fetchClubs() {
+      this.loadingClubs = true;
+      try {
+        const res = await clubService.getOwnerClubs();
+        if (res.data?.success) {
+          this.clubs = res.data.data || [];
+          if (this.clubs.length > 0) {
+            this.selectedClubId = this.clubs[0].id;
+            await this.fetchCustomers();
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching clubs:", error);
+      } finally {
+        this.loadingClubs = false;
+      }
+    },
+    async fetchCustomers() {
+      if (!this.selectedClubId) return;
+      this.loading = true;
+      try {
+        const res = await customerService.getClubCustomers(this.selectedClubId);
+        if (res.data?.success) {
+          // Map backend data to local structure
+          this.customers = res.data.data.map((c) => ({
+            id: c.userId, // use userId as unique identifier
+            userId: c.userId,
+            clubId: c.clubId,
+            tier: c.tier || "NORMAL",
+            notes: c.notes || "",
+            totalSpent: parseFloat(c.totalSpent) || 0,
+            totalBookings: c.totalBookings || 0,
+            user: c.user || {},
+            name: c.user?.fullName || "Khách không tên",
+            phone: c.user?.phone || "Chưa cập nhật",
+            email: c.user?.email || "Chưa cập nhật",
+            avatar:
+              c.user?.avatarUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(c.user?.fullName || "User")}&background=random&color=fff`,
+          }));
+          this.selectedCustomerId = null; // reset selection
+        }
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      } finally {
+        this.loading = false;
+      }
+    },
+    async loadCustomerHistory(userId) {
+      try {
+        const res = await customerService.getCustomerHistory(
+          userId,
+          this.selectedClubId,
+        );
+        if (res.data?.success) {
+          this.selectedCustomerDetails = {
+            history: res.data.data || [],
+          };
+        }
+      } catch (error) {
+        console.error("Error fetching history:", error);
+      }
+    },
     openEditModal() {
       if (!this.selectedCustomer) return;
       this.editForm = {
-        id: this.selectedCustomer.id,
-        tier: this.selectedCustomer.tier || "normal",
+        id: this.selectedCustomer.userId,
+        tier: this.selectedCustomer.tier || "NORMAL",
         notes: this.selectedCustomer.notes || "",
       };
       this.showEditModal = true;
     },
-    saveEdit() {
-      // Tìm index của customer và cập nhật
-      const index = this.customers.findIndex((c) => c.id === this.editForm.id);
-      if (index !== -1) {
-        this.customers[index].tier = this.editForm.tier;
-        this.customers[index].notes = this.editForm.notes;
-      }
-      this.showEditModal = false;
-      alert("Cập nhật thông tin thành công!");
-    },
-    toggleBlockStatus() {
-      if (!this.selectedCustomer) return;
-      const isBlocked = this.selectedCustomer.status === "blocked";
-      const action = isBlocked ? "mở khóa" : "khóa";
-
-      if (
-        confirm(
-          `Bạn chắc chắn muốn ${action} tài khoản ${this.selectedCustomer.name}?`,
-        )
-      ) {
-        const index = this.customers.findIndex(
-          (c) => c.id === this.selectedCustomer.id,
+    async saveEdit() {
+      this.saving = true;
+      try {
+        const payload = {
+          tier: this.editForm.tier,
+          notes: this.editForm.notes,
+        };
+        const res = await customerService.updateCustomerTier(
+          this.selectedClubId,
+          this.editForm.id,
+          payload,
         );
-        if (index !== -1) {
-          const newStatus = isBlocked ? "active" : "blocked";
-          this.customers[index].status = newStatus;
-          this.selectedCustomer.status = newStatus; // đồng bộ dữ liệu
-
-          // Thông báo tùy theo trạng thái
-          if (newStatus === "blocked") {
-            alert(
-              `Tài khoản ${this.selectedCustomer.name} đã bị khóa. Người này sẽ bị cấm đặt sân tại CLB của bạn.`,
-            );
-          } else {
-            alert(
-              `Tài khoản ${this.selectedCustomer.name} đã được mở khóa. Người này có thể đặt sân tại CLB của bạn.`,
-            );
+        if (res.data?.success) {
+          const index = this.customers.findIndex(
+            (c) => c.userId === this.editForm.id,
+          );
+          if (index !== -1) {
+            this.customers[index].tier = this.editForm.tier;
+            this.customers[index].notes = this.editForm.notes;
           }
+          this.showEditModal = false;
+          this.showToast("Cập nhật thông tin thành công!", "success");
+        } else {
+          this.showToast("Lỗi khi cập nhật, vui lòng thử lại.", "error");
         }
+      } catch (error) {
+        console.error("Error updating customer:", error);
+        this.showToast("Có lỗi xảy ra, vui lòng thử lại sau.", "error");
+      } finally {
+        this.saving = false;
       }
+    },
+    showToast(message, type = "success") {
+      this.toast = { show: true, message, type };
+      setTimeout(() => {
+        this.toast.show = false;
+      }, 3000);
     },
     openMessageModal() {
       if (!this.selectedCustomer) return;
@@ -674,25 +911,25 @@ export default {
         return;
       }
       alert(
-        `Đã gửi tin nhắn tới ${this.selectedCustomer.name}: "${this.messageBody}"`,
+        `Chức năng đang phát triển. Giả lập gửi tin tới ${this.selectedCustomer.name}: "${this.messageBody}"`,
       );
       this.showMessageModal = false;
     },
     getTierLabel(tier) {
       const labels = {
-        vip: "VIP",
-        gold: "Vàng",
-        silver: "Bạc",
-        bronze: "Đồng",
+        VIP: "VIP",
+        GOLD: "Vàng",
+        SILVER: "Bạc",
+        NORMAL: "Thường",
       };
-      return labels[tier] || tier;
+      return labels[tier] || "Thường";
     },
     getTierIcon(tier) {
       const icons = {
-        vip: "diamond",
-        gold: "workspace_premium",
-        silver: "military_tech",
-        bronze: "star",
+        VIP: "diamond",
+        GOLD: "workspace_premium",
+        SILVER: "military_tech",
+        NORMAL: "person",
       };
       return icons[tier] || "person";
     },
@@ -700,13 +937,96 @@ export default {
       return new Intl.NumberFormat("vi-VN", {
         style: "currency",
         currency: "VND",
-      }).format(val);
+      }).format(val || 0);
     },
     formatShortCurrency(val) {
+      val = parseFloat(val) || 0;
       if (val >= 1000000)
-        return (val / 1000000).toFixed(2).replace(/\.00$/, "") + " Triệu";
+        return (val / 1000000).toFixed(1).replace(/\.0$/, "") + " Tr";
       if (val >= 1000) return (val / 1000).toFixed(0) + "K";
       return val + "đ";
+    },
+
+    // ===== CREATE: Thêm Khách Thủ Công =====
+    closeAddModal() {
+      this.showAddModal = false;
+      this.addForm.phone = "";
+      this.addPreviewUser = null;
+      this.addError = "";
+    },
+    async searchUserByPhone() {
+      if (!this.addForm.phone.trim()) return;
+      this.addSearching = true;
+      this.addError = "";
+      this.addPreviewUser = null;
+      try {
+        const res = await customerService.addCustomerByPhone(
+          this.selectedClubId,
+          this.addForm.phone,
+        );
+        // API POST 201 means success — but we want to preview first
+        // We call a "dry-run" style: if success, save result and show preview
+        if (res.data?.success) {
+          const c = res.data.data;
+          this.addPreviewUser = {
+            fullName: c.user?.fullName || "Không có tên",
+            email: c.user?.email || "",
+            phone: c.user?.phone || this.addForm.phone,
+            avatar:
+              c.user?.avatarUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(c.user?.fullName || "U")}&background=random&color=fff`,
+          };
+          // Customer was already added since POST is add — refresh list
+          await this.fetchCustomers();
+          this.closeAddModal();
+          this.showToast(
+            `Đã thêm ${c.user?.fullName || "khách hàng"} thành công!`,
+            "success",
+          );
+        }
+      } catch (error) {
+        const msg =
+          error.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại.";
+        this.addError = msg;
+      } finally {
+        this.addSearching = false;
+      }
+    },
+    async confirmAddCustomer() {
+      // Reserved for 2-step flow if needed in future
+      await this.searchUserByPhone();
+    },
+
+    // ===== DELETE: Xóa Khách Khỏi CLB =====
+    confirmDelete() {
+      if (!this.selectedCustomer) return;
+      this.showDeleteModal = true;
+    },
+    async doDeleteCustomer() {
+      if (!this.selectedCustomer) return;
+      this.deleting = true;
+      try {
+        const res = await customerService.removeCustomer(
+          this.selectedClubId,
+          this.selectedCustomer.userId,
+        );
+        if (res.data?.success) {
+          // Xóa khỏi local state
+          this.customers = this.customers.filter(
+            (c) => c.userId !== this.selectedCustomer.userId,
+          );
+          this.selectedCustomerId = null;
+          this.showDeleteModal = false;
+          this.showToast("Đã xóa khách hàng khỏi danh sách CLB.", "success");
+        }
+      } catch (error) {
+        const msg =
+          error.response?.data?.message || "Có lỗi xảy ra, vui lòng thử lại.";
+        this.showToast(msg, "error");
+        this.showDeleteModal = false;
+      } finally {
+        this.deleting = false;
+      }
     },
   },
 };
@@ -1129,6 +1449,61 @@ export default {
   font-weight: 500;
 }
 
+/* --- Tier Pill (new badge style) --- */
+.tier-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1.5px solid transparent;
+  white-space: nowrap;
+}
+.tier-pill .tier-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tier-pill-icon {
+  font-size: 15px !important;
+}
+.tier-pill-vip {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border-color: #d8b4fe;
+}
+.tier-pill-vip .tier-dot {
+  background: #a855f7;
+}
+.tier-pill-gold {
+  background: #fef9c3;
+  color: #92400e;
+  border-color: #fde68a;
+}
+.tier-pill-gold .tier-dot {
+  background: #f59e0b;
+}
+.tier-pill-silver {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #cbd5e1;
+}
+.tier-pill-silver .tier-dot {
+  background: #94a3b8;
+}
+.tier-pill-normal {
+  background: #f8fafc;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+.tier-pill-normal .tier-dot {
+  background: #cbd5e1;
+}
+
+/* old badge kept for sidebar */
 .pc-badge {
   display: inline-flex;
   align-items: center;
@@ -1141,21 +1516,168 @@ export default {
 .tier-icon {
   font-size: 16px;
 }
-.badge-vip {
+.badge-VIP {
   background: #f3e8ff;
   color: #7e22ce;
 }
-.badge-gold {
+.badge-GOLD {
   background: #fef3c7;
   color: #b45309;
 }
-.badge-silver {
+.badge-SILVER {
   background: #f1f5f9;
   color: #475569;
 }
-.badge-bronze {
-  background: #ffedd5;
-  color: #9a3412;
+.badge-NORMAL {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+/* --- Skeleton Loading --- */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.skel-avatar,
+.skel-line,
+.skel-badge {
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+.skel-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.skel-badge {
+  width: 70px;
+  height: 24px;
+  border-radius: 100px;
+}
+.skel-line {
+  height: 12px;
+  margin: 4px 0;
+}
+.skel-line.short {
+  width: 65% !important;
+  opacity: 0.7;
+}
+.w-32 {
+  width: 128px;
+}
+.w-20 {
+  width: 80px;
+}
+.w-16 {
+  width: 64px;
+}
+.w-10 {
+  width: 40px;
+}
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.skel-lines {
+  flex: 1;
+}
+
+/* --- Toast --- */
+.pc-toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+.toast-success {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+.toast-error {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+.toast-icon {
+  font-size: 20px;
+}
+.toast-slide-enter-active,
+.toast-slide-leave-active {
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.toast-slide-enter-from,
+.toast-slide-leave-to {
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+}
+
+/* --- Tier Picker (modal) --- */
+.tier-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+.tier-pick-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.tier-pick-card:hover {
+  border-color: #cbd5e1;
+  background: white;
+  transform: translateY(-2px);
+}
+.tier-pick-selected {
+  background: white;
+}
+.tier-pick-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  transition: 0.2s;
+}
+
+/* --- Notes Section --- */
+.d-notes-section {
+  padding: 0 24px 16px;
+}
+.d-notes-text {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 8px 0 0;
+  border-left: 3px solid #3b82f6;
+  font-style: italic;
 }
 
 .pc-number-box {
@@ -1800,5 +2322,155 @@ export default {
   .pc-table td {
     padding: 12px 10px;
   }
+}
+
+/* --- Add Customer Button (Toolbar) --- */
+.pc-btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: "Outfit", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+.pc-btn-add:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+.pc-btn-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pc-btn-add .material-icons {
+  font-size: 18px;
+}
+
+/* --- Danger Buttons --- */
+.pc-btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 13px;
+  border-radius: 11px;
+  border: 1.5px solid #fca5a5;
+  background: #fff1f2;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.pc-btn-danger:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+  transform: scale(1.05);
+}
+.pc-btn-danger .material-icons {
+  font-size: 18px;
+}
+
+.pc-btn-danger-full {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: "Outfit", sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+.pc-btn-danger-full:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.pc-btn-danger-full:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Add Modal Styles --- */
+.add-modal-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.add-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border: 1.5px solid #86efac;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 16px;
+}
+.preview-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.preview-info {
+  flex: 1;
+}
+.preview-info h4 {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #15803d;
+}
+.preview-info p {
+  margin: 0;
+  font-size: 12px;
+  color: #4ade80;
+}
+.preview-check {
+  color: #16a34a;
+  font-size: 28px;
+}
+.add-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fff1f2;
+  border-radius: 10px;
+  border: 1px solid #fca5a5;
+}
+
+/* --- Delete Modal Styles --- */
+.delete-confirm-text {
+  font-size: 15px;
+  color: #1e293b;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.delete-warn-text {
+  font-size: 13px;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 10px;
+  padding: 10px 14px;
+  border: 1px solid #fde68a;
+  line-height: 1.6;
 }
 </style>

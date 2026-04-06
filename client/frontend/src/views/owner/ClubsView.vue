@@ -5,63 +5,117 @@
     <div class="vheader">
       <div>
         <h1 class="vtitle">Quản lý Câu lạc bộ</h1>
-        <p class="vsub">Danh sách cơ sở thể thao bạn sở hữu.</p>
+        <p class="vsub">Hệ thống quản lý cơ sở thể thao chuyên nghiệp.</p>
       </div>
       <button class="btn-primary" @click="openAdd">
-        <span class="material-icons">add_circle</span> Thêm câu lạc bộ
+        <span class="material-icons">add_business</span> Thêm câu lạc bộ
       </button>
     </div>
 
-    <!-- Search -->
-    <div class="search-bar">
-      <div class="s-wrap">
-        <span class="material-icons s-icon">search</span>
-        <input v-model="q" placeholder="Tìm theo tên hoặc địa chỉ..." />
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card blue">
+        <div class="sc-icon"><span class="material-icons">business</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Tổng cơ sở</span>
+          <span class="sc-val">{{ clubs.length }}</span>
+        </div>
+        <div class="sc-chart"></div>
       </div>
-      <select v-model="statusQ">
-        <option value="all">Tất cả trạng thái</option>
-        <option value="APPROVED">Hoạt động</option>
-        <option value="PENDING">Chờ duyệt</option>
-        <option value="REJECTED">Tạm ngưng</option>
-      </select>
+      <div class="stat-card green">
+        <div class="sc-icon"><span class="material-icons">check_circle</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Đang hoạt động</span>
+          <span class="sc-val">{{ clubs.filter(c => c.approvalStatus === 'APPROVED').length }}</span>
+        </div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="sc-icon"><span class="material-icons">pending_actions</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Chờ duyệt</span>
+          <span class="sc-val">{{ clubs.filter(c => c.approvalStatus === 'PENDING').length }}</span>
+        </div>
+      </div>
+      <div class="stat-card purple">
+        <div class="sc-icon"><span class="material-icons">sports_soccer</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Tổng số sân</span>
+          <span class="sc-val">{{ clubs.reduce((acc, c) => acc + (c.courts?.length || 0), 0) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filter -->
+    <div class="search-bar-wrap">
+      <div class="search-bar">
+        <div class="s-wrap">
+          <span class="material-icons s-icon">search</span>
+          <input v-model="q" placeholder="Tìm theo tên hoặc địa chỉ..." />
+        </div>
+        <select v-model="statusQ" class="status-select">
+          <option value="all">Tất cả trạng thái</option>
+          <option value="APPROVED">Hoạt động</option>
+          <option value="PENDING">Chờ duyệt</option>
+          <option value="REJECTED">Tạm ngưng</option>
+        </select>
+      </div>
     </div>
 
     <!-- Skeleton -->
     <div v-if="loading" class="grid">
-      <div v-for="n in 3" :key="n" class="card"><div class="sk-img"></div><div class="sk-body"><div class="sk-l" style="width:60%"></div><div class="sk-l" style="width:40%"></div><div class="sk-l" style="width:80%"></div></div></div>
+      <div v-for="n in 3" :key="n" class="card loading-card">
+        <div class="sk-img"></div>
+        <div class="sk-body"><div class="sk-l w60"></div><div class="sk-l w40"></div><div class="sk-l w80"></div></div>
+      </div>
     </div>
 
     <!-- Grid -->
     <div v-else-if="list.length" class="grid">
-      <div v-for="(c,i) in list" :key="c.id" class="card" :style="`--d:${i*70}ms`">
+      <div v-for="(c,i) in list" :key="c.id" class="card premium-card" :style="`--d:${i*70}ms`">
         <div class="cimg">
-          <img :src="c.coverImageUrl || fallbackImg" :alt="c.name" />
-          <span class="badge" :class="c.approvalStatus">{{ statusLabel(c.approvalStatus) }}</span>
+          <img :src="c.coverImageUrl || fallbackImg" :alt="c.name" loading="lazy" />
+          <div class="glass-overlay"></div>
+          <span class="badge-new" :class="c.approvalStatus">{{ statusLabel(c.approvalStatus) }}</span>
         </div>
         <div class="cbody">
-          <h3>{{ c.name }}</h3>
-          <p class="meta">{{ c.district }} · {{ c.city }}</p>
-          <p class="row-i"><span class="material-icons">location_on</span>{{ c.address }}</p>
-          <p class="row-i" v-if="c.openingHours?.length">
-            <span class="material-icons">schedule</span>
-            {{ fmt(c.openingHours[0].openTime) }} – {{ fmt(c.openingHours[0].closeTime) }}
-          </p>
-          <div class="stats"><span class="sn">{{ c.courts?.length ?? 0 }}</span><span class="sl">Sân</span></div>
+          <div class="c-category">{{ c.city }} · {{ c.district }}</div>
+          <h3 class="c-title">{{ c.name }}</h3>
+          <p class="c-addr"><span class="material-icons">location_on</span>{{ c.address }}</p>
+          
+          <div class="c-tags">
+             <div v-if="c.openingHours?.length" class="c-tag">
+               <span class="material-icons">schedule</span>
+               {{ fmt(c.openingHours[0].openTime) }} – {{ fmt(c.openingHours[0].closeTime) }}
+             </div>
+             <div class="c-tag green">
+               <span class="material-icons">layers</span>
+               {{ c.courts?.length ?? 0 }} sân
+             </div>
+          </div>
+
           <div class="actions">
-            <button class="abtn edit" @click="openEdit(c)"><span class="material-icons">edit</span> Sửa</button>
-            <button class="abtn del"  @click="openDel(c)"><span class="material-icons">delete</span></button>
-            <router-link :to="`/owner/courts?clubId=${c.id}`" class="abtn manage"><span class="material-icons">sports_soccer</span> Sân</router-link>
+            <button class="abtn edit" @click="openEdit(c)">
+              <span class="material-icons">edit</span> <span>Chỉnh sửa</span>
+            </button>
+            <router-link :to="`/owner/courts?clubId=${c.id}`" class="abtn manage">
+              <span class="material-icons">dashboard</span> <span>Quản lý sân</span>
+            </router-link>
+            <button class="abtn del" @click="openDel(c)">
+              <span class="material-icons">delete_outline</span>
+            </button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Empty -->
-    <div v-else class="empty">
-      <span class="material-icons">business</span>
-      <h3>Chưa có câu lạc bộ</h3>
-      <p>Hãy thêm cơ sở đầu tiên của bạn.</p>
-      <button class="btn-primary" style="margin-top:16px" @click="openAdd"><span class="material-icons">add_circle</span> Thêm ngay</button>
+    <div v-else class="empty-glass">
+      <div class="empty-icon"><span class="material-icons">business_center</span></div>
+      <h3>Chưa có câu lạc bộ nào</h3>
+      <p>Bạn chưa sở hữu câu lạc bộ thể thao nào. Bắt đầu ngay bằng cách tạo một cơ sở mới.</p>
+      <button class="btn-primary" @click="openAdd">
+        <span class="material-icons">add_circle</span> Thêm ngay
+      </button>
     </div>
 
     <!-- ═══ DRAWER ADD ═══ -->
@@ -75,11 +129,11 @@
           <div class="dbody">
             <div v-if="addErr.length" class="alert err"><span class="material-icons">error</span><ul><li v-for="e in addErr" :key="e">{{e}}</li></ul></div>
 
-            <!-- Upload zone -->
+            <!-- Cover Image (Primary) -->
             <div class="fsec">
-              <div class="flabel"><span class="material-icons">image</span>Ảnh bìa câu lạc bộ</div>
+              <div class="flabel"><span class="material-icons">image</span>Ảnh bìa câu lạc bộ (Chính)</div>
               <div class="upload-mode-tabs">
-                <button :class="{active: addMode==='upload'}" @click="addMode='upload'"><span class="material-icons">cloud_upload</span> Tải ảnh lên</button>
+                <button :class="{active: addMode==='upload'}" @click="addMode='upload'"><span class="material-icons">cloud_upload</span> Tải lên</button>
                 <button :class="{active: addMode==='url'}"    @click="addMode='url'"><span class="material-icons">link</span> Nhập URL</button>
               </div>
 
@@ -88,7 +142,7 @@
                   @dragover.prevent="addOver=true" @dragleave.prevent="addOver=false"
                   @drop.prevent="e=>doUpload(e.dataTransfer.files[0],'add')"
                   @click="$refs.addFile.click()">
-                  <input ref="addFile" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="e=>doUpload(e.target.files[0],'add')" />
+                  <input ref="addFile" type="file" accept="image/*" hidden @change="e=>doUpload(e.target.files[0],'add')" />
                   <template v-if="addUploading">
                     <div class="prog-wrap"><div class="prog-bar" :style="`width:${addPct}%`"></div></div>
                     <p class="uh">Đang tải lên... {{ addPct }}%</p>
@@ -99,20 +153,46 @@
                   </template>
                   <template v-else>
                     <span class="material-icons ui-big">cloud_upload</span>
-                    <p class="ul">Kéo thả hoặc <strong>click chọn ảnh</strong></p>
-                    <p class="uh">JPG, PNG, WEBP • Tối đa 5MB</p>
+                    <p class="ul">Chọn ảnh bìa chính</p>
                   </template>
                 </div>
-                <p v-if="addUpErr" class="err-msg">{{ addUpErr }} <button class="retry" @click="$refs.addFile.click()">Thử lại</button></p>
+                <p v-if="addUpErr" class="err-msg">{{ addUpErr }}</p>
               </template>
-
               <template v-else>
                 <div class="url-input-wrap">
                   <span class="material-icons">link</span>
-                  <input v-model="addForm.coverImageUrl" type="url" placeholder="https://example.com/image.jpg" @input="addPreviewFromUrl" />
+                  <input v-model="addForm.coverImageUrl" type="url" placeholder="https://..." />
                 </div>
-                <img v-if="addForm.coverImageUrl" :src="addForm.coverImageUrl" class="url-preview" @error="e=>e.target.style.display='none'" />
               </template>
+            </div>
+
+            <!-- Club Gallery (multi-image) -->
+            <div class="fsec">
+                <div class="flabel"><span class="material-icons">collections</span>Bộ sưu tập ảnh thư viện ({{ addForm.images?.length || 0 }})</div>
+                <div class="img-grid-edit">
+                    <div v-for="(img, idx) in addForm.images" :key="idx" class="img-th">
+                        <img :src="img" />
+                        <button class="th-del" @click="addForm.images.splice(idx,1)"><span class="material-icons">close</span></button>
+                    </div>
+                    <div class="uz-small" :class="{over:addGalleryOver, loading:addGalleryUploading}"
+                        @dragover.prevent="addGalleryOver=true" @dragleave.prevent="addGalleryOver=false"
+                        @drop.prevent="e=>doUpload(e.dataTransfer.files[0],'addGallery')"
+                        @click="$refs.addGalleryFile.click()">
+                        <input ref="addGalleryFile" type="file" accept="image/*" hidden @change="e=>doUpload(e.target.files[0],'addGallery')" />
+                        <template v-if="addGalleryUploading">
+                            <div class="uz-spin"></div>
+                            <span>{{ addGalleryPct }}%</span>
+                        </template>
+                        <template v-else>
+                            <span class="material-icons">add_a_photo</span>
+                            <span class="uz-txt">Thêm ảnh</span>
+                        </template>
+                    </div>
+                </div>
+                <div class="url-input-mini">
+                    <input v-model="addForm.newUrl" type="url" placeholder="Hoặc dán URL ảnh thư viện..." @keyup.enter="if(addForm.newUrl){addForm.images.push(addForm.newUrl);addForm.newUrl=''}" />
+                    <button @click="if(addForm.newUrl){addForm.images.push(addForm.newUrl);addForm.newUrl=''}"><span class="material-icons">add</span></button>
+                </div>
             </div>
 
             <!-- Fields -->
@@ -165,11 +245,11 @@
             <div v-if="editErr.length" class="alert err"><span class="material-icons">error</span><ul><li v-for="e in editErr" :key="e">{{e}}</li></ul></div>
             <div v-if="editOk" class="alert ok"><span class="material-icons">check_circle</span> Cập nhật thành công!</div>
 
-            <!-- Upload zone edit -->
+            <!-- Cover Image edit (Primary) -->
             <div class="fsec">
-              <div class="flabel"><span class="material-icons">image</span>Ảnh bìa câu lạc bộ</div>
+              <div class="flabel"><span class="material-icons">image</span>Ảnh bìa câu lạc bộ (Chính)</div>
               <div class="upload-mode-tabs">
-                <button :class="{active: editMode==='upload'}" @click="editMode='upload'"><span class="material-icons">cloud_upload</span> Tải ảnh lên</button>
+                <button :class="{active: editMode==='upload'}" @click="editMode='upload'"><span class="material-icons">cloud_upload</span> Tải lên</button>
                 <button :class="{active: editMode==='url'}"    @click="editMode='url'"><span class="material-icons">link</span> Nhập URL</button>
               </div>
 
@@ -178,7 +258,7 @@
                   @dragover.prevent="editOver=true" @dragleave.prevent="editOver=false"
                   @drop.prevent="e=>doUpload(e.dataTransfer.files[0],'edit')"
                   @click="$refs.editFile.click()">
-                  <input ref="editFile" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="e=>doUpload(e.target.files[0],'edit')" />
+                  <input ref="editFile" type="file" accept="image/*" hidden @change="e=>doUpload(e.target.files[0],'edit')" />
                   <template v-if="editUploading">
                     <div class="prog-wrap"><div class="prog-bar" :style="`width:${editPct}%`"></div></div>
                     <p class="uh">Đang tải lên... {{ editPct }}%</p>
@@ -189,20 +269,46 @@
                   </template>
                   <template v-else>
                     <span class="material-icons ui-big">cloud_upload</span>
-                    <p class="ul">Kéo thả hoặc <strong>click chọn ảnh</strong></p>
-                    <p class="uh">JPG, PNG, WEBP • Tối đa 5MB</p>
+                    <p class="ul">Chọn ảnh bìa chính</p>
                   </template>
                 </div>
-                <p v-if="editUpErr" class="err-msg">{{ editUpErr }} <button class="retry" @click="$refs.editFile.click()">Thử lại</button></p>
+                <p v-if="editUpErr" class="err-msg">{{ editUpErr }}</p>
               </template>
-
               <template v-else>
                 <div class="url-input-wrap">
                   <span class="material-icons">link</span>
-                  <input v-model="editForm.coverImageUrl" type="url" placeholder="https://example.com/image.jpg" />
+                  <input v-model="editForm.coverImageUrl" type="url" placeholder="https://..." />
                 </div>
-                <img v-if="editForm.coverImageUrl" :src="editForm.coverImageUrl" class="url-preview" @error="e=>e.target.style.display='none'" />
               </template>
+            </div>
+
+            <!-- Club Gallery edit (multi-image) -->
+            <div class="fsec">
+                <div class="flabel"><span class="material-icons">collections</span>Thư viện ảnh bổ sung ({{ editForm.images?.length || 0 }})</div>
+                <div class="img-grid-edit">
+                    <div v-for="(img, idx) in editForm.images" :key="idx" class="img-th">
+                        <img :src="img" />
+                        <button class="th-del" @click="editForm.images.splice(idx,1)"><span class="material-icons">close</span></button>
+                    </div>
+                    <div class="uz-small" :class="{over:editGalleryOver, loading:editGalleryUploading}"
+                        @dragover.prevent="editGalleryOver=true" @dragleave.prevent="editGalleryOver=false"
+                        @drop.prevent="e=>doUpload(e.dataTransfer.files[0],'editGallery')"
+                        @click="$refs.editGalleryFile.click()">
+                        <input ref="editGalleryFile" type="file" accept="image/*" hidden @change="e=>doUpload(e.target.files[0],'editGallery')" />
+                        <template v-if="editGalleryUploading">
+                            <div class="uz-spin"></div>
+                            <span>{{ editGalleryPct }}%</span>
+                        </template>
+                        <template v-else>
+                            <span class="material-icons">add_a_photo</span>
+                            <span class="uz-txt">Thêm ảnh</span>
+                        </template>
+                    </div>
+                </div>
+                <div class="url-input-mini">
+                    <input v-model="editForm.newUrl" type="url" placeholder="Hoặc dán URL ảnh thư viện..." @keyup.enter="if(editForm.newUrl){editForm.images.push(editForm.newUrl);editForm.newUrl=''}" />
+                    <button @click="if(editForm.newUrl){editForm.images.push(editForm.newUrl);editForm.newUrl=''}"><span class="material-icons">add</span></button>
+                </div>
             </div>
 
             <!-- Fields edit -->
@@ -218,10 +324,44 @@
                 <div class="f span2"><label>Mô tả</label><textarea v-model="editForm.description" rows="3"></textarea></div>
               </div>
             </div>
+
+            <!-- Amenities section -->
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">room_service</span>Tiện ích miễn phí & Dịch vụ</div>
+              <div v-if="amenitiesLoading" class="amen-loading">
+                <span class="spin"></span> Đang tải tiện ích...
+              </div>
+              <div v-else class="amen-grid">
+                <div v-for="a in amens" :key="a.id" class="amen-item" :class="{selected: a.isSelected}" @click="toggleAmen(a)">
+                  <span class="material-icons">{{ a.icon || 'star' }}</span>
+                  <div class="amen-name">{{ a.name }}</div>
+                  <div class="amen-chk"><span class="material-icons">check</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Opening Hours section -->
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">schedule</span>Khung giờ hoạt động</div>
+              <div class="hours-list">
+                <div v-for="h in editForm.openingHours" :key="h.dayOfWeek" class="hour-row" :class="{closed: h.isClosed}">
+                  <div class="hr-day"><b>{{ h.label }}</b></div>
+                  <div class="hr-times" v-if="!h.isClosed">
+                    <input type="time" v-model="h.openTime" />
+                    <span>–</span>
+                    <input type="time" v-model="h.closeTime" />
+                  </div>
+                  <div class="hr-status" v-else>Nghỉ / Đóng cửa</div>
+                  <button class="hr-toggle" :title="h.isClosed ? 'Mở cửa' : 'Đóng cửa'" @click="h.isClosed = !h.isClosed">
+                    <span class="material-icons">{{ h.isClosed ? 'play_arrow' : 'block' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="dfoot">
             <button class="btn-sec" @click="closeEdit">Hủy</button>
-            <button class="btn-primary" :disabled="editLoading||editUploading" @click="submitEdit">
+            <button class="btn-primary" :disabled="editLoading||editUploading||amenitiesLoading" @click="submitEdit">
               <span v-if="editLoading" class="spin"></span><span class="material-icons" v-else>save</span>
               {{ editLoading ? 'Đang lưu...' : 'Lưu thay đổi' }}
             </button>
@@ -256,7 +396,7 @@ import { clubService } from '@/services/club.service';
 
 const MAX = 5 * 1024 * 1024;
 const TYPES = ['image/jpeg','image/png','image/webp'];
-const blank = () => ({ name:'', city:'', district:'', address:'', phone:'', email:'', description:'', coverImageUrl:'' });
+const blank = () => ({ name:'', city:'', district:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '' });
 
 export default {
   name: 'OwnerClubsView',
@@ -268,13 +408,16 @@ export default {
 
       // ADD
       showAdd: false, addForm: blank(), addSub: false, addLoading: false, addErr: [],
-      addMode: 'upload',
-      addOver: false, addPreview: null, addUploading: false, addPct: 0, addUpErr: '',
+      addMode: 'upload', addOver: false, addPreview: null, addUploading: false, addPct: 0, addUpErr: '',
+      addGalleryOver: false, addGalleryUploading: false, addGalleryPct: 0,
 
       // EDIT
       showEdit: false, editForm: {}, editSub: false, editLoading: false, editErr: [], editOk: false,
-      editMode: 'upload',
-      editOver: false, editPreview: null, editUploading: false, editPct: 0, editUpErr: '',
+      editMode: 'upload', editOver: false, editPreview: null, editUploading: false, editPct: 0, editUpErr: '',
+      editGalleryOver: false, editGalleryUploading: false, editGalleryPct: 0,
+
+      // Amenities
+      amens: [], amenitiesLoading: false,
 
       // DELETE
       showDel: false, delTarget: {}, delLoading: false,
@@ -284,7 +427,7 @@ export default {
     list() {
       const q = this.q.toLowerCase();
       return this.clubs.filter(c => {
-        const ms = c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q);
+        const ms = (c.name?.toLowerCase() || '').includes(q) || (c.address?.toLowerCase() || '').includes(q);
         const mt = this.statusQ === 'all' || c.approvalStatus === this.statusQ;
         return ms && mt;
       });
@@ -310,38 +453,51 @@ export default {
     async doUpload(file, ctx) {
       if (!file) return;
       const isAdd = ctx === 'add';
-      const errKey = isAdd ? 'addUpErr' : 'editUpErr';
-      const pctKey = isAdd ? 'addPct'   : 'editPct';
-      const prevKey= isAdd ? 'addPreview': 'editPreview';
-      const upKey  = isAdd ? 'addUploading':'editUploading';
+      const isGallery = ctx.includes('Gallery');
+      
+      let errKey, pctKey, prevKey, upKey;
+      
+      if (isGallery) {
+        const type = ctx.startsWith('add') ? 'addGallery' : 'editGallery';
+        errKey = type + 'Err'; pctKey = type + 'Pct'; upKey = type + 'Uploading'; prevKey = 'dummy';
+      } else {
+        errKey = isAdd ? 'addUpErr' : 'editUpErr';
+        pctKey = isAdd ? 'addPct'   : 'editPct';
+        prevKey= isAdd ? 'addPreview': 'editPreview';
+        upKey  = isAdd ? 'addUploading':'editUploading';
+      }
 
       if (!TYPES.includes(file.type)) { this[errKey] = 'Chỉ chấp nhận JPG, PNG, WEBP.'; return; }
       if (file.size > MAX)            { this[errKey] = 'File vượt quá 5MB.'; return; }
 
       this[errKey] = '';
-      this[prevKey] = URL.createObjectURL(file);
+      if (!isGallery) this[prevKey] = URL.createObjectURL(file);
       this[upKey] = true;
       this[pctKey] = 0;
 
       try {
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('type', 'club-cover');
-        if (!isAdd && this.editForm.id) fd.append('entityId', this.editForm.id);
+        fd.append('type', isGallery ? 'club-gallery' : 'club-cover');
+        if (!isAdd && !isGallery && this.editForm.id) fd.append('entityId', this.editForm.id);
 
         const res = await clubService.uploadImage(fd, pct => { this[pctKey] = pct; });
         if (res.data.success) {
           const url = res.data.data.url;
-          if (isAdd) this.addForm.coverImageUrl = url;
-          else       this.editForm.coverImageUrl = url;
+          if (isGallery) {
+            if (ctx.startsWith('add')) this.addForm.images.push(url);
+            else                       this.editForm.images.push(url);
+          } else {
+            if (isAdd) this.addForm.coverImageUrl = url;
+            else       this.editForm.coverImageUrl = url;
+          }
         } else {
           this[errKey] = res.data.message || 'Upload thất bại.';
-          this[prevKey] = null;
+          if (!isGallery) this[prevKey] = null;
         }
       } catch(e) {
-        const msg = e.response?.data?.message || e.message || 'Upload thất bại.';
-        this[errKey] = msg;
-        this[prevKey] = null;
+        this[errKey] = e.response?.data?.message || e.message || 'Upload thất bại.';
+        if (!isGallery) this[prevKey] = null;
       } finally { this[upKey] = false; }
     },
 
@@ -367,13 +523,47 @@ export default {
 
     // ── EDIT ──────────────────────────────────────────────────
     openEdit(c) {
-      this.editForm = { id:c.id, name:c.name||'', city:c.city||'', district:c.district||'',
+      this.editForm = { 
+        id:c.id, name:c.name||'', city:c.city||'', district:c.district||'',
         address:c.address||'', phone:c.phone||'', email:c.email||'',
-        description:c.description||'', coverImageUrl:c.coverImageUrl||'' };
+        description:c.description||'', coverImageUrl:c.coverImageUrl||'',
+        images: c.images?.map(i => i.url) || [],
+        newUrl: '',
+        openingHours: this.initHours(c.openingHours)
+      };
       this.editSub = false; this.editErr = []; this.editOk = false;
       this.editPreview = null; this.editUpErr = ''; this.editMode = 'upload';
       this.showEdit = true; document.body.style.overflow = 'hidden';
+      this.loadAmenities(c.id);
     },
+    initHours(existing) {
+      const days = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ Nhật'];
+      return [1,2,3,4,5,6,0].map(d => {
+        const found = existing?.find(h => h.dayOfWeek === d);
+        return {
+          dayOfWeek: d,
+          label: days[d === 0 ? 6 : d - 1],
+          openTime: found ? this.isoToHm(found.openTime) : '08:00',
+          closeTime: found ? this.isoToHm(found.closeTime) : '22:00',
+          isClosed: found ? !!found.isClosed : false
+        };
+      });
+    },
+    isoToHm(iso) {
+      if (!iso) return '08:00';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return typeof iso === 'string' ? iso.slice(0,5) : '08:00';
+      return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    },
+    async loadAmenities(clubId) {
+      this.amenitiesLoading = true;
+      try {
+        const r = await clubService.getClubAmenities(clubId);
+        if (r.data.success) this.amens = r.data.data || [];
+      } catch(e) { console.error('loadAmenities fail:', e); }
+      finally { this.amenitiesLoading = false; }
+    },
+    toggleAmen(a) { a.isSelected = !a.isSelected; },
     closeEdit() { this.showEdit = false; document.body.style.overflow = ''; },
     async submitEdit() {
       this.editSub = true;
@@ -382,10 +572,27 @@ export default {
       try {
         const r = await clubService.editClub(this.editForm.id, this.buildPayload(this.editForm));
         if (r.data.success) {
+          // Save amenities
+          const sel = this.amens.filter(a => a.isSelected).map(a => ({ amenityId: a.id, price: a.price || 0 }));
+          await clubService.updateClubAmenities(this.editForm.id, sel);
+
+          // Save opening hours
+          const hrs = this.editForm.openingHours.map(h => ({
+            dayOfWeek: h.dayOfWeek,
+            openTime: h.openTime,
+            closeTime: h.closeTime,
+            isClosed: h.isClosed
+          }));
+          await clubService.updateOpeningHours(this.editForm.id, hrs);
+
           const idx = this.clubs.findIndex(c => c.id === this.editForm.id);
-          if (idx !== -1) this.clubs[idx] = { ...this.clubs[idx], ...r.data.data };
+          if (idx !== -1) {
+            this.clubs[idx] = { ...this.clubs[idx], ...r.data.data };
+          }
+          
           this.editOk = true;
           setTimeout(() => this.closeEdit(), 1200);
+          this.load(); // Refresh to get all updated relations
         }
       } catch(e) {
         const fe = e.response?.data?.errors;
@@ -406,7 +613,7 @@ export default {
 
     buildPayload(f) {
       const p = {};
-      ['name','city','district','address','phone','email','description','coverImageUrl']
+      ['name','city','district','address','phone','email','description','coverImageUrl','images']
         .forEach(k => { if (f[k] !== undefined && f[k] !== '') p[k] = f[k]; });
       return p;
     },
@@ -420,165 +627,204 @@ export default {
 @import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
 
 *{box-sizing:border-box;}
-.clubs-view{font-family:'Be Vietnam Pro',sans-serif;color:#0f172a;}
+.clubs-view{font-family:'Be Vietnam Pro',sans-serif;color:#1e293b;padding-bottom:100px;background:#f8fafc;min-height:100vh;}
 
 /* Header */
-.vheader{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
-.vtitle{font-size:24px;font-weight:800;margin:0 0 3px;}
-.vsub{font-size:14px;color:#64748b;margin:0;}
+.vheader{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;padding:10px 0;}
+.vtitle{font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#0f172a;margin:0 0 5px;}
+.vsub{font-size:15px;color:#64748b;margin:0;font-weight:500;}
 
-/* Buttons */
-.btn-primary{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;padding:11px 20px;border-radius:11px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(22,163,74,.3);transition:all .2s;}
-.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 18px rgba(22,163,74,.4);}
-.btn-primary:disabled{opacity:.6;cursor:not-allowed;}
-.btn-sec{flex:1;padding:11px;border-radius:10px;border:1px solid #e2e8f0;background:#fff;font-weight:600;font-size:14px;cursor:pointer;font-family:inherit;transition:.2s;}
-.btn-sec:hover{background:#f8fafc;}
-.btn-danger{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:11px;border-radius:10px;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(239,68,68,.3);transition:.2s;}
-.btn-danger:hover:not(:disabled){transform:translateY(-1px);}
-.btn-danger:disabled{opacity:.6;cursor:not-allowed;}
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-bottom:35px;}
+.stat-card{background:#fff;border-radius:24px;padding:24px;display:flex;align-items:center;gap:20px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);transition:all .3s;}
+.stat-card:hover{transform:translateY(-5px);box-shadow:0 20px 30px -10px rgba(0,0,0,0.1);}
+.sc-icon{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;}
+.sc-icon span{font-size:30px;}
+.sc-info{display:flex;flex-direction:column;gap:3px;}
+.sc-label{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;}
+.sc-val{font-size:28px;font-weight:800;color:#0f172a;line-height:1;}
+
+.blue .sc-icon{background:rgba(59,130,246,0.12);color:#2563eb;}
+.green .sc-icon{background:rgba(34,197,94,0.12);color:#16a34a;}
+.yellow .sc-icon{background:rgba(234,179,8,0.12);color:#ca8a04;}
+.purple .sc-icon{background:rgba(139,92,246,0.12);color:#7c3aed;}
 
 /* Search */
-.search-bar{display:flex;gap:12px;margin-bottom:22px;flex-wrap:wrap;}
-.s-wrap{flex:1;position:relative;min-width:180px;}
-.s-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:20px;}
-.s-wrap input{width:100%;padding:11px 12px 11px 42px;border:1px solid #e2e8f0;border-radius:11px;font-family:inherit;font-size:14px;background:#f8fafc;}
-.s-wrap input:focus{outline:none;border-color:#16a34a;background:#fff;}
-.search-bar select{padding:11px 14px;border:1px solid #e2e8f0;border-radius:11px;background:#f8fafc;font-family:inherit;font-size:14px;cursor:pointer;}
+.search-bar-wrap{background:#fff;border-radius:24px;padding:8px;margin-bottom:30px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);}
+.search-bar{display:flex;gap:8px;}
+.s-wrap{flex:1;position:relative;}
+.s-icon{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:22px;}
+.s-wrap input{width:100%;height:54px;padding:0 20px 0 52px;border:none;border-radius:20px;font-family:inherit;font-size:15px;background:#f8fafc;transition:all .2s;}
+.s-wrap input:focus{background:#fff;box-shadow:inset 0 0 0 2px #22c55e;}
+.status-select{width:180px;height:54px;border:none;border-radius:20px;background:#f8fafc;padding:0 15px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
 
-/* Grid */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;}
-.card{background:#fff;border-radius:18px;border:1px solid #eaecf2;overflow:hidden;transition:.3s;animation:su .45s ease both;animation-delay:var(--d,0ms);}
-.card:hover{transform:translateY(-5px);box-shadow:0 12px 32px rgba(0,0,0,.07);}
-@keyframes su{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+/* Buttons */
+.btn-primary{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;height:54px;padding:0 28px;border-radius:20px;font-weight:700;font-size:15px;cursor:pointer;transition:all .3s;box-shadow:0 10px 20px -5px rgba(16,185,129,0.3);}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 15px 25px -5px rgba(16,185,129,0.4);}
 
-.cimg{position:relative;height:180px;overflow:hidden;}
-.cimg img{width:100%;height:100%;object-fit:cover;transition:.4s;}
-.card:hover .cimg img{transform:scale(1.05);}
-.badge{position:absolute;top:10px;right:10px;font-size:11px;font-weight:700;padding:4px 11px;border-radius:100px;}
-.badge.APPROVED{background:rgba(22,163,74,.88);color:#fff;}
-.badge.PENDING{background:rgba(234,179,8,.9);color:#fff;}
-.badge.REJECTED{background:rgba(239,68,68,.88);color:#fff;}
+/* Premium Card */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:28px;}
+.premium-card{background:#fff;border-radius:32px;overflow:hidden;border:1px solid #f1f5f9;box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);animation:fadeInUp .6s ease both;animation-delay:var(--d);}
+.premium-card:hover{transform:translateY(-10px) scale(1.02);box-shadow:0 30px 60px -15px rgba(0,0,0,0.15);}
 
-.cbody{padding:16px 18px 14px;}
-.cbody h3{font-size:16px;font-weight:800;margin:0 0 3px;}
-.meta{font-size:12px;color:#64748b;margin:0 0 10px;}
-.row-i{display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;margin:0 0 6px;}
-.row-i .material-icons{font-size:15px;color:#94a3b8;}
-.stats{margin:12px 0;display:flex;gap:16px;}
-.sn{display:block;font-size:20px;font-weight:800;color:#1e293b;}
-.sl{font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;}
-.actions{display:flex;gap:8px;flex-wrap:wrap;}
-.abtn{height:34px;padding:0 12px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;display:inline-flex;align-items:center;gap:5px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:.2s;text-decoration:none;color:#1e293b;}
-.abtn .material-icons{font-size:14px;}
-.abtn.edit:hover{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8;}
-.abtn.del{color:#ef4444;padding:0 10px;}
-.abtn.del:hover{background:#fef2f2;border-color:#fecaca;}
-.abtn.manage{flex:1;justify-content:center;background:#f0fdf4;border-color:#bbf7d0;color:#16a34a;}
-.abtn.manage:hover{background:#dcfce7;}
+.cimg{position:relative;height:220px;overflow:hidden;}
+.cimg img{width:100%;height:100%;object-fit:cover;transition:all .8s;}
+.premium-card:hover .cimg img{transform:scale(1.1);}
+.glass-overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.6), transparent);}
 
-/* Skeleton */
-.sk-img{height:180px;background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200%;animation:sh 1.4s infinite;}
-.sk-body{padding:16px;}
-.sk-l{height:13px;border-radius:5px;margin-bottom:9px;background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%);background-size:200%;animation:sh 1.4s infinite;}
-@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.badge-new{position:absolute;top:20px;right:20px;padding:6px 14px;border-radius:14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;backdrop-filter:blur(8px);}
+.badge-new.APPROVED{background:rgba(34,197,94,0.85);color:#fff;}
+.badge-new.PENDING{background:rgba(234,179,8,0.85);color:#fff;}
+.badge-new.REJECTED{background:rgba(239,68,68,0.85);color:#fff;}
 
-/* Empty */
-.empty{text-align:center;padding:70px 20px;background:#fff;border-radius:18px;border:2px dashed #eaecf2;}
-.empty .material-icons{font-size:56px;color:#cbd5e1;display:block;margin-bottom:10px;}
-.empty h3{font-size:18px;font-weight:700;margin:0 0 7px;}
-.empty p{font-size:14px;color:#64748b;margin:0;}
+.cbody{padding:24px;}
+.c-category{font-size:12px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
+.c-title{font-size:20px;font-weight:800;margin:0 0 10px;color:#0f172a;}
+.c-addr{display:flex;align-items:center;gap:6px;font-size:14px;color:#64748b;font-weight:500;margin-bottom:18px;}
+.c-addr .material-icons{font-size:18px;color:#94a3b8;}
 
-/* Overlay / Drawer */
-.overlay{position:fixed;inset:0;z-index:1050;background:rgba(0,0,0,.48);backdrop-filter:blur(3px);display:flex;justify-content:flex-end;}
-.overlay.center{justify-content:center;align-items:center;}
-.drawer{width:490px;max-width:100vw;background:#fff;display:flex;flex-direction:column;height:100%;box-shadow:-6px 0 36px rgba(0,0,0,.13);}
+.c-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px;}
+.c-tag{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border-radius:10px;font-size:12px;font-weight:700;color:#475569;}
+.c-tag .material-icons{font-size:16px;}
+.c-tag.green{background:#ecfdf5;color:#059669;}
 
-.dhead{padding:20px 22px 16px;display:flex;justify-content:space-between;align-items:center;}
-.add-head{background:linear-gradient(135deg,#0f172a,#1e3a5f);}
-.edit-head{background:linear-gradient(135deg,#1e3a5f,#2563eb);}
-.dhead-left{display:flex;align-items:center;gap:12px;}
-.dhi{font-size:26px;color:rgba(255,255,255,.85);}
-.dhead-left b{display:block;font-size:17px;font-weight:800;color:#fff;margin-bottom:2px;}
-.dhead-left small{font-size:12px;color:rgba(255,255,255,.6);}
-.xbtn{background:rgba(255,255,255,.12);border:none;border-radius:8px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#fff;transition:.2s;}
-.xbtn:hover{background:rgba(255,255,255,.22);}
+.actions{display:flex;gap:10px;}
+.abtn{flex:1;height:46px;border-radius:14px;border:none;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;}
+.abtn.edit{background:#f1f5f9;color:#1e293b;}
+.abtn.edit:hover{background:#e2e8f0;}
+.abtn.manage{flex:2;background:#0f172a;color:#fff;}
+.abtn.manage:hover{background:#1e293b;}
+.abtn.del{flex:0 0 46px;background:#fef2f2;color:#ef4444;}
+.abtn.del:hover{background:#fee2e2;}
 
-.dbody{flex:1;overflow-y:auto;padding:20px 22px;}
-.dfoot{padding:14px 22px;border-top:1px solid #f1f5f9;display:flex;gap:12px;}
+/* Drawer */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,0.4);backdrop-filter:blur(10px);z-index:9000;display:flex;justify-content:flex-end;}
+.drawer{width:540px;height:100vh;background:#fff;box-shadow:-20px 0 50px rgba(0,0,0,0.1);display:flex;flex-direction:column;animation:slideIn .4s cubic-bezier(0.16, 1, 0.3, 1);}
+@keyframes slideIn{from{transform:translateX(100%)} to{transform:translateX(0)}}
 
-/* Form */
-.fsec{margin-bottom:20px;}
-.flabel{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #f1f5f9;}
-.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-.f{display:flex;flex-direction:column;gap:5px;}
-.f.span2{grid-column:1/-1;}
-.f label{font-size:13px;font-weight:600;color:#374151;}
-.f input,.f textarea,.f select{padding:10px 12px;border:1px solid #e2e8f0;border-radius:9px;font-family:inherit;font-size:14px;background:#f8fafc;transition:.2s;}
-.f input:focus,.f textarea:focus{outline:none;border-color:#16a34a;background:#fff;box-shadow:0 0 0 3px rgba(22,163,74,.08);}
-.f input.inv{border-color:#ef4444;}
-.f textarea{resize:vertical;}
-.req{color:#ef4444;}
-.err-msg{font-size:12px;color:#ef4444;margin:4px 0 0;}
+.dhead{padding:32px;display:flex;justify-content:space-between;align-items:center;}
+.add-head{background:linear-gradient(135deg, #10b981, #059669);color:#fff;}
+.edit-head{background:linear-gradient(135deg, #1e293b, #0f172a);color:#fff;}
+.dhead-left b{font-size:22px;font-weight:800;display:block;}
+.dhead-left small{opacity:0.8;font-size:14px;}
 
-/* Upload */
-.upload-mode-tabs{display:flex;gap:6px;margin-bottom:12px;}
-.upload-mode-tabs button{flex:1;padding:9px 8px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:.2s;color:#64748b;}
-.upload-mode-tabs button .material-icons{font-size:16px;}
-.upload-mode-tabs button.active{background:#16a34a;color:#fff;border-color:#16a34a;}
+.dbody{flex:1;overflow-y:auto;padding:32px;}
+.fsec{margin-bottom:32px;}
+.flabel{font-size:12px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 
-.uz{border:2px dashed #e2e8f0;border-radius:13px;min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:.25s;background:#f8fafc;position:relative;overflow:hidden;padding:20px;}
-.uz:hover,.uz.over{border-color:#16a34a;background:#f0fdf4;}
-.uz.preview{padding:0;border-style:solid;border-color:#16a34a;}
-.uz.err{border-color:#ef4444;}
-.ui-big{font-size:42px;color:#cbd5e1;margin-bottom:8px;}
-.ul{font-size:14px;font-weight:600;color:#475569;margin:0 0 4px;}
-.ul strong{color:#16a34a;}
-.uh{font-size:12px;color:#94a3b8;margin:0;}
-.prev-img{width:100%;height:190px;object-fit:cover;display:block;}
-.prev-ov{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#fff;opacity:0;transition:.2s;border-radius:11px;}
+/* Amenity Grid */
+.amen-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));gap:12px;}
+.amen-item{padding:16px 12px;border-radius:18px;border:2px solid #f1f5f9;text-align:center;cursor:pointer;transition:all .2s;position:relative;}
+.amen-item .material-icons{font-size:24px;margin-bottom:8px;color:#94a3b8;}
+.amen-name{font-size:12px;font-weight:700;color:#64748b;}
+.amen-chk{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:#22c55e;color:#fff;display:none;align-items:center;justify-content:center;font-size:12px;scale:0;}
+.amen-item.selected{border-color:#22c55e;background:#f0fdf4;}
+.amen-item.selected .material-icons{color:#16a34a;}
+.amen-item.selected .amen-name{color:#166534;}
+.amen-item.selected .amen-chk{display:flex;scale:1;animation:popIn .3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;}
+
+@keyframes popIn{from{scale:0} to{scale:1}}
+
+/* Form fields */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.f label{font-size:14px;font-weight:700;color:#475569;margin-bottom:8px;display:block;}
+.f input, .f textarea{width:100%;padding:14px 16px;border:2px solid #f1f5f9;border-radius:16px;font-family:inherit;font-size:14px;transition:all .2s;background:#f8fafc;}
+.f input:focus, .f textarea:focus{border-color:#10b981;background:#fff;outline:none;box-shadow:0 0 0 4px rgba(16,185,129,0.1);}
+.f.span2{grid-column: span 2;}
+
+.upload-mode-tabs{display:flex;background:#f1f5f9;padding:4px;border-radius:14px;margin-bottom:16px;gap:4px;}
+.upload-mode-tabs button{flex:1;height:40px;border:none;border-radius:10px;background:transparent;color:#64748b;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .2s;}
+.upload-mode-tabs button.active{background:#fff;color:#0f172a;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+.upload-mode-tabs button .material-icons{font-size:18px;}
+
+.uz{height:200px;border:2px dashed #e2e8f0;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;background:#fbfcfd;}
+.uz:hover{border-color:#10b981;background:#f0fdf4;}
+.uz.over{border-color:#10b981;background:#ecfdf5;transform:scale(1.02);}
+.uz .ui-big{font-size:48px;color:#94a3b8;margin-bottom:10px;}
+.uz .ul{font-size:14px;color:#475569;margin:0;}
+.uz .uh{font-size:12px;color:#94a3b8;margin:4px 0 0;}
+
+.prev-img{width:100%;height:100%;object-fit:cover;}
+.prev-ov{position:absolute;inset:0;background:rgba(0,0,0,0.4);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;opacity:0;transition:all .2s;gap:8px;}
 .uz:hover .prev-ov{opacity:1;}
-.prev-ov .material-icons{font-size:26px;}
-.prev-ov span:last-child{font-size:13px;font-weight:600;}
+.prev-ov span:last-child{font-weight:700;font-size:13px;}
 
-/* Progress */
-.prog-wrap{width:80%;height:7px;background:#e2e8f0;border-radius:100px;overflow:hidden;margin-bottom:10px;}
-.prog-bar{height:100%;background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:100px;transition:width .15s;}
+.prog-wrap{width:80%;height:6px;background:#e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;}
+.prog-bar{height:100%;background:#10b981;transition:width .2s;}
 
-/* URL input */
-.url-input-wrap{display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0;border-radius:9px;padding:0 12px;background:#f8fafc;margin-bottom:10px;}
-.url-input-wrap .material-icons{color:#94a3b8;font-size:18px;}
-.url-input-wrap input{flex:1;border:none;background:transparent;padding:11px 0;font-family:inherit;font-size:14px;}
-.url-input-wrap input:focus{outline:none;}
-.url-preview{width:100%;max-height:160px;object-fit:cover;border-radius:9px;}
-.retry{background:none;border:none;color:#16a34a;font-weight:700;cursor:pointer;font-family:inherit;font-size:12px;text-decoration:underline;padding:0;margin-left:6px;}
+.url-input-wrap{display:flex;align-items:center;gap:12px;background:#f8fafc;border:2px solid #f1f5f9;border-radius:16px;padding:0 16px;margin-bottom:12px;}
+.url-input-wrap input{flex:1;height:50px;border:none;background:transparent;outline:none;font-family:inherit;font-size:14px;}
+.url-preview{width:100%;height:160px;object-fit:cover;border-radius:16px;border:1px solid #f1f5f9;margin-bottom:12px;}
 
-/* Alert */
-.alert{display:flex;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:9px;margin-bottom:16px;font-size:13px;}
-.alert.err{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
-.alert.ok{background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;}
-.alert .material-icons{font-size:18px;flex-shrink:0;}
-.alert ul{margin:0;padding-left:14px;}
+/* Image Multi-Upload Gallery */
+.img-grid-edit{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:12px;margin-bottom:16px;}
+.img-th{width:80px;height:80px;border-radius:12px;overflow:hidden;position:relative;border:1px solid #e2e8f0;}
+.img-th img{width:100%;height:100%;object-fit:cover;}
+.th-del{position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.th-del .material-icons{font-size:14px;}
+.th-del:hover{background:#ef4444;}
+ 
+.uz-small{width:80px;height:80px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#64748b;cursor:pointer;transition:all .2s;gap:4px;background:#f8fafc;}
+.uz-small:hover{border-color:#10b981;color:#10b981;background:#f0fdf4;}
+.uz-small.over{border-color:#10b981;background:#ecfdf5;}
+.uz-small .material-icons{font-size:20px;}
+.uz-txt{font-size:10px;font-weight:700;}
+ 
+.uz-spin{width:20px;height:20px;border:2px solid #e2e8f0;border-top-color:#10b981;border-radius:50%;animation:spinner .8s linear infinite;}
+@keyframes spinner{to{transform:rotate(360deg)}}
+ 
+.url-input-mini{display:flex;gap:8px;}
+.url-input-mini input{flex:1;height:44px;border:2px solid #f1f5f9;border-radius:12px;padding:0 12px;font-size:13px;background: #fbfcfd;}
+.url-input-mini input:focus{border-color:#10b981;outline:none;background:#fff;}
+.url-input-mini button{width:44px;height:44px;border-radius:12px;border:none;background:#10b981;color:#fff;cursor:pointer;}
 
-/* Delete modal */
-.del-box{background:#fff;border-radius:18px;padding:30px 26px;width:380px;max-width:90vw;text-align:center;box-shadow:0 20px 56px rgba(0,0,0,.18);animation:pop .22s ease;}
-@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
-.del-ico{width:58px;height:58px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;}
-.del-ico .material-icons{font-size:28px;color:#ef4444;}
-.del-box h3{font-size:17px;font-weight:700;margin:0 0 8px;}
-.del-box p{font-size:14px;color:#6b7280;margin:0 0 22px;line-height:1.6;}
+.dfoot{padding:24px 32px;background:#fff;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:12px;box-shadow:0 -10px 20px rgba(0,0,0,0.02);}
+.btn-sec{height:54px;padding:0 24px;border:2px solid #f1f5f9;background:#fff;border-radius:20px;font-weight:700;color:#64748b;cursor:pointer;transition:all .2s;}
+.btn-sec:hover{background:#f8fafc;border-color:#e2e8f0;color:#1e293b;}
+
+.xbtn{width:40px;height:40px;border-radius:12px;border:none;background:rgba(255,255,255,0.2);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.xbtn:hover{background:rgba(255,255,255,0.3);transform:rotate(90deg);}
+
+.err-msg{color:#ef4444;font-size:12px;font-weight:600;margin-top:4px;}
+.alert{padding:16px;border-radius:16px;margin-bottom:24px;display:flex;gap:12px;font-size:14px;font-weight:600;}
+.alert.err{background:#fef2f2;color:#991b1b;}
+.alert.ok{background:#f0fdf4;color:#166534;}
+.alert ul{margin:0;padding-left:20px;}
+
+.del-box{width:400px;background:#fff;border-radius:32px;padding:40px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);animation:popIn .4s cubic-bezier(0.16, 1, 0.3, 1);}
+.del-ico{width:80px;height:80px;background:#fef2f2;color:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;font-size:40px;}
+.del-ico span{font-size:48px;}
+.del-box h3{font-size:20px;font-weight:800;color:#0f172a;margin:0 0 12px;}
+.del-box p{color:#64748b;margin:0 0 32px;}
 .del-acts{display:flex;gap:12px;}
+.del-acts button{flex:1;}
+.btn-danger{background:#ef4444;color:#fff;border:none;height:54px;border-radius:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s;}
+.btn-danger:hover{background:#dc2626;transform:translateY(-2px);box-shadow:0 10px 15px -3px rgba(239,68,68,0.3);}
 
-/* Spinner */
-.spin{width:15px;height:15px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:sp .7s linear infinite;}
-@keyframes sp{to{transform:rotate(360deg)}}
+/* Animations */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)}}
 
-/* Transitions */
-.slide-enter-active,.slide-leave-active{transition:opacity .28s;}
-.slide-enter-active .drawer,.slide-leave-active .drawer{transition:transform .28s cubic-bezier(.4,0,.2,1);}
-.slide-enter-from,.slide-leave-to{opacity:0;}
-.slide-enter-from .drawer,.slide-leave-to .drawer{transform:translateX(100%);}
-.fade-enter-active,.fade-leave-active{transition:opacity .2s;}
-.fade-enter-from,.fade-leave-to{opacity:0;}
+.amen-loading{padding:40px;text-align:center;color:#64748b;font-weight:600;}
 
-@media(max-width:640px){.vheader{flex-direction:column;align-items:flex-start;}.grid{grid-template-columns:1fr;}.drawer{width:100vw;}.fgrid{grid-template-columns:1fr;}.f.span2{grid-column:1;}}
+/* Hour Rows */
+.hours-list{display:flex;flex-direction:column;gap:12px;}
+.hour-row{display:flex;align-items:center;gap:16px;padding:12px 16px;background:#f8fafc;border-radius:16px;border:1px solid #f1f5f9;transition:all .2s;}
+.hour-row.closed{opacity:0.6;background:#f1f5f9;}
+.hr-day{width:100px;font-size:14px;color:#0f172a;}
+.hr-times{flex:1;display:flex;align-items:center;gap:8px;}
+.hr-times input{width:110px;height:38px;padding:0 10px;border:1px solid #e2e8f0;border-radius:10px;font-family:inherit;font-size:14px;background:#fff;}
+.hr-status{flex:1;font-size:13px;color:#94a3b8;font-style:italic;}
+.hr-toggle{width:38px;height:38px;border-radius:10px;border:none;background:#fff;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+.hour-row.closed .hr-toggle{background:#0f172a;color:#fff;}
+.hour-row.closed .hr-toggle:hover{background:#1e293b;}
+
+.spin{width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:loading-spin 0.8s linear infinite;}
+@keyframes loading-spin{to{transform:rotate(360deg)}}
+
+/* Responsive */
+@media(max-width:768px){
+  .grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .drawer{width:100vw;}
+}
 </style>
