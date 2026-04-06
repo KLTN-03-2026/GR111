@@ -67,4 +67,8 @@ export const clubService = {
     getSlotsByClub(slug, date) {
         return api.get(`/clubs/${slug}/slots`, { params: { date } });
     },
+    // ── Opening Hours ──────────────────────────────────────────
+    updateOpeningHours(clubId, hours) {
+        return api.put(`/owner/clubs/${clubId}/opening-hours`, hours);
+    },
 };
