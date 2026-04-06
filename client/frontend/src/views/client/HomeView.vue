@@ -254,7 +254,15 @@ export default {
 
     // ── Map API response → UI model ──
     mapVenues(data = []) {
-      return data.map((item) => ({
+      // Sort by distance (if distance exists)
+      const sortedData = [...data].sort((a, b) => {
+        if (a.distance && b.distance) {
+          return parseFloat(a.distance) - parseFloat(b.distance);
+        }
+        return 0;
+      });
+
+      return sortedData.slice(0, 10).map((item) => ({
         id:              item.id,
         name:            item.name,
         address:         item.address,
