@@ -1,113 +1,38 @@
 import { NextRequest } from "next/server";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
-import { 
-  getCourtFullPricing, 
-  upsertRegularPricing, 
-  addSpecialPricing, 
-  deletePricing 
-} from "@/modules/club/pricing.service";
+import { updateCourtPricing } from "@/modules/club/court.service";
+import { courtPricingSchema } from "@/validations/court.schema";
 
 /**
- * UTILITY: Kiểm tra Owner có quyền sở hữu sân hay không
+ * PUT /api/owner/courts/[id]/pricing
+ * Cập nhật bảng giá cho sân
  */
-async function checkCourtOwnership(userId: string, courtId: string) {
-  const court = await prisma.court.findFirst({
-    where: { 
-      id: courtId,
-      club: { ownerId: userId }
-    }
-  });
-  return !!court;
-}
-
-// GET /api/owner/courts/[id]/pricing  → Lấy bảng giá sân
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
-
-    const { id: courtId } = await params;
-    const isOwner = await checkCourtOwnership(user.userId, courtId);
-    if (!isOwner) return errorResponse("Bạn không có quyền quản lý sân này.", 403);
-
-    const data = await getCourtFullPricing(courtId);
-    return successResponse("Lấy bảng giá thành công", data);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
-}
-
-// POST /api/owner/courts/[id]/pricing  → Thêm/Cập nhật giá định kỳ (Regular)
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
-
-    const { id: courtId } = await params;
-    const isOwner = await checkCourtOwnership(user.userId, courtId);
-    if (!isOwner) return errorResponse("Không có quyền", 403);
-
-    const body = await req.json();
-    const result = await upsertRegularPricing(courtId, body);
-
-    return successResponse("Cập nhật giá thành công", result);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
-}
-
-// PUT /api/owner/courts/[id]/pricing  → Thêm giá ngày lễ (Special)
 export async function PUT(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
+    try {
+        const { id } = await params;
+        const { user, error } = await getAuthUser(req);
+        if (error) return error;
 
-    const { id: courtId } = await params;
-    if (!await checkCourtOwnership(user.userId, courtId)) return errorResponse("Không có quyền", 403);
+        const roleErr = requireRole(user, ["OWNER", "ADMIN"]);
+        if (roleErr) return roleErr;
 
-    const body = await req.json();
-    // Parse date từ string
-    if (typeof body.specificDate === 'string') body.specificDate = new Date(body.specificDate);
+        const body = await req.json();
+        const parsed = courtPricingSchema.safeParse(body);
 
-    const result = await addSpecialPricing(courtId, body);
-    return successResponse("Thêm giá ngày lễ thành công", result);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
-}
+        if (!parsed.success) {
+            return errorResponse("Dữ liệu không hợp lệ", 422, (parsed.error.flatten().fieldErrors as unknown) as Record<string, string[]>);
+        }
 
-// DELETE /api/owner/courts/[id]/pricing  → Xóa cấu hình giá cụ thể
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
-
-    const { id: courtId } = await params;
-    if (!await checkCourtOwnership(user.userId, courtId)) return errorResponse("Không có quyền", 403);
-
-    const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") as "regular" | "special";
-    const pricingId = searchParams.get("id");
-
-    if (!type || !pricingId) return errorResponse("Thiếu thông tin xóa", 400);
-
-    await deletePricing(type, pricingId);
-    return successResponse("Đã xóa cấu hình giá", null);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
+        const data = await updateCourtPricing(id, user.userId, parsed.data);
+        return successResponse("Cập nhật bảng giá thành công", data);
+    } catch (error: unknown) {
+        if (error instanceof Error && error.message === "COURT_NOT_FOUND_OR_UNAUTHORIZED") {
+            return errorResponse("Không tìm thấy sân hoặc bạn không có quyền", 403);
+        }
+        return serverErrorResponse(error);
+    }
 }

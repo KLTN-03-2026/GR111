@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import axios from "axios";
 import Stripe from "stripe";
 import { prisma } from "@/lib/prisma";
 import { notifyNewBooking } from "@/lib/socket";
@@ -25,7 +24,6 @@ export async function createPaymentUrl(bookingId: string, amount: number, method
     return await createStripeCheckoutSession(bookingId, amount);
   }
   if (method === "MOMO") {
-    return await createMoMoPaymentUrl(bookingId, amount);
     // Placeholder – MoMo handled on separate branch
     return `https://test-payment.momo.vn/pay?amount=${amount}&orderId=${bookingId}`;
   }
@@ -262,7 +260,7 @@ async function handleSuccessfulPayment(bookingId: string, transactionRef: string
     });
   }
 
-  return { RspCode: "02", Message: "Order failed" };
+  return updatedBooking;
 }
 
 async function handleFailedPayment(bookingId: string) {

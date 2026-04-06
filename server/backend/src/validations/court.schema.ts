@@ -49,6 +49,7 @@ export const createCourtSchema = z.object({
   capacity: z.number().int().min(1).optional(),
   surface: z.string().max(100).optional(),
   indoorOutdoor: z.enum(["INDOOR", "OUTDOOR"]).optional(),
+  images: z.array(z.string().url()).optional(),
 });
 
 // ============================================================
@@ -58,3 +59,10 @@ export const createCourtSchema = z.object({
 export type SearchCourtInput = z.infer<typeof searchCourtSchema>;
 export type CreateClubInput = z.infer<typeof createClubSchema>;
 export type CreateCourtInput = z.infer<typeof createCourtSchema>;
+
+export const courtPricingSchema = z.array(z.object({
+  dayOfWeek:    z.number().int().min(0).max(6).optional(),
+  startTime:    z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ bắt đầu không hợp lệ (HH:mm)"),
+  endTime:      z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ kết thúc không hợp lệ (HH:mm)"),
+  pricePerHour: z.number().positive("Giá tiền phải là số dương")
+}));

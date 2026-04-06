@@ -12,10 +12,16 @@ export const pubClient = new Redis(redisUrl, {
 
 export const subClient = pubClient.duplicate();
 
+// --- Error handling ---
+
+const handleRedisError = (clientName: string) => (err: Error) => {
+  console.error(`[Redis] ${clientName} Error:`, err.message || err);
+};
+
+redis.on("error", handleRedisError("Main"));
+pubClient.on("error", handleRedisError("Pub"));
+subClient.on("error", handleRedisError("Sub"));
+
 redis.on("connect", () => {
   console.log("✓ Redis connected");
-});
-
-redis.on("error", (err) => {
-  console.error("REDIS_CONNECTION_ERROR:", err);
 });
