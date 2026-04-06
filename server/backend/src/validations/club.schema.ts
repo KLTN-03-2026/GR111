@@ -37,6 +37,14 @@ export const clubSchema = z.object({
   logoUrl:       optionalUrl,
   coverImageUrl: optionalUrl,
   slotDuration:  z.number().min(30).max(240).optional(),
+  images:        z.array(z.string().url()).optional(),
 });
 
 export const updateClubSchema = clubSchema.partial();
+
+export const openingHoursSchema = z.array(z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  openTime:  z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ mở cửa không hợp lệ (HH:mm)"),
+  closeTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Giờ đóng cửa không hợp lệ (HH:mm)"),
+  isClosed:  z.boolean().default(false)
+}));

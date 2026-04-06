@@ -34,4 +34,23 @@ export const courtService = {
     deleteCourt(courtId) {
         return api.delete(`/owner/courts/${courtId}`);
     },
+
+    /**
+     * Upload ảnh sân bóng
+     */
+    uploadImage(formData, onProgress = null) {
+        return api.post('/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: onProgress
+                ? (e) => {
+                      const pct = Math.round((e.loaded * 100) / (e.total || 1));
+                      onProgress(pct);
+                  }
+                : undefined,
+        });
+    },
+    // ── Pricing ────────────────────────────────────────────────
+    updatePricing(courtId, pricings) {
+        return api.put(`/owner/courts/${courtId}/pricing`, pricings);
+    },
 };
