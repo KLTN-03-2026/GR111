@@ -1,122 +1,137 @@
 <template>
   <div class="courts-view">
 
-    <!-- ── Header ──────────────────────────────────────────── -->
-    <div class="view-header">
-      <div class="header-info">
-        <h1 class="view-title">Quản lý Sân đấu</h1>
-        <p class="view-subtitle">Thiết lập thông tin, giá cả và trạng thái từng sân.</p>
+    <!-- Header -->
+    <div class="vheader">
+      <div class="h-left">
+        <h1 class="vtitle">Sân đấu & Cơ sở vật chất</h1>
+        <p class="vsub">{{ selectedClubName || 'Vui lòng chọn câu lạc bộ để quản lý sân' }}</p>
       </div>
-      <button class="add-btn" @click="openAddDrawer" :disabled="!selectedClubId">
-        <span class="material-icons">add_circle</span>
-        <span>Thêm sân mới</span>
+      <button class="btn-primary" @click="openAddDrawer" :disabled="!selectedClubId">
+        <span class="material-icons">add_circle</span> Thêm sân mới
       </button>
     </div>
 
-    <!-- ── Control Bar ──────────────────────────────────────── -->
-    <div class="control-bar">
-      <div class="club-selector">
-        <label>Chọn câu lạc bộ:</label>
-        <select v-model="selectedClubId" @change="fetchCourts">
-          <option value="" disabled>-- Chọn câu lạc bộ --</option>
-          <option v-for="club in clubs" :key="club.id" :value="club.id">
-            {{ club.name }}
-          </option>
-        </select>
+    <!-- Stats Row -->
+    <div v-if="selectedClubId" class="stats-row">
+      <div class="stat-card blue">
+        <div class="sc-icon"><span class="material-icons">layers</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Tổng số sân</span>
+          <span class="sc-val">{{ courts.length }}</span>
+        </div>
       </div>
-
-      <div class="search-box">
-        <span class="material-icons">search</span>
-        <input type="text" v-model="searchQuery" placeholder="Tìm tên sân..." />
+      <div class="stat-card green">
+        <div class="sc-icon"><span class="material-icons">check_circle</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Đang hoạt động</span>
+          <span class="sc-val">{{ courts.filter(c => c.status === 'ACTIVE').length }}</span>
+        </div>
       </div>
-
-      <div class="filter-group">
-        <select v-model="sportFilter">
-          <option value="all">Tất cả loại sân</option>
-          <option v-for="s in SPORT_TYPES" :key="s.value" :value="s.value">
-            {{ s.emoji }} {{ s.label }}
-          </option>
-        </select>
+      <div class="stat-card yellow">
+        <div class="sc-icon"><span class="material-icons">sports_soccer</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Bóng đá</span>
+          <span class="sc-val">{{ courts.filter(c => c.sportType === 'FOOTBALL').length }}</span>
+        </div>
       </div>
-    </div>
-
-    <!-- ── Loading ──────────────────────────────────────────── -->
-    <div v-if="loading" class="courts-grid">
-      <div v-for="n in 4" :key="n" class="court-card">
-        <div class="sk-banner"></div>
-        <div class="sk-body">
-          <div class="sk-line" style="width:60%"></div>
-          <div class="sk-line" style="width:40%"></div>
+      <div class="stat-card purple">
+        <div class="sc-icon"><span class="material-icons">hotel_class</span></div>
+        <div class="sc-info">
+          <span class="sc-label">Loại khác</span>
+          <span class="sc-val">{{ courts.filter(c => c.sportType !== 'FOOTBALL').length }}</span>
         </div>
       </div>
     </div>
 
-    <!-- ── No club selected ─────────────────────────────────── -->
-    <div v-else-if="!selectedClubId" class="empty-state">
-      <div class="empty-illustration">🏢</div>
-      <h3>Chọn câu lạc bộ</h3>
-      <p>Chọn một câu lạc bộ ở trên để xem và quản lý danh sách sân đấu.</p>
+    <!-- Filter Bar -->
+    <div class="search-bar-wrap">
+      <div class="search-bar">
+        <div class="f-item club-sel">
+          <span class="material-icons f-icon">business</span>
+          <select v-model="selectedClubId" @change="fetchCourts">
+            <option value="" disabled>Chọn câu lạc bộ...</option>
+            <option v-for="club in clubs" :key="club.id" :value="club.id">{{ club.name }}</option>
+          </select>
+        </div>
+        <div class="f-item s-wrap">
+          <span class="material-icons f-icon">search</span>
+          <input v-model="searchQuery" placeholder="Tìm tên sân..." />
+        </div>
+        <div class="f-item sport-sel">
+          <select v-model="sportFilter">
+            <option value="all">Tất cả môn thể thao</option>
+            <option v-for="s in SPORT_TYPES" :key="s.value" :value="s.value">{{ s.emoji }} {{ s.label }}</option>
+          </select>
+        </div>
+      </div>
     </div>
 
-    <!-- ── Courts Grid ──────────────────────────────────────── -->
-    <div class="courts-grid" v-else-if="filteredCourts.length > 0">
-      <div
-        v-for="(court, i) in filteredCourts"
-        :key="court.id"
-        class="court-card"
-        :style="`--delay: ${i * 80}ms`"
-      >
-        <!-- Colored header by sport -->
-        <div class="court-header" :class="'sport-bg-' + court.sportType">
-          <div class="ch-left">
-            <span class="sport-emoji">{{ getSportEmoji(court.sportType) }}</span>
-            <div class="sport-label">{{ getSportLabel(court.sportType) }}</div>
-          </div>
-          <div class="status-pill" :class="court.status === 'ACTIVE' ? 'active' : 'inactive'">
-            <span class="dot"></span>
-            {{ court.status === 'ACTIVE' ? 'Hoạt động' : 'Ngừng HĐ' }}
-          </div>
-        </div>
+    <!-- Skeleton -->
+    <div v-if="loading" class="grid">
+      <div v-for="n in 3" :key="n" class="card loading-card">
+        <div class="sk-img"></div>
+        <div class="sk-body"><div class="sk-l w60"></div><div class="sk-l w40"></div></div>
+      </div>
+    </div>
 
-        <div class="court-body">
-          <h3 class="court-name">{{ court.name }}</h3>
-          <div class="court-meta">
-            <div class="meta-item" v-if="court.indoorOutdoor">
-              <span class="material-icons">{{ court.indoorOutdoor === 'INDOOR' ? 'roofing' : 'wb_sunny' }}</span>
-              <span>{{ court.indoorOutdoor === 'INDOOR' ? 'Trong nhà' : 'Ngoài trời' }}</span>
+    <!-- No Club -->
+    <div v-else-if="!selectedClubId" class="empty-glass">
+      <div class="empty-icon"><span class="material-icons">location_city</span></div>
+      <h3>Chưa chọn câu lạc bộ</h3>
+      <p>Vui lòng lựa chọn cơ sở thể thao để quản lý hệ thống sân công cộng hoặc tư nhân.</p>
+    </div>
+
+    <!-- Content -->
+    <div v-else-if="filteredCourts.length" class="grid">
+      <div v-for="(c, i) in filteredCourts" :key="c.id" class="card premium-card" :style="`--d:${i*70}ms`">
+        <div class="c-header-sport" :class="c.sportType">
+          <span class="s-emoji">{{ getSportEmoji(c.sportType) }}</span>
+          <div class="s-info">
+            <div class="s-label">{{ getSportLabel(c.sportType) }}</div>
+            <div class="s-status" :class="c.status">
+              <span class="dot"></span> {{ c.status === 'ACTIVE' ? 'Hoạt động' : 'Tạm dừng' }}
             </div>
-            <div class="meta-item" v-if="court.surface">
-              <span class="material-icons">grass</span>
-              <span>{{ court.surface }}</span>
+          </div>
+        </div>
+        <div class="c-cover">
+          <img :src="(c.images && c.images.length > 0) ? c.images[0].url : 'https://images.unsplash.com/photo-1554062614-6da3d3b7625e?w=800&q=80'" alt="Court cover" />
+        </div>
+        <div class="cbody">
+          <h3 class="c-title">{{ c.name }}</h3>
+          <div class="c-meta-row">
+            <div class="cm-item" v-if="c.indoorOutdoor">
+              <span class="material-icons">{{ c.indoorOutdoor === 'INDOOR' ? 'roofing' : 'wb_sunny' }}</span>
+              {{ c.indoorOutdoor === 'INDOOR' ? 'Trong nhà' : 'Ngoài trời' }}
             </div>
-            <div class="meta-item" v-if="court.capacity">
-              <span class="material-icons">groups</span>
-              <span>{{ court.capacity }} người</span>
+            <div class="cm-item" v-if="c.surface">
+              <span class="material-icons">grass</span> {{ c.surface }}
+            </div>
+            <div class="cm-item" v-if="c.capacity">
+              <span class="material-icons">people</span> {{ c.capacity }} người
             </div>
           </div>
-          <p class="court-desc" v-if="court.description">{{ court.description }}</p>
-        </div>
-
-        <div class="court-footer">
-          <button class="footer-btn edit" @click="openEditDrawer(court)">
-            <span class="material-icons">edit</span>
-            <span>Sửa</span>
-          </button>
-          <button class="footer-btn delete" @click="openDeleteModal(court)">
-            <span class="material-icons">delete</span>
-          </button>
+          <p class="c-desc" v-if="c.description">{{ c.description }}</p>
+          
+          <div class="actions">
+            <button class="abtn edit" @click="openEditDrawer(c)">
+              <span class="material-icons">edit</span> <span>Sửa</span>
+            </button>
+            <button class="abtn del" @click="openDeleteModal(c)">
+              <span class="material-icons">delete_outline</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Empty State ──────────────────────────────────────── -->
-    <div v-else class="empty-state">
-      <div class="empty-illustration">🏟️</div>
-      <h3>Chưa có sân nào</h3>
-      <p>Câu lạc bộ này chưa có sân đấu nào. Hãy thêm sân đầu tiên!</p>
-      <button class="add-btn" style="margin:20px auto 0;display:inline-flex" @click="openAddDrawer">
-        <span class="material-icons">add_circle</span>
-        <span>Thêm sân mới</span>
+    <!-- Empty -->
+    <div v-else class="empty-glass">
+      <div class="empty-icon"><span class="material-icons">sports_score</span></div>
+      <h3>Chưa có sân đấu</h3>
+      <p>Câu lạc bộ này hiện chưa đăng ký sân đấu nào trên hệ thống.</p>
+      <button class="btn-primary" @click="openAddDrawer">
+        <span class="material-icons">add_circle</span> Thêm ngay
       </button>
     </div>
 
@@ -139,6 +154,42 @@
             <div v-if="addErrors.length > 0" class="form-alert error">
               <span class="material-icons">error_outline</span>
               <ul><li v-for="e in addErrors" :key="e">{{ e }}</li></ul>
+            </div>
+
+            <!-- Upload zone (multi-image) -->
+            <div class="f-upload-sec">
+                <div class="flabel"><span class="material-icons">collections</span>Bộ sưu tập ảnh sân ({{ addForm.images?.length || 0 }})</div>
+                
+                <div class="img-grid-edit">
+                    <div v-for="(img, idx) in addForm.images" :key="idx" class="img-th">
+                        <img :src="img" />
+                        <button class="th-del" @click="addForm.images.splice(idx,1)"><span class="material-icons">close</span></button>
+                    </div>
+
+                    <!-- Upload Button -->
+                    <div class="uz-small" 
+                        :class="{over:addOver, loading:addUploading}"
+                        @dragover.prevent="addOver=true" @dragleave.prevent="addOver=false"
+                        @drop.prevent="e=>doUpload(e.dataTransfer.files[0],'add')"
+                        @click="$refs.addFile.click()">
+                        <input ref="addFile" type="file" accept="image/*" hidden @change="e=>doUpload(e.target.files[0],'add')" />
+                        
+                        <template v-if="addUploading">
+                            <div class="uz-spin"></div>
+                            <span>{{ addPct }}%</span>
+                        </template>
+                        <template v-else>
+                            <span class="material-icons">add_a_photo</span>
+                            <span class="uz-txt">Thêm ảnh</span>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="url-input-mini">
+                    <input v-model="addForm.newUrl" type="url" placeholder="Hoặc dán URL..." @keyup.enter="if(addForm.newUrl){addForm.images.push(addForm.newUrl);addForm.newUrl=''}" />
+                    <button @click="if(addForm.newUrl){addForm.images.push(addForm.newUrl);addForm.newUrl=''}"><span class="material-icons">add</span></button>
+                </div>
+                <p v-if="addUpErr" class="err-msg">{{ addUpErr }}</p>
             </div>
 
             <div class="form-grid">
@@ -221,6 +272,42 @@
               <span>Cập nhật sân thành công!</span>
             </div>
 
+            <!-- Upload zone Edit (multi-image) -->
+            <div class="f-upload-sec">
+                <div class="flabel"><span class="material-icons">collections</span>Bộ sưu tập ảnh sân ({{ editForm.images?.length || 0 }})</div>
+                
+                <div class="img-grid-edit">
+                    <div v-for="(img, idx) in editForm.images" :key="idx" class="img-th">
+                        <img :src="img" />
+                        <button class="th-del" @click="editForm.images.splice(idx,1)"><span class="material-icons">close</span></button>
+                    </div>
+
+                    <!-- Upload Button Edit -->
+                    <div class="uz-small" 
+                        :class="{over:editOver, loading:editUploading}"
+                        @dragover.prevent="editOver=true" @dragleave.prevent="editOver=false"
+                        @drop.prevent="e=>doUpload(e.dataTransfer.files[0],'edit')"
+                        @click="$refs.editFile.click()">
+                        <input ref="editFile" type="file" accept="image/*" hidden @change="e=>doUpload(e.target.files[0],'edit')" />
+                        
+                        <template v-if="editUploading">
+                            <div class="uz-spin"></div>
+                            <span>{{ editPct }}%</span>
+                        </template>
+                        <template v-else>
+                            <span class="material-icons">add_a_photo</span>
+                            <span class="uz-txt">Thêm ảnh</span>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="url-input-mini">
+                    <input v-model="editForm.newUrl" type="url" placeholder="Hoặc dán URL..." @keyup.enter="if(editForm.newUrl){editForm.images.push(editForm.newUrl);editForm.newUrl=''}" />
+                    <button @click="if(editForm.newUrl){editForm.images.push(editForm.newUrl);editForm.newUrl=''}"><span class="material-icons">add</span></button>
+                </div>
+                <p v-if="editUpErr" class="err-msg">{{ editUpErr }}</p>
+            </div>
+
             <div class="form-grid">
               <div class="field full">
                 <label>Tên sân <span class="req">*</span></label>
@@ -258,6 +345,56 @@
               <div class="field full">
                 <label>Mô tả</label>
                 <textarea v-model="editForm.description" rows="3"></textarea>
+              </div>
+            </div>
+
+            <!-- Pricing section -->
+            <div class="f-upload-sec" style="margin-top:32px;">
+              <div class="flabel"><span class="material-icons">payments</span>Bảng giá theo khung giờ</div>
+              <div class="pricing-rules">
+                <div v-for="(p, idx) in editForm.pricings" :key="idx" class="price-rule-card">
+                  <div class="pr-head">
+                    <div class="pr-name">Khung giờ {{ idx + 1 }}</div>
+                    <button class="pr-del" @click="editForm.pricings.splice(idx,1)"><span class="material-icons">delete</span></button>
+                  </div>
+                  <div class="pr-body">
+                    <div class="pr-row">
+                      <div class="pr-field">
+                        <label>Từ ngày</label>
+                        <select v-model.number="p.dayOfWeek">
+                          <option :value="undefined">Tất cả các ngày</option>
+                          <option :value="1">Thứ 2</option>
+                          <option :value="2">Thứ 3</option>
+                          <option :value="3">Thứ 4</option>
+                          <option :value="4">Thứ 5</option>
+                          <option :value="5">Thứ 6</option>
+                          <option :value="6">Thứ 7</option>
+                          <option :value="0">Chủ Nhật</option>
+                        </select>
+                      </div>
+                      <div class="pr-field">
+                        <label>Giá / Giờ</label>
+                        <div class="price-input">
+                          <input v-model.number="p.pricePerHour" type="number" step="1000" />
+                          <span>đ</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="pr-row">
+                      <div class="pr-field">
+                        <label>Từ lúc</label>
+                        <input type="time" v-model="p.startTime" />
+                      </div>
+                      <div class="pr-field">
+                        <label>Đến lúc</label>
+                        <input type="time" v-model="p.endTime" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-add-price" @click="editForm.pricings.push({ dayOfWeek: undefined, startTime:'05:00', endTime:'23:00', pricePerHour: 100000 })">
+                  <span class="material-icons">add</span> Thêm khung giá mới
+                </button>
               </div>
             </div>
           </div>
@@ -311,7 +448,7 @@ const SPORT_TYPES = [
 ];
 
 function freshAdd() {
-  return { name: '', sportType: '', indoorOutdoor: '', capacity: '', surface: '', description: '' };
+  return { name: '', sportType: '', indoorOutdoor: '', capacity: '', surface: '', description: '', images: [], newUrl: '' };
 }
 
 export default {
@@ -333,6 +470,12 @@ export default {
       addSubmitted: false,
       addLoading: false,
       addErrors: [],
+      addMode: 'upload',
+      addOver: false,
+      addPreview: null,
+      addUploading: false,
+      addPct: 0,
+      addUpErr: '',
 
       // Edit
       showEditDrawer: false,
@@ -341,6 +484,12 @@ export default {
       editLoading: false,
       editErrors: [],
       editSuccess: false,
+      editMode: 'upload',
+      editOver: false,
+      editPreview: null,
+      editUploading: false,
+      editPct: 0,
+      editUpErr: '',
 
       // Delete
       showDeleteModal: false,
@@ -413,7 +562,11 @@ export default {
       this.addLoading = true;
       this.addErrors = [];
       try {
-        const p = { name: this.addForm.name.trim(), sportType: this.addForm.sportType };
+        const p = { 
+          name: this.addForm.name.trim(), 
+          sportType: this.addForm.sportType,
+          images: this.addForm.images
+        };
         if (this.addForm.indoorOutdoor)        p.indoorOutdoor = this.addForm.indoorOutdoor;
         if (this.addForm.capacity)             p.capacity      = Number(this.addForm.capacity);
         if (this.addForm.surface?.trim())      p.surface       = this.addForm.surface.trim();
@@ -440,12 +593,35 @@ export default {
         capacity:      court.capacity       ?? '',
         surface:       court.surface        ?? '',
         description:   court.description    ?? '',
+        images:        court.images?.map(i => i.url) ?? [],
+        newUrl:        '',
+        pricings:      this.initPricings(court.pricings)
       };
       this.editSubmitted = false;
       this.editErrors    = [];
       this.editSuccess   = false;
+      this.editMode      = 'upload';
+      this.editPreview   = null;
+      this.editUpErr     = '';
       this.showEditDrawer = true;
       document.body.style.overflow = 'hidden';
+    },
+    initPricings(existing) {
+      if (!existing || existing.length === 0) {
+        return [{ dayOfWeek: undefined, startTime: '05:00', endTime: '23:00', pricePerHour: 100000 }];
+      }
+      return existing.map(p => ({
+        dayOfWeek: p.dayOfWeek ?? undefined,
+        startTime: this.isoToHm(p.startTime),
+        endTime:   this.isoToHm(p.endTime),
+        pricePerHour: Number(p.pricePerHour)
+      }));
+    },
+    isoToHm(iso) {
+      if (!iso) return '08:00';
+      const d = new Date(iso);
+      if (isNaN(d.getTime())) return typeof iso === 'string' ? iso.slice(0,5) : '08:00';
+      return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     },
     closeEditDrawer() { this.showEditDrawer = false; document.body.style.overflow = ''; },
 
@@ -456,7 +632,11 @@ export default {
       this.editErrors  = [];
       this.editSuccess = false;
       try {
-        const p = { name: this.editForm.name.trim(), sportType: this.editForm.sportType };
+        const p = { 
+          name: this.editForm.name.trim(), 
+          sportType: this.editForm.sportType,
+          images: this.editForm.images
+        };
         if (this.editForm.indoorOutdoor)       p.indoorOutdoor = this.editForm.indoorOutdoor;
         if (this.editForm.capacity)            p.capacity      = Number(this.editForm.capacity);
         if (this.editForm.surface?.trim())     p.surface       = this.editForm.surface.trim();
@@ -464,6 +644,15 @@ export default {
 
         const res = await courtService.updateCourt(this.editForm.id, p);
         if (res.data.success) {
+          // Save Pricing
+          const prices = this.editForm.pricings.map(pr => ({
+            dayOfWeek: pr.dayOfWeek,
+            startTime: pr.startTime,
+            endTime:   pr.endTime,
+            pricePerHour: Number(pr.pricePerHour)
+          }));
+          await courtService.updatePricing(this.editForm.id, prices);
+
           await this.fetchCourts();
           this.editSuccess = true;
           setTimeout(() => this.closeEditDrawer(), 1400);
@@ -490,185 +679,255 @@ export default {
       } catch (e) { alert('Có lỗi xảy ra khi xoá sân.'); }
       finally { this.deleteLoading = false; }
     },
+
+    async doUpload(file, ctx) {
+      if (!file) return;
+      const isAdd = ctx === 'add';
+      const errKey = isAdd ? 'addUpErr' : 'editUpErr';
+      const pctKey = isAdd ? 'addPct'   : 'editPct';
+      const prevKey= isAdd ? 'addPreview': 'editPreview';
+      const upKey  = isAdd ? 'addUploading':'editUploading';
+
+      if (!file.type.startsWith('image/')) { this[errKey] = 'Chỉ chấp nhận file ảnh.'; return; }
+      if (file.size > 5 * 1024 * 1024)    { this[errKey] = 'Ảnh tối đa 5MB.'; return; }
+
+      this[errKey] = '';
+      this[prevKey] = URL.createObjectURL(file);
+      this[upKey] = true;
+      this[pctKey] = 0;
+
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'court-image');
+
+        const res = await courtService.uploadImage(fd, pct => { this[pctKey] = pct; });
+        if (res.data.success) {
+          const url = res.data.data.url;
+          if (isAdd) this.addForm.images.push(url);
+          else       this.editForm.images.push(url);
+        } else {
+          this[errKey] = res.data.message || 'Lỗi upload.';
+        }
+      } catch(e) {
+        this[errKey] = 'Không thể tải ảnh lên.';
+      } finally { 
+        this[upKey] = false; 
+        this[prevKey] = null; // Clear local object URL
+      }
+    },
   },
 };
 </script>
 
 <style scoped>
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
 
-/* ─── Root ───────────────────────────────────────────────── */
-.courts-view { font-family:'Barlow Condensed',sans-serif; color:#0f1623; animation:fadeIn .4s ease-out; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+*{box-sizing:border-box;}
+.courts-view{font-family:'Be Vietnam Pro',sans-serif;color:#1e293b;padding-bottom:100px;background:#f8fafc;min-height:100vh;}
 
-/* ─── Header ─────────────────────────────────────────────── */
-.view-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:28px; }
-.view-title  { font-size:28px; font-weight:800; margin:0 0 4px; text-transform:uppercase; letter-spacing:.5px; }
-.view-subtitle { font-family:'DM Sans',sans-serif; color:#64748b; font-size:14px; margin:0; }
-.add-btn {
-  display:flex; align-items:center; gap:8px;
-  background:linear-gradient(135deg,#16a34a,#15803d); color:white; border:none;
-  padding:12px 22px; border-radius:12px; font-weight:700; cursor:pointer;
-  font-family:inherit; font-size:14px;
-  transition:all .25s; box-shadow:0 4px 14px rgba(22,163,74,.35);
-}
-.add-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 20px rgba(22,163,74,.4); }
-.add-btn:disabled { opacity:.5; cursor:not-allowed; }
+/* Header */
+.vheader{display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;padding:10px 0;}
+.vtitle{font-size:28px;font-weight:800;letter-spacing:-0.5px;color:#0f172a;margin:0 0 5px;}
+.vsub{font-size:15px;color:#10b981;margin:0;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;}
 
-/* ─── Control Bar ────────────────────────────────────────── */
-.control-bar {
-  display:flex; flex-wrap:wrap; gap:16px; margin-bottom:28px;
-  background:white; padding:18px 20px; border-radius:16px; border:1px solid #eaecf2; align-items:flex-end;
-}
-.club-selector { display:flex; flex-direction:column; gap:6px; min-width:230px; }
-.club-selector label { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; color:#64748b; text-transform:uppercase; }
-.club-selector select, .filter-group select {
-  padding:11px 14px; border:1px solid #e2e8f0; border-radius:10px;
-  font-family:'DM Sans',sans-serif; font-size:14px; cursor:pointer; background:#f8fafc;
-}
-.club-selector select:focus, .filter-group select:focus { outline:none; border-color:#16a34a; }
-.search-box { flex:1; position:relative; min-width:200px; }
-.search-box .material-icons { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#94a3b8; }
-.search-box input {
-  width:100%; padding:12px 12px 12px 46px; border:1px solid #e2e8f0; border-radius:10px;
-  font-family:'DM Sans',sans-serif; font-size:14px; background:#f8fafc; box-sizing:border-box;
-}
-.search-box input:focus { outline:none; border-color:#16a34a; background:white; }
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:35px;}
+.stat-card{background:#fff;border-radius:24px;padding:20px;display:flex;align-items:center;gap:16px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.05);transition:all .3s;}
+.stat-card:hover{transform:translateY(-5px);box-shadow:0 20px 30px -10px rgba(0,0,0,0.1);}
+.sc-icon{width:48px;height:48px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;}
+.sc-info{display:flex;flex-direction:column;gap:2px;}
+.sc-label{font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;}
+.sc-val{font-size:24px;font-weight:800;color:#0f172a;line-height:1;}
 
-/* ─── Grid ───────────────────────────────────────────────── */
-.courts-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:22px; }
-.court-card {
-  background:white; border-radius:18px; border:1px solid #eaecf2; overflow:hidden;
-  display:flex; flex-direction:column; transition:all .3s;
-  animation:fadeSlideUp .5s ease both; animation-delay:var(--delay,0ms);
-}
-.court-card:hover { transform:translateY(-6px); box-shadow:0 14px 36px rgba(0,0,0,.07); border-color:#cbd5e1; }
-@keyframes fadeSlideUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+.blue .sc-icon{background:rgba(59,130,246,0.12);color:#2563eb;}
+.green .sc-icon{background:rgba(34,197,94,0.12);color:#16a34a;}
+.yellow .sc-icon{background:rgba(234,179,8,0.12);color:#ca8a04;}
+.purple .sc-icon{background:rgba(139,92,246,0.12);color:#7c3aed;}
 
-/* Skeleton */
-.sk-banner { height:80px; background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
-.sk-body { padding:18px; display:flex; flex-direction:column; gap:10px; }
-.sk-line { height:13px; border-radius:6px; background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 50%,#f1f5f9 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
-@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+/* Filter Bar */
+.search-bar-wrap{background:#fff;border-radius:24px;padding:8px;margin-bottom:30px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);}
+.search-bar{display:flex;gap:8px;flex-wrap:wrap;}
+.f-item{height:54px;background:#f8fafc;border-radius:20px;display:flex;align-items:center;padding:0 18px;gap:12px;transition:all .2s;}
+.f-icon{color:#94a3b8;font-size:22px;}
+.club-sel{flex:2;min-width:250px;}
+.club-sel select{flex:1;border:none;background:transparent;font-family:inherit;font-size:15px;font-weight:700;color:#0f172a;cursor:pointer;}
+.s-wrap{flex:3;min-width:200px;}
+.s-wrap input{flex:1;border:none;background:transparent;font-family:inherit;font-size:15px;color:#1e293b;}
+.sport-sel{flex:1;min-width:180px;}
+.sport-sel select{flex:1;border:none;background:transparent;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
 
-/* ─── Court Header (sport colored) ──────────────────────── */
-.court-header {
-  padding:16px 18px; display:flex; justify-content:space-between; align-items:center;
-}
-.sport-bg-FOOTBALL   { background:linear-gradient(135deg,#dcfce7,#bbf7d0); }
-.sport-bg-BADMINTON  { background:linear-gradient(135deg,#ede9fe,#ddd6fe); }
-.sport-bg-TENNIS     { background:linear-gradient(135deg,#fef9c3,#fde68a); }
-.sport-bg-PICKLEBALL { background:linear-gradient(135deg,#ffedd5,#fed7aa); }
-.sport-bg-BASKETBALL { background:linear-gradient(135deg,#fff7ed,#fed7aa); }
-.sport-bg-VOLLEYBALL { background:linear-gradient(135deg,#e0f2fe,#bae6fd); }
-.sport-bg-OTHER      { background:linear-gradient(135deg,#f1f5f9,#e2e8f0); }
-.ch-left { display:flex; align-items:center; gap:10px; }
-.sport-emoji { font-size:28px; line-height:1; }
-.sport-label { font-size:13px; font-weight:700; color:#1e293b; font-family:'DM Sans',sans-serif; }
-.status-pill { display:flex; align-items:center; gap:5px; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; padding:4px 10px; border-radius:100px; }
-.status-pill .dot { width:6px; height:6px; border-radius:50%; }
-.status-pill.active { background:rgba(255,255,255,.8); color:#15803d; }
-.status-pill.active .dot { background:#16a34a; }
-.status-pill.inactive { background:rgba(255,255,255,.6); color:#64748b; }
-.status-pill.inactive .dot { background:#94a3b8; }
+.f-item:focus-within{background:#fff;box-shadow:inset 0 0 0 2px #10b981;}
 
-/* ─── Court Body ─────────────────────────────────────────── */
-.court-body { padding:18px 18px 14px; flex:1; }
-.court-name { font-size:18px; font-weight:800; margin:0 0 12px; color:#1e293b; }
-.court-meta { display:flex; flex-direction:column; gap:7px; margin-bottom:8px; }
-.meta-item { display:flex; align-items:center; gap:7px; font-family:'DM Sans',sans-serif; font-size:13px; color:#475569; }
-.meta-item .material-icons { font-size:16px; color:#94a3b8; }
-.court-desc { font-family:'DM Sans',sans-serif; font-size:13px; color:#64748b; margin:8px 0 0; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+/* Buttons */
+.btn-primary{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;height:54px;padding:0 28px;border-radius:20px;font-weight:700;font-size:15px;cursor:pointer;transition:all .3s;box-shadow:0 10px 20px -5px rgba(16,185,129,0.3);}
+.btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 15px 25px -5px rgba(16,185,129,0.4);}
+.btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
 
-/* ─── Court Footer ───────────────────────────────────────── */
-.court-footer { padding:12px 18px; background:#f8fafc; display:flex; gap:8px; border-top:1px solid #f1f5f9; }
-.footer-btn { height:36px; border-radius:9px; border:1px solid #e2e8f0; background:white; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:700; transition:all .2s; }
-.footer-btn .material-icons { font-size:15px; }
-.footer-btn.edit { flex:1; color:#1e293b; }
-.footer-btn.delete { color:#ef4444; width:36px; }
-.footer-btn:hover { background:#f1f5f9; transform:translateY(-1px); }
-.footer-btn.delete:hover { background:#fef2f2; border-color:#fecaca; }
+/* Premium Card */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
+.premium-card{background:#fff;border-radius:32px;overflow:hidden;border:1px solid #f1f5f9;box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);animation:fadeInUp .6s ease both;animation-delay:var(--d);display:flex;flex-direction:column;}
+.premium-card:hover{transform:translateY(-10px);box-shadow:0 30px 60px -15px rgba(0,0,0,0.15);}
 
-/* ─── Empty State ────────────────────────────────────────── */
-.empty-state { text-align:center; padding:80px 20px; background:white; border-radius:20px; border:2px dashed #eaecf2; }
-.empty-illustration { font-size:56px; margin-bottom:16px; }
-.empty-state h3 { font-size:18px; font-weight:700; margin:0 0 8px; }
-.empty-state p  { font-family:'DM Sans',sans-serif; font-size:14px; color:#64748b; margin:0; }
+.c-header-sport{padding:24px;display:flex;align-items:center;gap:15px;position:relative;overflow:hidden;}
+.c-header-sport::before{content:'';position:absolute;inset:0;opacity:0.1;z-index:0;}
 
-/* ─── Drawer ─────────────────────────────────────────────── */
-.drawer-overlay { position:fixed; inset:0; z-index:1050; background:rgba(0,0,0,.45); backdrop-filter:blur(3px); display:flex; justify-content:flex-end; }
-.drawer { width:480px; max-width:100vw; background:white; display:flex; flex-direction:column; height:100%; box-shadow:-8px 0 40px rgba(0,0,0,.12); }
-.drawer-header { padding:22px 24px 18px; background:linear-gradient(135deg,#0f172a,#1e293b); display:flex; justify-content:space-between; align-items:flex-start; flex-shrink:0; }
-.drawer-title-row { display:flex; align-items:center; gap:14px; }
-.drawer-icon { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; }
-.drawer-icon.add-icon  { background:rgba(22,163,74,.25); }
-.drawer-icon.edit-icon { background:rgba(59,130,246,.25); }
-.drawer-icon .material-icons { color:white; font-size:22px; }
-.drawer-title { font-size:18px; font-weight:800; color:white; margin:0 0 2px; }
-.drawer-sub  { font-family:'DM Sans',sans-serif; font-size:13px; color:#94a3b8; margin:0; }
-.drawer-close { background:rgba(255,255,255,.12); border:none; border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:white; transition:background .2s; }
-.drawer-close:hover { background:rgba(255,255,255,.22); }
-.drawer-body   { flex:1; overflow-y:auto; padding:22px 24px; }
-.drawer-footer { padding:14px 24px; border-top:1px solid #f1f5f9; display:flex; gap:12px; flex-shrink:0; }
+.FOOTBALL{background:#ecfdf5;color:#065f46;}
+.FOOTBALL::before{background:radial-gradient(circle at 20% 20%, #10b981 0%, transparent 50%);}
+.BADMINTON{background:#f5f3ff;color:#5b21b6;}
+.BADMINTON::before{background:radial-gradient(circle at 20% 20%, #8b5cf6 0%, transparent 50%);}
+.TENNIS{background:#fefce8;color:#854d0e;}
+.TENNIS::before{background:radial-gradient(circle at 20% 20%, #eab308 0%, transparent 50%);}
+.PICKLEBALL{background:#fff7ed;color:#9a3412;}
+.PICKLEBALL::before{background:radial-gradient(circle at 20% 20%, #f97316 0%, transparent 50%);}
+.BASKETBALL{background:#fff7ed;color:#c2410c;}
+.BASKETBALL::before{background:radial-gradient(circle at 20% 20%, #f97316 0%, transparent 50%);}
+.VOLLEYBALL{background:#f0f9ff;color:#075985;}
+.VOLLEYBALL::before{background:radial-gradient(circle at 20% 20%, #0ea5e9 0%, transparent 50%);}
 
-/* ─── Form ───────────────────────────────────────────────── */
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-.field { display:flex; flex-direction:column; gap:6px; }
-.field.full { grid-column:1/-1; }
-.field label { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; color:#374151; }
-.field input, .field select, .field textarea {
-  padding:10px 13px; border:1px solid #e2e8f0; border-radius:9px;
-  font-family:'DM Sans',sans-serif; font-size:14px; background:#f8fafc; transition:border-color .2s, background .2s;
-}
-.field input:focus, .field select:focus, .field textarea:focus { outline:none; border-color:#16a34a; background:white; box-shadow:0 0 0 3px rgba(22,163,74,.08); }
-.field input.invalid, .field select.invalid { border-color:#ef4444; }
-.field textarea { resize:vertical; }
-.req { color:#ef4444; }
-.field-error { font-family:'DM Sans',sans-serif; font-size:12px; color:#ef4444; }
-.form-alert { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:10px; margin-bottom:16px; font-family:'DM Sans',sans-serif; font-size:13px; }
-.form-alert.error   { background:#fef2f2; color:#dc2626; border:1px solid #fecaca; }
-.form-alert.success { background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
-.form-alert ul { margin:0; padding-left:16px; }
-.form-alert .material-icons { font-size:18px; flex-shrink:0; margin-top:1px; }
+.s-emoji{font-size:32px;z-index:1;}
+.s-info{z-index:1;flex:1;}
+.s-label{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:1px;opacity:0.8;}
+.s-status{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:rgba(255,255,255,0.6);border-radius:100px;font-size:11px;font-weight:700;margin-top:4px;}
+.s-status .dot{width:6px;height:6px;border-radius:50%;background:#94a3b8;}
+.s-status.ACTIVE{color:#059669;}
+.s-status.ACTIVE .dot{background:#10b981;box-shadow:0 0 8px #10b981;}
 
-/* ─── Buttons ────────────────────────────────────────────── */
-.btn-cancel { flex:1; padding:12px; border-radius:10px; border:1px solid #e2e8f0; background:white; font-weight:600; font-size:14px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .2s; }
-.btn-cancel:hover { background:#f8fafc; }
-.btn-save { flex:2; padding:12px; border-radius:10px; border:none; background:linear-gradient(135deg,#16a34a,#15803d); color:white; font-weight:700; font-size:14px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .25s; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 12px rgba(22,163,74,.3); }
-.btn-save:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 18px rgba(22,163,74,.4); }
-.btn-save:disabled { opacity:.65; cursor:not-allowed; }
+.cbody{padding:24px;flex:1;display:flex;flex-direction:column;}
+.c-title{font-size:20px;font-weight:800;margin:0 0 16px;color:#0f172a;}
+.c-meta-row{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.cm-item{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:#64748b;}
+.cm-item .material-icons{font-size:18px;color:#94a3b8;}
+.c-desc{font-size:13px;color:#94a3b8;line-height:1.6;margin:0 0 24px;display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 
-/* ─── Delete Modal ───────────────────────────────────────── */
-.modal-overlay { position:fixed; inset:0; z-index:1060; background:rgba(0,0,0,.5); backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; }
-.delete-modal { background:white; border-radius:20px; padding:32px 28px; width:400px; max-width:90vw; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.2); animation:popIn .25s ease; }
-@keyframes popIn { from{opacity:0;transform:scale(.92)} to{opacity:1;transform:scale(1)} }
-.del-icon { width:60px; height:60px; border-radius:50%; background:#fef2f2; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
-.del-icon .material-icons { font-size:30px; color:#ef4444; }
-.delete-modal h3 { font-size:18px; font-weight:700; margin:0 0 8px; }
-.delete-modal p  { font-family:'DM Sans',sans-serif; font-size:14px; color:#6b7280; margin:0 0 24px; line-height:1.6; }
-.modal-actions { display:flex; gap:12px; }
-.btn-delete { flex:1; padding:12px; border-radius:10px; border:none; background:linear-gradient(135deg,#ef4444,#dc2626); color:white; font-weight:700; font-size:14px; cursor:pointer; font-family:'DM Sans',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; transition:all .2s; box-shadow:0 4px 12px rgba(239,68,68,.3); }
-.btn-delete:hover:not(:disabled) { transform:translateY(-1px); }
-.btn-delete:disabled { opacity:.65; cursor:not-allowed; }
+.actions{display:flex;gap:10px;margin-top:auto;}
+.abtn{flex:1;height:46px;border-radius:14px;border:none;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:14px;cursor:pointer;transition:all .2s;}
+.abtn.edit{background:#f1f5f9;color:#1e293b;}
+.abtn.edit:hover{background:#e2e8f0;}
+.abtn.del{flex:0 0 46px;background:#fef2f2;color:#ef4444;}
+.abtn.del:hover{background:#fee2e2;}
 
-/* ─── Spinner ────────────────────────────────────────────── */
-.spinner { width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,.4); border-top-color:white; animation:spin .7s linear infinite; }
-@keyframes spin { to{transform:rotate(360deg)} }
+.c-cover{height:180px;overflow:hidden;border-bottom:1px solid #f1f5f9;background:#f8fafc;}
+.c-cover img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s;}
+.premium-card:hover .c-cover img{transform:scale(1.05);}
 
-/* ─── Transitions ────────────────────────────────────────── */
-.drawer-enter-active, .drawer-leave-active { transition:opacity .3s; }
-.drawer-enter-active .drawer, .drawer-leave-active .drawer { transition:transform .3s cubic-bezier(.4,0,.2,1); }
-.drawer-enter-from, .drawer-leave-to { opacity:0; }
-.drawer-enter-from .drawer, .drawer-leave-to .drawer { transform:translateX(100%); }
-.fade-enter-active, .fade-leave-active { transition:opacity .2s; }
-.fade-enter-from, .fade-leave-to { opacity:0; }
+/* Drawer */
+.drawer-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.4);backdrop-filter:blur(10px);z-index:9000;display:flex;justify-content:flex-end;}
+.drawer{width:500px;height:100vh;background:#fff;box-shadow:-20px 0 50px rgba(0,0,0,0.1);display:flex;flex-direction:column;animation:slideIn .4s cubic-bezier(0.16, 1, 0.3, 1);}
+@keyframes slideIn{from{transform:translateX(100%)} to{transform:translateX(0)}}
 
-/* ─── Responsive ─────────────────────────────────────────── */
-@media (max-width:640px) {
-  .view-header { flex-direction:column; align-items:flex-start; gap:14px; }
-  .control-bar { flex-direction:column; }
-  .courts-grid { grid-template-columns:1fr; }
-  .drawer { width:100vw; }
+.drawer-header{padding:30px;background:linear-gradient(135deg, #1e293b, #0f172a);color:#fff;display:flex;justify-content:space-between;align-items:center;}
+.drawer-title{font-size:22px;font-weight:800;margin:0;}
+.drawer-sub{font-size:14px;opacity:0.7;margin:4px 0 0;}
+.drawer-close{background:rgba(255,255,255,0.1);border:none;width:36px;height:36px;border-radius:10px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+.drawer-body{flex:1;overflow-y:auto;padding:30px;}
+.drawer-footer{padding:24px 30px;border-top:1px solid #f1f5f9;display:flex;gap:12px;background:#fff;}
+
+/* Upload Section */
+.f-upload-sec{margin-bottom:30px;}
+.flabel{font-size:12px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
+.upload-mode-tabs{display:flex;background:#f1f5f9;padding:4px;border-radius:14px;margin-bottom:16px;gap:4px;}
+.upload-mode-tabs button{flex:1;height:40px;border:none;border-radius:10px;background:transparent;color:#64748b;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .2s;}
+.upload-mode-tabs button.active{background:#fff;color:#0f172a;box-shadow:0 2px 4px rgba(0,0,0,0.05);}
+
+.uz{height:180px;border:2px dashed #e2e8f0;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;background:#fbfcfd;}
+.uz:hover{border-color:#10b981;background:#f0fdf4;}
+.uz .ui-big{font-size:48px;color:#94a3b8;margin-bottom:8px;}
+.uz .ul{font-size:14px;color:#475569;margin:0;}
+
+.prev-img{width:100%;height:100%;object-fit:cover;}
+.prev-ov{position:absolute;inset:0;background:rgba(0,0,0,0.4);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;opacity:0;transition:all .2s;gap:8px;}
+.uz:hover .prev-ov{opacity:1;}
+
+.prog-wrap{width:70%;height:6px;background:#e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:10px;}
+.prog-bar{height:100%;background:#10b981;transition:width .2s;}
+
+.url-input-wrap{display:flex;align-items:center;gap:12px;background:#f8fafc;border:2px solid #f1f5f9;border-radius:16px;padding:0 16px;margin-bottom:12px;}
+.url-input-wrap input{flex:1;height:50px;border:none;background:transparent;outline:none;font-family:inherit;font-size:14px;}
+.url-preview{width:100%;height:140px;object-fit:cover;border-radius:16px;border:1px solid #f1f5f9;}
+
+/* Image Multi-Upload Gallery */
+.img-grid-edit{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:12px;margin-bottom:16px;}
+.img-th{width:80px;height:80px;border-radius:12px;overflow:hidden;position:relative;border:1px solid #e2e8f0;}
+.img-th img{width:100%;height:100%;object-fit:cover;}
+.th-del{position:absolute;top:2px;right:2px;width:20px;height:20px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;}
+.th-del .material-icons{font-size:14px;}
+.th-del:hover{background:#ef4444;}
+
+.uz-small{width:80px;height:80px;border:2px dashed #cbd5e1;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#64748b;cursor:pointer;transition:all .2s;gap:4px;background:#f8fafc;}
+.uz-small:hover{border-color:#10b981;color:#10b981;background:#f0fdf4;}
+.uz-small.over{border-color:#10b981;background:#ecfdf5;}
+.uz-small .material-icons{font-size:20px;}
+.uz-txt{font-size:10px;font-weight:700;}
+
+.uz-spin{width:20px;height:20px;border:2px solid #e2e8f0;border-top-color:#10b981;border-radius:50%;animation:spinner .8s linear infinite;}
+@keyframes spinner{to{transform:rotate(360deg)}}
+
+.url-input-mini{display:flex;gap:8px;}
+.url-input-mini input{flex:1;height:44px;border:2px solid #f1f5f9;border-radius:12px;padding:0 12px;font-size:13px;background: #fbfcfd;}
+.url-input-mini input:focus{border-color:#10b981;outline:none;background:#fff;}
+.url-input-mini button{width:44px;height:44px;border-radius:12px;border:none;background:#10b981;color:#fff;cursor:pointer;}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.field{display:flex;flex-direction:column;gap:8px;}
+.field.full{grid-column:1/-1;}
+.field label{font-size:14px;font-weight:700;color:#475569;}
+.field input, .field select, .field textarea{width:100%;padding:14px;border:2px solid #f1f5f9;border-radius:16px;font-family:inherit;font-size:14px;transition:all .2s;background:#fbfcfd;}
+.field input:focus, .field select:focus, .field textarea:focus{border-color:#10b981;background:#fff;outline:none;box-shadow:0 0 0 4px rgba(16,185,129,0.1);}
+.req{color:#ef4444;}
+.err-msg{color:#ef4444;font-size:12px;font-weight:600;margin-top:5px;}
+
+/* State */
+.empty-glass{text-align:center;padding:100px 40px;background:white;border-radius:32px;border:2px dashed #e2e8f0;margin-top:20px;}
+.empty-icon{font-size:64px;color:#cbd5e1;margin-bottom:20px;}
+.empty-glass h3{font-size:20px;font-weight:800;color:#0f172a;margin:0 0 10px;}
+.empty-glass p{color:#94a3b8;font-size:15px;margin:0 0 30px;}
+
+/* Utils */
+.spin{width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:loading-spin 0.8s linear infinite;}
+@keyframes loading-spin{to{transform:rotate(360deg)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(30px)} to{opacity:1;transform:translateY(0)}}
+
+/* Pricing Rules */
+.pricing-rules{display:flex;flex-direction:column;gap:16px;}
+.price-rule-card{background:#f8fafc;border-radius:20px;border:1px solid #f1f5f9;padding:20px;transition:all .2s;}
+.price-rule-card:hover{border-color:#10b981;box-shadow:0 4px 12px rgba(16,185,129,0.05);}
+.pr-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.pr-name{font-size:12px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;}
+.pr-del{width:32px;height:32px;border-radius:8px;border:none;background:#fef2f2;color:#ef4444;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.pr-del:hover{background:#ef4444;color:#fff;}
+.pr-del .material-icons{font-size:18px;}
+
+.pr-body{display:flex;flex-direction:column;gap:16px;}
+.pr-row{display:flex;gap:16px;}
+.pr-field{flex:1;display:flex;flex-direction:column;gap:6px;}
+.pr-field label{font-size:12px;font-weight:700;color:#64748b;}
+.pr-field input, .pr-field select{height:42px;padding:0 12px;border:1px solid #e2e8f0;border-radius:12px;font-family:inherit;font-size:14px;background:#fff;}
+
+.price-input{position:relative;}
+.price-input input{width:100%;padding-right:32px;}
+.price-input span{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-weight:700;color:#94a3b8;font-size:13px;}
+
+.btn-add-price{height:50px;border:2px dashed #cbd5e1;border-radius:16px;background:transparent;color:#64748b;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all .2s;margin-top:8px;}
+.btn-add-price:hover{border-color:#10b981;color:#10b981;background:#f0fdf4;}
+.btn-add-price .material-icons{font-size:20px;}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,0.5);backdrop-filter:blur(5px);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.delete-modal{background:#fff;border-radius:32px;padding:40px;width:420px;text-align:center;box-shadow:0 30px 60px rgba(0,0,0,0.2);animation:popIn .4s cubic-bezier(0.16, 1, 0.3, 1);}
+.del-icon{width:64px;height:64px;background:#fef2f2;color:#ef4444;border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+.del-icon .material-icons{font-size:32px;}
+.modal-actions{display:flex;gap:12px;margin-top:30px;}
+.btn-cancel{height:54px;padding:0 24px;border:2px solid #f1f5f9;background:#fff;border-radius:20px;font-weight:700;color:#64748b;cursor:pointer;transition:all .2s;}
+.btn-save{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;height:54px;padding:0 28px;border-radius:20px;font-weight:700;cursor:pointer;transition:all .3s;}
+.btn-delete{flex:1;height:54px;border-radius:20px;border:none;background:#ef4444;color:#fff;font-weight:700;cursor:pointer;}
+
+@media(max-width:768px){
+  .grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+  .drawer{width:100vw;}
+  .f-item{flex:none;width:100%;}
 }
 </style>

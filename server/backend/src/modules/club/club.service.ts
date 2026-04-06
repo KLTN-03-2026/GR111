@@ -20,6 +20,20 @@ export interface SearchClubFilters {
   startTime?: string;
 }
 
+export interface ClubInput {
+  name: string;
+  city: string;
+  district: string;
+  address: string;
+  phone?: string;
+  email?: string;
+  description?: string;
+  coverImageUrl?: string;
+  images?: string[];
+}
+
+export type ClubUpdateInput = Partial<ClubInput>;
+
 
 /**
  * Lấy danh sách các câu lạc bộ (sân) gần vị trí tọa độ người dùng trong bán kính cho trước
@@ -260,7 +274,8 @@ export async function getClubsByOwner(ownerId: string) {
     where: { ownerId, deletedAt: null },
     include: {
       courts: { select: { id: true, name: true, clubId: true, sportType: true } },
-      openingHours: true
+      openingHours: true,
+      images: true
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -269,7 +284,8 @@ export async function getClubsByOwner(ownerId: string) {
 /**
  * Tạo mới một câu lạc bộ
  */
-export async function createClub(ownerId: string, data: Omit<Prisma.ClubUncheckedCreateInput, 'ownerId' | 'slug'>) {
+export async function createClub(ownerId: string, input: ClubInput) {
+  const { images, ...data } = input;
   const slug = (data.name || "club")
     .toLowerCase()
     .normalize("NFD")
@@ -283,6 +299,9 @@ export async function createClub(ownerId: string, data: Omit<Prisma.ClubUnchecke
       ...data,
       ownerId,
       slug,
+      images: images ? {
+        create: images.map((url: string) => ({ url }))
+      } : undefined
     }
   });
 }
@@ -291,7 +310,8 @@ export async function createClub(ownerId: string, data: Omit<Prisma.ClubUnchecke
 /**
  * Cập nhật thông tin câu lạc bộ
  */
-export async function updateClub(clubId: string, ownerId: string, data: Prisma.ClubUpdateInput) {
+export async function updateClub(clubId: string, ownerId: string, input: ClubUpdateInput) {
+  const { images, ...data } = input;
   const club = await prisma.club.findFirst({
     where: { id: clubId, ownerId, deletedAt: null },
   });
@@ -302,7 +322,14 @@ export async function updateClub(clubId: string, ownerId: string, data: Prisma.C
 
   return prisma.club.update({
     where: { id: clubId },
-    data,
+    data: {
+      ...data,
+      images: images ? {
+        deleteMany: {},
+        create: images.map((url: string) => ({ url }))
+      } : undefined
+    },
+    include: { images: true }
   });
 }
 
@@ -362,5 +389,43 @@ export async function updateClubAmenities(clubId: string, ownerId: string, ameni
       where: { clubId },
       include: { amenity: true }
     });
+  });
+}
+
+/**
+ * Cập nhật giờ mở cửa của CLB (Theo ngày trong tuần 0-6)
+ */
+export async function updateClubOpeningHours(clubId: string, ownerId: string, hours: { dayOfWeek: number, openTime: string, closeTime: string, isClosed: boolean }[]) {
+  // 1. Verify ownership
+  const club = await prisma.club.findFirst({
+    where: { id: clubId, ownerId, deletedAt: null },
+  });
+  if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
+
+  // 2. Transaction to replace hours
+  return prisma.$transaction(async (tx) => {
+    await tx.openingHour.deleteMany({ where: { clubId } });
+
+    if (hours.length > 0) {
+      // Helper function to create Date from "HH:mm" time string for Prisma @db.Time(6)
+      const toTime = (t: string) => {
+        const [h, m] = t.split(':').map(Number);
+        const d = new Date();
+        d.setUTCHours(h, m, 0, 0);
+        return d;
+      };
+
+      await tx.openingHour.createMany({
+        data: hours.map(h => ({
+          clubId,
+          dayOfWeek: h.dayOfWeek,
+          openTime: toTime(h.openTime),
+          closeTime: toTime(h.closeTime),
+          isClosed: h.isClosed
+        }))
+      });
+    }
+
+    return tx.openingHour.findMany({ where: { clubId }, orderBy: { dayOfWeek: 'asc' } });
   });
 }

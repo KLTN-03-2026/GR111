@@ -7,21 +7,20 @@ import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
  * [GET] /api/owner/clubs/[clubId]/amenities
  * Lấy danh sách tiện ích hiện tại của CLB và tất cả tiện ích hệ thống
  */
-export async function GET(req: NextRequest, { params }: { params: { clubId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ clubId: string }> }) {
   try {
+    const { clubId } = await params;
     const { user, error } = await getAuthUser(req);
     if (error) return error;
-    
+
     const roleError = requireRole(user, ["OWNER", "ADMIN"]);
     if (roleError) return roleError;
 
-    const { clubId } = params;
     const club = await getClubById(clubId, user.userId);
     if (!club) return errorResponse("Không tìm thấy CLB hoặc bạn không có quyền", 404);
 
     const allAmenities = await getAllAmenities();
     
-    // Merge: Đánh dấu cái nào CLB đang có + kèm giá
     const currentMap = new Map();
     club.amenities.forEach(ca => {
       currentMap.set(ca.amenityId, Number(ca.price));
@@ -45,17 +44,17 @@ export async function GET(req: NextRequest, { params }: { params: { clubId: stri
  * [POST] /api/owner/clubs/[clubId]/amenities
  * Cập nhật danh sách tiện ích và giá tiền
  */
-export async function POST(req: NextRequest, { params }: { params: { clubId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ clubId: string }> }) {
   try {
+    const { clubId } = await params;
     const { user, error } = await getAuthUser(req);
     if (error) return error;
-    
+
     const roleError = requireRole(user, ["OWNER", "ADMIN"]);
     if (roleError) return roleError;
 
-    const { clubId } = params;
     const body = await req.json();
-    const { amenities } = body; // [{ amenityId: string, price: number }]
+    const { amenities } = body; 
 
     if (!Array.isArray(amenities)) {
       return errorResponse("Dữ liệu không hợp lệ (Expect array 'amenities')", 400);

@@ -6,7 +6,7 @@
           <circle cx="12" cy="12" r="10" stroke="#16a34a" stroke-width="2.5"/>
           <path d="M8 12l3 3 5-5" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <span class="logo-text">Playfinder</span>
+        <span class="logo-text">Dashboard</span>
       </div>
     </div>
 
