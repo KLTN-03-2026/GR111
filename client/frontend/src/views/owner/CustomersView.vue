@@ -1,5 +1,6 @@
 <template>
-  <div class="premium-customers-layout p-fade-in">
+  <div class="premium-customers-root">
+    <div class="premium-customers-layout p-fade-in">
     <!-- Header with Dynamic Gradient -->
     <header class="pc-header">
       <div class="pc-title-wrapper">
@@ -693,6 +694,7 @@
       </div>
     </transition>
   </Teleport>
+  </div>
 </template>
 
 <script>
@@ -701,6 +703,12 @@ import { customerService } from "@/services/customer.service";
 
 export default {
   name: "PremiumCustomersView",
+  props: {
+    isLocked: {
+      type: Boolean,
+      default: false
+    }
+  },
   data() {
     return {
       searchQuery: "",

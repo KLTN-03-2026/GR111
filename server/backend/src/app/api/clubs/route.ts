@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       lat: searchParams.get("lat") ? parseFloat(searchParams.get("lat")!) : undefined,
       lng: searchParams.get("lng") ? parseFloat(searchParams.get("lng")!) : undefined,
       radiusKm: searchParams.get("radius") ? parseFloat(searchParams.get("radius")!) : undefined,
-      limit: parseInt(searchParams.get("limit") || "50"),
+      limit: parseInt(searchParams.get("limit") || "100"),
     };
 
     const clubs = await searchClubs(filters);
