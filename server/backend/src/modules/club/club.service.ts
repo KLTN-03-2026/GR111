@@ -85,8 +85,8 @@ export async function searchClubs(filters: SearchClubFilters) {
     startTime,
     lat, 
     lng, 
-    radiusKm = 20, 
-    limit = 50 
+    radiusKm = 50, 
+    limit = 100 
   } = filters;
 
   const where: Prisma.ClubWhereInput = {
