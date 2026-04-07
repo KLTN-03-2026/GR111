@@ -56,45 +56,70 @@ export async function GET(
             label: true,
           },
         },
+        specialPricings: {
+          where: { 
+            specificDate: targetDate, // So khớp đúng ngày
+            isActive: true 
+          },
+          select: {
+            startTime: true,
+            endTime: true,
+            pricePerHour: true,
+            note: true,
+          }
+        }
       },
       orderBy: { sortOrder: "asc" },
     });
 
     // 3. Map dữ liệu & Tính toán slots theo cơ chế Hybrid cho từng sân
     const result = await Promise.all(courts.map(async (court) => {
-      // Gọi service tính toán slot ảo + thực tế
       const calculatedSlots = await getInferredSlotsForCourt(court.id, targetDate);
 
       const slots = calculatedSlots.map((slot) => {
-        const slotHour = new Date(slot.startTime).getHours();
-        const slotDow = new Date(slot.startTime).getDay();
+        const slotDate = new Date(slot.startTime);
+        const slotHour = slotDate.getUTCHours();
+        const slotDow = slotDate.getUTCDay();
 
-        // Tìm pricing phù hợp để tính giá
-        const pricing = court.pricings.find((p) => {
-          const pStart = new Date(p.startTime).getHours();
-          const pEnd = new Date(p.endTime).getHours();
-          const pDow = p.dayOfWeek;
-
-          let isTimeMatch = false;
-          if (pStart === pEnd) {
-            isTimeMatch = true; // Cả ngày (24h)
-          } else if (pStart < pEnd) {
-            isTimeMatch = slotHour >= pStart && slotHour < pEnd; // Giờ bình thường (e.g 06-18)
-          } else {
-            isTimeMatch = slotHour >= pStart || slotHour < pEnd; // Xuyên đêm (e.g 18-06)
-          }
-
-          return isTimeMatch && (pDow === null || pDow === slotDow);
+        // ── CHIẾN LƯỢC TÍNH GIÁ ──
+        // 1. ƯU TIÊN: Kiểm tra giá Ngày đặc biệt (Holidays) trước
+        const specialMatch = court.specialPricings.find((sp) => {
+          const spStart = new Date(sp.startTime).getUTCHours();
+          const spEnd = new Date(sp.endTime).getUTCHours();
+          
+          if (spStart === spEnd) return true; // Cả ngày
+          if (spStart < spEnd) return slotHour >= spStart && slotHour < spEnd;
+          return slotHour >= spStart || slotHour < spEnd; // Xuyên đêm
         });
 
-        const pricePerHour = pricing ? Number(pricing.pricePerHour) : 0;
+        // 2. PHỤ: Nếu không có giá đặc biệt, dùng giá Định kỳ (Regular)
+        const regularMatch = !specialMatch
+          ? court.pricings.find((p) => {
+              const pStart = new Date(p.startTime).getUTCHours();
+              const pEnd = new Date(p.endTime).getUTCHours();
+              const pDow = p.dayOfWeek;
+
+              let isTimeMatch = false;
+              if (pStart === pEnd) isTimeMatch = true;
+              else if (pStart < pEnd)
+                isTimeMatch = slotHour >= pStart && slotHour < pEnd;
+              else isTimeMatch = slotHour >= pStart || slotHour < pEnd;
+
+              return isTimeMatch && (pDow === null || pDow === slotDow);
+            })
+          : undefined;
+
+        const matchedPricing = specialMatch || regularMatch;
+
+        const pricePerHour = matchedPricing ? Number(matchedPricing.pricePerHour) : 0;
         const price = (pricePerHour * club.slotDuration) / 60;
 
         // Format thời gian thành "HH:mm – HH:mm"
-        const startH = new Date(slot.startTime).getHours().toString().padStart(2, "0");
-        const startM = new Date(slot.startTime).getMinutes().toString().padStart(2, "0");
-        const endH = new Date(slot.endTime).getHours().toString().padStart(2, "0");
-        const endM = new Date(slot.endTime).getMinutes().toString().padStart(2, "0");
+        const startH = slotDate.getUTCHours().toString().padStart(2, "0");
+        const startM = slotDate.getUTCMinutes().toString().padStart(2, "0");
+        const endDate = new Date(slot.endTime);
+        const endH = endDate.getUTCHours().toString().padStart(2, "0");
+        const endM = endDate.getUTCMinutes().toString().padStart(2, "0");
         const time = `${startH}:${startM} – ${endH}:${endM}`;
 
         return {
