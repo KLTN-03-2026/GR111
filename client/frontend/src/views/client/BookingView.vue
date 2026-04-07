@@ -40,7 +40,8 @@
           <div>
             <h1 class="page-title">
               <span class="sport-highlight">{{ sportLabel }}</span>
-              <span class="location-part">gần {{ locationLabel }}</span>
+              <span v-if="filters.city" class="location-part">gần {{ locationLabel }}</span>
+              <span v-else class="location-part">tại Việt Nam</span>
             </h1>
             <p class="results-meta" role="status" aria-live="polite">
               <span v-if="loading">Đang tìm kiếm…</span>
@@ -294,14 +295,14 @@ export default {
       highlightedVenueId: null,
 
       filters: {
-        sport:    this.$route?.query.sport    || "badminton",
+        sport:    this.$route?.query.sport    || "",
         city:     this.$route?.query.city     || "",
         booking:  this.$route?.query.booking  ? [].concat(this.$route.query.booking) : [],
         byDate:   this.$route?.query.byDate   === "true" || !!this.$route?.query.date,
         date:     this.$route?.query.date     || new Date().toISOString().split("T")[0],
         format:   this.$route?.query.format   ? [].concat(this.$route.query.format)  : [],
         surface:  this.$route?.query.surface  ? [].concat(this.$route.query.surface) : [],
-        radius:   this.$route?.query.radius   || "5",
+        radius:   this.$route?.query.radius   || "100", // Default to 100km (All)
         facility: this.$route?.query.facility ? [].concat(this.$route.query.facility): [],
       },
 
@@ -331,11 +332,11 @@ export default {
         { value: "sports_hall",label: "Nhà thi đấu" },
       ],
       radiusOptions: [
-        { value: "1",  label: "Trong 1 km" },
-        { value: "3",  label: "Trong 3 km" },
-        { value: "5",  label: "Trong 5 km" },
-        { value: "10", label: "Trong 10 km" },
-        { value: "50", label: "Trong 50 km" },
+        { value: "1",   label: "Trong 1 km" },
+        { value: "5",   label: "Trong 5 km" },
+        { value: "20",  label: "Trong 20 km" },
+        { value: "50",  label: "Trong 50 km" },
+        { value: "100", label: "Tất cả địa điểm" },
       ],
       facilityOptions: [
         { value: "WiFi",          label: "Wifi miễn phí" },
@@ -349,10 +350,10 @@ export default {
 
   computed: {
     sportLabel() {
-      return SPORT_LABELS[this.filters.sport] || "Sân thể thao";
+      return SPORT_LABELS[this.filters.sport] || "Tất cả địa điểm thể thao";
     },
     locationLabel() {
-      return this.filters.city || "Đà Nẵng";
+      return this.filters.city || (this.userCoords ? "Vị trí của bạn" : "Toàn quốc");
     },
     onlineBookingCount() {
       return this.venues.filter(v => v.hasOnlineBooking).length;
@@ -364,7 +365,7 @@ export default {
       if (this.filters.surface.length)  count += this.filters.surface.length;
       if (this.filters.facility.length) count += this.filters.facility.length;
       if (this.filters.byDate)          count += 1;
-      if (this.filters.radius !== "5")  count += 1;
+      if (this.filters.radius !== "100") count += 1;
       return count;
     },
     sortedVenues() {
@@ -415,7 +416,7 @@ export default {
         }
         if (val.format.length)    query.format   = val.format;
         if (val.surface.length)   query.surface  = val.surface;
-        if (val.radius !== "5")   query.radius   = val.radius;
+        if (val.radius !== "100") query.radius   = val.radius;
         if (val.facility.length)  query.facility = val.facility;
         this.$router?.replace({ query }).catch(() => {});
         this.currentPage = 1;
@@ -442,8 +443,8 @@ export default {
           format:   this.filters.format,
           surface:  this.filters.surface,
           facility: this.filters.facility,
-          lat:      this.userCoords?.lat,
-          lng:      this.userCoords?.lng,
+          lat:      this.filters.radius !== "100" ? this.userCoords?.lat : undefined,
+          lng:      this.filters.radius !== "100" ? this.userCoords?.lng : undefined,
         };
         const res = await clubService.searchVenues(params);
         this.venues     = this.mapVenues(res.data.data);
@@ -517,7 +518,7 @@ export default {
         byDate:   false,
         format:   [],
         surface:  [],
-        radius:   "5",
+        radius:   "100",
         facility: [],
       };
     },
