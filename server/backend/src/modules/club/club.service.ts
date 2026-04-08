@@ -187,6 +187,7 @@ export async function searchClubs(filters: SearchClubFilters) {
           amenity: true
         }
       },
+      openingHours: true,
       _count: {
         select: { bookings: true }
       }
@@ -217,14 +218,40 @@ export async function searchClubs(filters: SearchClubFilters) {
       distance = R * c;
     }
 
+    const sportTypes = [...new Set(club.courts.map(c => c.sportType))];
+    const firstCourt = club.courts[0];
+    const surface = firstCourt?.surface;
+    const format = firstCourt?.indoorOutdoor === 'INDOOR' ? 'Trong nhà' : (firstCourt?.indoorOutdoor === 'OUTDOOR' ? 'Ngoài trời' : firstCourt?.indoorOutdoor);
+
+    // Extract hours from club openingHours (if searched or pre-populated)
+    // For searchClubs, we should include openingHours in the prisma query
+    let openTime = "08:00";
+    let closeTime = "22:00";
+    if (club.openingHours && club.openingHours.length > 0) {
+      const h = club.openingHours[0];
+      const formatTime = (t: Date) => {
+        const date = new Date(t);
+        return `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
+      }
+      openTime = formatTime(h.openTime);
+      closeTime = formatTime(h.closeTime);
+    }
+
     return {
       ...club,
       minPrice: currentMinPrice,
       distance: distance ? parseFloat(distance.toFixed(2)) : null,
       rating: 4.5 + (Math.random() * 0.5), // Mockup rating
-      reviewCount: club._count.bookings + 5,
+      reviewCount: (club._count?.bookings || 0) + 5,
       isPartner: true,
       hasOnlineBooking: club.courts.length > 0,
+      sportTypes: sportTypes,
+      sportType: sportTypes[0], // Keep for backward compatibility
+      surface: surface,
+      format: format,
+      courtCount: club.courts.length,
+      openTime: openTime,
+      closeTime: closeTime,
       amenities: club.amenities.map((a) => ({
         id: a.amenity.id,
         name: a.amenity.name,

@@ -1,45 +1,78 @@
 <template>
   <div class="community-page">
-    <!-- HERO SECTION -->
-    <div class="community-hero">
-      <div class="container text-center py-5">
-        <h1 class="hero-title">Cộng đồng Ghép kèo</h1>
-        <p class="hero-subtitle">Tìm đối thủ xứng tầm, kết nối đam mê thể thao tại khu vực của bạn.</p>
-        
-        <div class="search-box-premium mx-auto mt-4">
-          <div class="search-input-group">
-            <span class="material-icons search-icon">location_on</span>
-            <input 
-              v-model="filters.keyword" 
-              type="text" 
-              placeholder="Tìm theo khu vực hoặc tên sân..." 
-            />
-          </div>
-          <button class="btn-create-match d-none d-md-flex" @click="showCreateModal = true">
-            <span class="material-icons">add_circle</span>
-            Đăng kèo mới
-          </button>
-        </div>
-      </div>
+     <LoadingView v-if="loading" />
+        <!-- ══ ANNOUNCEMENT BAR ══ -->
+    <div v-if="showAnnouncement" class="announcement-bar" role="banner" aria-label="Thông báo mới">
+      <p>
+        🎉 Tính năng mới: Đặt lịch lặp lại & quản lý booking thông minh!
+        <router-link to="/features" class="ann-link">Tìm hiểu thêm →</router-link>
+      </p>
+      <button class="ann-close" @click="showAnnouncement = false" aria-label="Đóng thông báo">×</button>
     </div>
 
-    <div class="container mt-n5 position-relative">
-      <div class="row g-4">
-        <!-- SIDEBAR FILTERS -->
-        <div class="col-lg-3">
-          <div class="glass-card p-4 sticky-sidebar">
-            <h5 class="fw-black mb-4 d-flex align-items-center">
-              <span class="material-icons me-2 text-success">tune</span>
-              Bộ lọc nâng cao
-            </h5>
-            
-            <div class="filter-group mb-4">
-              <label class="filter-label">Trình độ kỹ năng</label>
-              <div class="skill-tags">
+    <!-- ══ HEADER ══ -->
+    <header class="page-shell pt-24">
+      <div class="page-header">
+        <nav class="breadcrumb" aria-label="Điều hướng">
+          <ol>
+            <li><router-link to="/">Trang chủ</router-link></li>
+            <li class="sep">›</li>
+            <li>Cộng đồng</li>
+          </ol>
+        </nav>
+
+        <div class="header-row">
+          <div>
+            <h1 class="page-title">
+              <span class="title-main">CỘNG ĐỒNG</span>
+              <span class="title-sub">Giao lưu & Kết nối đam mê</span>
+            </h1>
+            <p class="results-meta">
+              {{ stats.activeMatch }} kèo đang mở • {{ stats.totalPlayers }} thành viên
+            </p>
+          </div>
+
+          <div class="header-actions">
+            <button class="btn-create" @click="showCreateModal = true">
+              <span class="material-icons">add_circle</span>
+              ĐĂNG BÀI MỚI
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <!-- ══ TABS ══ -->
+      <div class="community-tabs">
+        <button 
+          v-for="tab in tabOptions" 
+          :key="tab.value"
+          class="tab-btn"
+          :class="{ active: activeTab === tab.value }"
+          @click="activeTab = tab.value"
+        >
+          {{ tab.label }}
+        </button>
+      </div>
+
+      <div class="content-layout mt-6">
+        <!-- ─ SIDEBAR (LEFT) ─ -->
+        <aside class="sidebar-wrap">
+          <div class="glass-sidebar">
+            <div class="search-box">
+              <span class="material-icons">search</span>
+              <input v-model="filters.keyword" type="text" placeholder="Tìm tên sân, khu vực..." />
+            </div>
+
+            <div class="filter-group">
+              <h3 class="filter-title">Trình độ</h3>
+              <div class="chip-grid">
                 <button 
                   v-for="lv in levels" 
                   :key="lv.val" 
-                  :class="['skill-tag', { active: filters.level === lv.val }]"
+                  class="filter-chip"
+                  :class="{ active: filters.level === lv.val }"
                   @click="filters.level = (filters.level === lv.val ? '' : lv.val)"
                 >
                   {{ lv.label }}
@@ -47,94 +80,88 @@
               </div>
             </div>
 
-            <div class="filter-group mb-4">
-              <label class="filter-label">Thời gian</label>
-              <input type="date" v-model="filters.date" class="form-control-premium" />
+            <div class="filter-group">
+              <h3 class="filter-title">Thời gian</h3>
+              <input type="date" v-model="filters.date" class="date-input" />
             </div>
 
-            <button class="btn-reset-filters w-100" @click="resetFilters">
-              Đặt lại bộ lọc
-            </button>
-
-            <div class="community-stats mt-5">
-              <div class="stat-item text-center">
-                <span class="stat-val d-block">{{ stats.activeMatch }}</span>
-                <span class="stat-lab">Kèo đang mở</span>
-              </div>
-              <hr class="my-3 opacity-10">
-              <div class="stat-item text-center">
-                <span class="stat-val d-block">{{ stats.totalPlayers }}</span>
-                <span class="stat-lab">Thành viên mới</span>
-              </div>
-            </div>
+            <button class="btn-reset" @click="resetFilters">Làm mới bộ lọc</button>
           </div>
-        </div>
+        </aside>
 
-        <!-- MATCH LIST -->
-        <div class="col-lg-9">
-          <!-- LOADING STATE -->
-          <div v-if="loading" class="row g-4">
-            <div v-for="i in 4" :key="i" class="col-md-6">
-              <div class="match-card-skeleton"></div>
-            </div>
+        <!-- ─ FEED (RIGHT) ─ -->
+        <main class="feed-main">
+          <!-- Loading -->
+          <div v-if="loading" class="feed-grid">
+            <div v-for="i in 4" :key="i" class="skeleton-card"></div>
           </div>
 
-          <!-- EMPTY STATE -->
-          <div v-else-if="filteredMatches.length === 0" class="empty-matches text-center py-5">
-            <img src="https://cdni.iconscout.com/illustration/premium/thumb/empty-state-search-not-found-illustration-download-in-svg-png-gif-file-formats--no-results-result-digital-marketing-pack-business-illustrations-4421453.png" class="empty-img mb-4" />
-            <h3 class="fw-black">Không tìm thấy kèo phù hợp</h3>
-            <p class="text-muted">Bạn có muốn là người đầu tiên tạo kèo tại khu vực này?</p>
-            <button class="btn btn-success rounded-pill px-4 fw-bold mt-2" @click="showCreateModal = true">Đăng kèo ngay</button>
+          <!-- Empty -->
+          <div v-else-if="filteredFeed.length === 0" class="empty-feed">
+            <div class="empty-icon">📂</div>
+            <h3>Không có bài đăng nào</h3>
+            <p>Thử thay đổi bộ lọc hoặc là người đầu tiên đăng bài nhé!</p>
+            <button class="btn-primary-small mt-4" @click="showCreateModal = true">Đăng ngay</button>
           </div>
 
-          <!-- ACTUAL LIST -->
-          <div v-else class="row g-4 mb-5">
-            <div v-for="match in filteredMatches" :key="match.id" class="col-md-6">
-              <div class="match-item-card">
-                <div class="match-type-badge" :style="{ backgroundColor: getSkillColor(match.content) }">
-                  Ghép kèo
-                </div>
-                
-                <div class="card-p-header">
-                  <div class="club-info">
-                    <img :src="match.club?.logoUrl || 'https://api.dicebear.com/7.x/initials/svg?seed=' + match.club?.name" class="club-logo-mini" />
-                    <div class="club-text">
-                      <h4 class="club-name">{{ match.club?.name }}</h4>
-                      <div class="match-location"><span class="material-icons">location_on</span> {{ match.club?.city }}</div>
+          <!-- Feed Grid -->
+          <div v-else class="feed-grid">
+            <div v-for="post in filteredFeed" :key="post.id">
+              <!-- MATCH CARD -->
+              <div v-if="post.type === 'TEAM_MATCHING'" class="match-card">
+                <div class="card-header">
+                  <div class="club-meta">
+                    <img :src="post.club?.logoUrl || '/logo.png'" class="club-logo" />
+                    <div>
+                      <h4 class="club-name">{{ post.club?.name || 'Tự do' }}</h4>
+                      <span class="location"><span class="material-icons">place</span> {{ post.club?.district || 'Toàn quốc' }}</span>
                     </div>
                   </div>
-                  <div :class="['skill-badge', getSkillClass(match.content)]">
-                    {{ getSkillLabel(match.content) }}
-                  </div>
+                  <span :class="['skill-tag', getSkillClass(post.content)]">
+                    {{ getSkillLabel(post.content) }}
+                  </span>
                 </div>
 
-                <div class="card-p-body">
-                  <p class="match-desc">{{ match.content }}</p>
-                  <div class="match-details-grid">
-                    <div class="detail-item">
-                      <span class="material-icons">calendar_month</span>
-                      {{ formatDate(match.linkedDate) }}
+                <div class="card-body">
+                  <h3 class="post-title">{{ post.title }}</h3>
+                  <p class="post-excerpt">{{ post.content.replace(/\[.*?\]/g, '') }}</p>
+                  
+                  <div class="match-meta">
+                    <div class="meta-item">
+                      <span class="material-icons">event</span>
+                      {{ formatDate(post.linkedDate) }}
                     </div>
-                    <div class="detail-item">
-                      <span class="material-icons">groups</span>
-                      {{ match.viewCount }} lượt quan tâm
+                    <div class="meta-item">
+                      <span class="material-icons">schedule</span>
+                      {{ formatTime(post.linkedDate) }}
                     </div>
                   </div>
                 </div>
 
-                <div class="card-p-footer">
-                  <div class="p-time">
-                    <span class="material-icons">schedule</span>
-                    {{ formatTime(match.linkedDate) }}
+                <div class="card-footer">
+                  <span class="interest">🔥 {{ post.viewCount || 0 }} quan tâm</span>
+                  <button class="btn-join" @click="joinMatch(post)">Tham gia ngay</button>
+                </div>
+              </div>
+
+              <!-- REGULAR POST CARD -->
+              <div v-else class="blog-card">
+                <div class="blog-image">
+                  <img :src="post.imageUrl || 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&q=80'" />
+                  <span :class="['type-badge', post.type]">{{ getLabel(post.type) }}</span>
+                </div>
+                <div class="blog-content">
+                  <h3 class="blog-title">{{ post.title }}</h3>
+                  <p class="blog-excerpt">{{ post.content }}</p>
+                  <div class="blog-footer">
+                    <span class="club-mini">{{ post.club?.name }}</span>
+                    <span class="date">{{ timeAgo(post.createdAt) }}</span>
                   </div>
-                  <button class="btn-join-match" @click="joinMatch(match)">
-                    Tham gia <span class="material-icons">bolt</span>
-                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        </main>
       </div>
     </div>
 
@@ -221,20 +248,28 @@ import { clubService } from '@/services/club.service';
 import { toast } from 'vue3-toastify';
 
 export default {
-  name: 'MatchFindingView',
+  name: 'FindFriend',
   data() {
     return {
-      allMatches: [],
+      allFeed: [],
       userClubs: [],
       loading: true,
       saving: false,
       showCreateModal: false,
+      showAnnouncement: true,
       joiningActive: null,
+      activeTab: 'all',
       filters: {
         keyword: '',
         level: '',
         date: ''
       },
+      tabOptions: [
+        { value: 'all', label: 'Tất cả' },
+        { value: 'TEAM_MATCHING', label: 'Ghép kèo' },
+        { value: 'DISCOUNT', label: 'Khuyến mãi' },
+        { value: 'EVENT', label: 'Sự kiện' }
+      ],
       createForm: {
         title: '',
         content: '',
@@ -243,33 +278,46 @@ export default {
         skillSelection: 'BEGINNER'
       },
       levels: [
-        { val: 'BEGINNER', label: 'Mơi chơi / Giao lưu' },
+        { val: 'BEGINNER', label: 'Giao lưu' },
         { val: 'INTERMEDIATE', label: 'Trung bình' },
-        { val: 'PRO', label: 'Bắt kèo căng' }
+        { val: 'PRO', label: 'Chuyên nghiệp (Pro)' }
       ],
       stats: {
         activeMatch: 0,
-        totalPlayers: 1240
+        totalPlayers: 1580
       }
     };
   },
   computed: {
-    filteredMatches() {
-      let list = [...this.allMatches];
+    filteredFeed() {
+      let list = [...this.allFeed];
+      
+      // Tab filter
+      if (this.activeTab !== 'all') {
+        list = list.filter(item => item.type === this.activeTab);
+      }
+
+      // Keyword filter
       if (this.filters.keyword) {
         const k = this.filters.keyword.toLowerCase();
         list = list.filter(m => 
+          (m.title || '').toLowerCase().includes(k) || 
           (m.club?.name || '').toLowerCase().includes(k) || 
           (m.club?.city || '').toLowerCase().includes(k) || 
           (m.content || '').toLowerCase().includes(k)
         );
       }
+
+      // Skill level filter
       if (this.filters.level) {
         list = list.filter(m => (m.content || '').toUpperCase().includes(this.filters.level));
       }
+
+      // Date filter
       if (this.filters.date) {
         list = list.filter(m => m.linkedDate?.startsWith(this.filters.date));
       }
+
       return list;
     }
   },
@@ -281,11 +329,11 @@ export default {
     async fetchMatches() {
       this.loading = true;
       try {
-        const res = await postService.getPublicFeed({ type: 'TEAM_MATCHING' });
-        this.allMatches = res.data || [];
-        this.stats.activeMatch = this.allMatches.length;
+        const res = await postService.getPublicFeed();
+        this.allFeed = res.data || [];
+        this.stats.activeMatch = this.allFeed.filter(p => p.type === 'TEAM_MATCHING').length;
       } catch (e) {
-        toast.error("Không thể tải danh sách kèo");
+        toast.error("Không thể tải bảng tin");
       } finally {
         this.loading = false;
       }
@@ -311,9 +359,7 @@ export default {
 
       this.saving = true;
       try {
-        // Tag skill level into content for styling logic
         const contentWithSkill = `[${this.createForm.skillSelection}] ${this.createForm.content}`;
-        
         await postService.createPost({
           title: this.createForm.title,
           content: contentWithSkill,
@@ -324,7 +370,6 @@ export default {
 
         toast.success("Kèo đã được đăng thành công!");
         this.showCreateModal = false;
-        // Reset form
         this.createForm = { title: '', content: '', clubId: '', linkedDate: new Date().toISOString().split('T')[0], skillSelection: 'BEGINNER' };
         await this.fetchMatches();
       } catch (e) {
@@ -334,6 +379,28 @@ export default {
       }
     },
     
+    getLabel(type) {
+      const labels = {
+        DISCOUNT: 'Khuyến mãi',
+        EVENT: 'Sự kiện',
+        TEAM_MATCHING: 'Ghép kèo',
+        PROMOTION: 'Ưu đãi'
+      };
+      return labels[type] || type;
+    },
+
+    timeAgo(date) {
+      if (!date) return "";
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+      let interval = seconds / 86400;
+      if (interval > 1) return Math.floor(interval) + " ngày trước";
+      interval = seconds / 3600;
+      if (interval > 1) return Math.floor(interval) + " giờ trước";
+      interval = seconds / 60;
+      if (interval > 1) return Math.floor(interval) + " phút trước";
+      return "Vừa xong";
+    },
+
     getSkillClass(content) {
       if (!content) return 'skill-easy';
       const c = content.toUpperCase();
@@ -350,175 +417,313 @@ export default {
       return 'Giao lưu / Nhẹ nhàng';
     },
 
-    getSkillColor(content) {
-      if (!content) return '#22c55e';
-      const c = content.toUpperCase();
-      if (c.includes('PRO') || c.includes('CĂNG')) return '#ef4444';
-      if (c.includes('INTERMEDIATE') || c.includes('TRUNG BÌNH')) return '#f59e0b';
-      return '#22c55e';
-    },
-
     formatDate(d) {
       if (!d) return 'Hôm nay';
-      return new Date(d).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      return new Date(d).toLocaleDateString('vi-VN', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      });
     },
-    
+
     formatTime(d) {
-      if(!d) return 'Hàng ngày';
-      return new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      if (!d) return '';
+      return new Date(d).toLocaleTimeString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    },
+
+    joinMatch(post) {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.info("Vui lòng đăng nhập để tham gia");
+        return;
+      }
+      this.joiningActive = post;
     },
 
     resetFilters() {
       this.filters = { keyword: '', level: '', date: '' };
-    },
-
-    joinMatch(match) {
-      this.joiningActive = match;
     }
   }
-}
+};
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800;900&display=swap");
 
 .community-page {
-  font-family: 'Lexend', sans-serif;
-  background: #f8fafc;
+  --green:       rgb(22, 163, 74);
+  --green-dark:  rgb(15, 118, 54);
+  --green-light: rgba(22, 163, 74, 0.12);
+  --text:        #111827;
+  --muted:       #6b7280;
+  --border:      #e5e7eb;
+  --bg:          #f4f5f7;
+  --card:        #ffffff;
+  --radius:      12px;
+
+  font-family: "Barlow", sans-serif;
+  background: var(--bg);
   min-height: 100vh;
-  color: #0f172a;
+  color: var(--text);
 }
 
-.community-hero {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  padding-bottom: 80px;
-  color: white;
+/* ══ Announcement bar ══ */
+.announcement-bar {
+  background: #0c4a6e;
+  color: #fff;
+  text-align: center;
+  padding: 9px 48px;
+  font-size: 13px;
+  font-weight: 500;
+  position: relative;
+  line-height: 1.5;
+  z-index: 100;
 }
-.hero-title { font-weight: 900; font-size: 3rem; margin-bottom: 1rem; }
-.hero-subtitle { opacity: 0.9; font-weight: 500; font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+.ann-link { color: #7dd3fc; font-weight: 700; text-decoration: none; margin-left: 6px; }
+.ann-link:hover { text-decoration: underline; }
+.ann-close {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: rgba(255,255,255,.7);
+  font-size: 18px; cursor: pointer; line-height: 1; padding: 2px 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.ann-close:hover { color: #fff; }
 
-.search-box-premium {
-  background: white;
-  padding: 8px;
-  border-radius: 60px;
-  display: flex;
-  max-width: 700px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-  transition: .3s;
+.page-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
 }
-.search-input-group { flex: 1; display: flex; align-items: center; padding-left: 20px; }
-.search-icon { color: #64748b; margin-right: 12px; }
-.search-input-group input { border: none; outline: none; width: 100%; height: 100%; font-weight: 600; color: #1e293b; }
+.pt-24 { padding-top: 24px; }
+.mt-6 { margin-top: 24px; }
 
-.btn-create-match {
-  background: #10b981; color: white; border: none; padding: 12px 24px;
-  border-radius: 40px; font-weight: 800; display: flex; align-items: center; gap: 8px;
+.breadcrumb ol {
+  display: flex; align-items: center; gap: 6px;
+  list-style: none; margin: 0 0 14px; padding: 0;
+  font-size: 12px; color: var(--muted);
 }
+.breadcrumb a { color: var(--muted); text-decoration: none; }
+.breadcrumb a:hover { color: var(--green-dark); }
+.sep { color: var(--border); }
 
-.mt-n5 { margin-top: -50px; }
-.glass-card {
-  background: white;
-  border-radius: 30px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-}
-.sticky-sidebar { position: sticky; top: 100px; }
-
-.filter-label { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; display: block; }
-.skill-tags { display: flex; flex-direction: column; gap: 8px; }
-.skill-tag {
-  background: #f1f5f9; border: 1.5px solid transparent; padding: 10px 16px;
-  border-radius: 12px; font-size: 13px; font-weight: 700; color: #64748b;
-  text-align: left; transition: .2s;
-}
-.skill-tag.active { background: #dcfce7; color: #10b981; border-color: #10b981; }
-
-.form-control-premium {
-  background: #f1f5f9; border: none; padding: 12px 16px; border-radius: 12px;
-  font-weight: 700; color: #1e293b; width: 100%;
-}
-.btn-reset-filters {
-  background: #fff1f2; color: #ef4444; border: none; padding: 12px;
-  border-radius: 15px; font-weight: 800; font-size: 13px;
+.header-row {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-bottom: 30px;
 }
 
-.stat-val { font-weight: 900; font-size: 24px; color: #059669; }
-.stat-lab { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
-
-.match-item-card {
-  background: white; border-radius: 30px; border: 1px solid #edf2f7;
-  overflow: hidden; transition: .3s; position: relative; height: 100%; display: flex; flex-direction: column;
+.page-title {
+  font-family: "Barlow Condensed", sans-serif;
+  line-height: 1.1;
+  margin: 0;
 }
-.match-item-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(0,0,0,0.08); border-color: #10b981; }
+.title-main { display: block; font-size: 2.8rem; font-weight: 900; color: var(--text); }
+.title-sub { display: block; font-size: 1rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+.results-meta { font-size: 14px; color: var(--muted); margin-top: 8px; }
 
-.match-type-badge {
-  position: absolute; top: 0; right: 0; padding: 6px 20px;
-  border-bottom-left-radius: 20px; color: white; font-weight: 900; font-size: 11px;
+.btn-create {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--green); color: #fff;
+  border: none; border-radius: 10px; padding: 12px 24px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-weight: 800; font-size: 14px; letter-spacing: 0.05em;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+}
+.btn-create:hover { background: var(--green-dark); transform: translateY(-2px); }
+
+.community-tabs {
+  display: flex; gap: 12px;
+  border-bottom: 1.5px solid var(--border);
+  margin-bottom: 24px;
+}
+.tab-btn {
+  background: none; border: none; padding: 12px 20px;
+  font-weight: 700; font-size: 14px; color: var(--muted);
+  cursor: pointer; position: relative;
+  transition: color 0.2s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--green); }
+.tab-btn.active::after {
+  content: ""; position: absolute; bottom: -1.5px; left: 0; right: 0;
+  height: 3px; background: var(--green);
 }
 
-.card-p-header { padding: 30px 24px 15px; display: flex; justify-content: space-between; align-items: flex-start; }
-.club-info { display: flex; align-items: center; gap: 15px; }
-.club-logo-mini { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; border: 2px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-.club-name { font-weight: 900; font-size: 1.1rem; margin: 0; }
-.match-location { font-size: 11px; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 4px; }
+.content-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 32px;
+  align-items: start;
+}
 
-.skill-badge { font-size: 10px; font-weight: 900; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
+.sidebar-wrap {
+  position: sticky;
+  top: 100px;
+}
+
+.glass-sidebar {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); padding: 24px;
+}
+
+.search-box {
+  display: flex; align-items: center; gap: 10px;
+  background: #f3f4f6; border-radius: 10px; padding: 10px 14px;
+  margin-bottom: 24px;
+}
+.search-box input { background: none; border: none; outline: none; flex: 1; font-size: 14px; }
+.search-box .material-icons { color: var(--muted); font-size: 20px; }
+
+.filter-title {
+  font-size: 12px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.chip-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.filter-chip {
+  background: #fff; border: 1.5px solid var(--border);
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+  cursor: pointer; transition: all 0.2s;
+}
+.filter-chip:hover { border-color: var(--green); color: var(--green); }
+.filter-chip.active { background: var(--green); border-color: var(--green); color: #fff; }
+
+.date-input {
+  width: 100%; padding: 10px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px;
+  margin-bottom: 24px; outline: none;
+}
+.date-input:focus { border-color: var(--green); }
+
+.btn-reset {
+  width: 100%; background: none; border: 1.5px solid var(--border);
+  padding: 10px; border-radius: 10px; font-weight: 700; font-size: 13px;
+  color: var(--muted); cursor: pointer; transition: all 0.2s;
+}
+.btn-reset:hover { border-color: var(--green); color: var(--green); background: #f0fdf4; }
+
+.feed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+}
+
+.empty-feed {
+  text-align: center; padding: 60px 20px;
+  background: #fff; border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+}
+.empty-icon { font-size: 48px; margin-bottom: 16px; }
+
+.match-card {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  display: flex; flex-direction: column; height: 100%;
+  transition: all 0.3s ease;
+}
+.match-card:hover { border-color: var(--green); transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.06); }
+
+.card-header { padding: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+.club-meta { display: flex; align-items: center; gap: 12px; }
+.club-logo { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+.club-name { font-size: 15px; font-weight: 800; margin: 0; }
+.location { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+
+.skill-tag { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; }
 .skill-pro { background: #fee2e2; color: #ef4444; }
 .skill-mod { background: #fef3c7; color: #d97706; }
-.skill-easy { background: #dcfce7; color: #10b981; }
+.skill-easy { background: #dcfce7; color: #16a34a; }
 
-.card-p-body { padding: 0 24px 20px; flex: 1; }
-.match-desc { color: #64748b; font-size: 13px; line-height: 1.6; font-weight: 500; margin-bottom: 20px; }
-.match-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-.detail-item { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #475569; }
+.card-body { padding: 0 20px 20px; flex: 1; }
+.post-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; line-height: 1.3; }
+.post-excerpt { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 16px; min-height: 42px; }
 
-.card-p-footer {
-  padding: 15px 24px 24px; border-top: 1px dashed #edf2f7;
+.match-meta { display: flex; gap: 16px; }
+.meta-item { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #4b5563; }
+.meta-item .material-icons { font-size: 16px; color: var(--green); }
+
+.card-footer {
+  padding: 16px 20px; border-top: 1px dashed var(--border);
   display: flex; justify-content: space-between; align-items: center;
 }
-.p-time { display: flex; align-items: center; gap: 6px; font-weight: 900; color: #0f172a; font-size: 14px; }
-
-.btn-join-match {
-  background: #1e293b; color: white; border: none; padding: 8px 20px;
-  border-radius: 50px; font-weight: 800; font-size: 13px; display: flex; align-items: center; gap: 6px;
+.interest { font-size: 13px; font-weight: 700; color: var(--muted); }
+.btn-join {
+  background: var(--text); color: #fff; border: none;
+  padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 13px;
+  cursor: pointer; transition: background 0.2s;
 }
+.btn-join:hover { background: var(--green); }
 
+.blog-card {
+  background: var(--card); border: 1.5px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  display: flex; flex-direction: column; height: 100%;
+}
+.blog-image { position: relative; aspect-ratio: 16/9; overflow: hidden; }
+.blog-image img { width: 100%; height: 100%; object-fit: cover; }
+.type-badge {
+  position: absolute; top: 12px; left: 12px;
+  padding: 4px 10px; font-size: 10px; font-weight: 800;
+  color: #fff; background: rgba(15,23,42,0.8);
+  backdrop-filter: blur(4px); text-transform: uppercase;
+}
+.blog-content { padding: 16px; flex: 1; display: flex; flex-direction: column; }
+.blog-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+.blog-excerpt { font-size: 13px; color: var(--muted); flex: 1; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.blog-footer { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: #9ca3af; }
+
+/* Modals */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(8px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px); z-index: 9999;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .modal-content-premium {
-  background: white; border-radius: 40px; width: 100%; max-width: 550px; box-shadow: 0 30px 60px rgba(0,0,0,0.1);
-  overflow: hidden;
+  background: #fff; border-radius: 20px; width: 100%; max-width: 550px;
+  overflow: hidden; box-shadow: 0 24px 48px rgba(0,0,0,0.2);
 }
-.modal-header-p { padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; }
-.btn-close-p { border: none; background: #f1f5f9; width: 40px; height: 40px; border-radius: 12px; display: flex; justify-content: center; align-items: center; }
-.modal-body-p { padding: 0 40px 30px; }
-.form-label-p { font-weight: 900; font-size: 13px; color: #64748b; margin-bottom: 8px; display: block; }
-.form-control-p { background: #f1f5f9; border: 2px solid transparent; padding: 12px 18px; border-radius: 15px; font-weight: 700; width: 100%; }
-.modal-footer-p { padding: 24px 40px 40px; display: flex; gap: 15px; justify-content: flex-end; }
+.modal-header-p { padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+.modal-header-p h2 { font-family: "Barlow Condensed", sans-serif; font-size: 1.5rem; font-weight: 800; margin: 0; }
+.btn-close-p { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--muted); display: flex; }
 
-.match-card-skeleton {
-  height: 250px; background: #f1f5f9; border-radius: 30px; animation: pulse 1.5s infinite;
+.modal-body-p { padding: 24px; max-height: 70vh; overflow-y: auto; }
+.form-label-p { display: block; font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+.form-control-p {
+  width: 100%; padding: 12px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-family: inherit; font-size: 14px; outline: none; margin-bottom: 16px;
 }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+.form-control-p:focus { border-color: var(--green); }
 
-.join-success-animation { font-size: 64px; }
-.empty-img { max-width: 200px; }
-
-.club-select-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
-  max-height: 150px; overflow-y: auto; padding: 5px;
-}
+.club-select-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
 .club-option {
-  background: #f8fafc; border: 2.5px solid transparent; border-radius: 12px; padding: 10px;
-  display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: .2s;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px; border: 1.5px solid var(--border); border-radius: 12px;
+  cursor: pointer; transition: all 0.2s;
 }
-.club-option img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
+.club-option:hover { border-color: var(--green); background: var(--green-light); }
+.club-option.active { border-color: var(--green); background: var(--green-light); box-shadow: 0 0 0 2px var(--green); }
+.club-option img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 .club-option span { font-size: 11px; font-weight: 700; text-align: center; }
-.club-option.active { border-color: #10b981; background: #dcfce7; }
 
-@media (max-width: 768px) {
-  .hero-title { font-size: 2rem; }
-  .search-box-premium { border-radius: 20px; }
+.modal-footer-p { padding: 16px 24px; display: flex; justify-content: flex-end; gap: 12px; background: #f9fafb; border-top: 1px solid var(--border); }
+
+.join-success-animation { font-size: 48px; color: var(--green); margin-bottom: 16px; }
+
+@media (max-width: 1024px) {
+  .content-layout { grid-template-columns: 1fr; }
+  .sidebar-wrap { position: static; }
+}
+
+@media (max-width: 640px) {
+  .feed-grid { grid-template-columns: 1fr; }
+  .page-title .title-main { font-size: 2rem; }
+  .header-actions { width: 100%; }
+  .btn-create { width: 100%; justify-content: center; }
 }
 </style>

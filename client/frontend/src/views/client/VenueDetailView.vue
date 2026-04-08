@@ -56,7 +56,12 @@
                 </div>
                 <div class="flex-grow-1">
                   <div class="fw-bold small">{{ c.name }}</div>
-                  <div class="text-muted" style="font-size:12px">{{ formatPrice(c.basePrice) }} đ/30 phút</div>
+                  <div class="d-flex align-items-center gap-2 mt-1">
+                    <span v-if="c.sportType" class="badge bg-secondary bg-opacity-10 text-muted fw-bold" style="font-size: 10px; border-radius: 4px; padding: 2px 6px">
+                      {{ translateSportType(c.sportType) }}
+                    </span>
+                    <div class="text-muted" style="font-size:12px">{{ formatPrice(c.basePrice) }} đ/30p</div>
+                  </div>
                 </div>
                 <!-- Checkbox style indicator -->
                 <div :class="['rounded-circle border-2 border d-flex align-items-center justify-content-center flex-shrink-0', isCourtSelected(c.id) ? 'bg-success border-success text-white' : 'border-secondary bg-white']" style="width:22px;height:22px;">
@@ -656,6 +661,7 @@ export default {
             courts: apiClub.courts?.map(c => ({
               id: c.id, 
               name: c.name, 
+              sportType: c.sportType,
               basePrice: c.pricings?.[0]?.pricePerHour ? Number(c.pricings[0].pricePerHour) : 0
             })) || [],
             openingHours: apiClub.openingHours?.map(h => {
@@ -980,6 +986,19 @@ export default {
         phone: this.form.phone,
         email: this.form.email
       }));
+    },
+
+    translateSportType(type) {
+      if (!type) return "";
+      const labels = {
+        FOOTBALL: "Bóng đá",
+        BADMINTON: "Cầu lông",
+        TENNIS: "Tennis",
+        PICKLEBALL: "Pickleball",
+        BASKETBALL: "Bóng rổ",
+        VOLLEYBALL: "Bóng chuyền"
+      };
+      return labels[type.toUpperCase()] || type;
     },
 
     async fetchUserProfile() {

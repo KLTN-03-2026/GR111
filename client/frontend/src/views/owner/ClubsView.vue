@@ -47,6 +47,29 @@
 
     <!-- Search & Filter -->
     <div class="search-bar-wrap">
+
+    <!-- Success banner after club creation -->
+    <transition name="fade">
+      <div v-if="successBanner" class="success-banner">
+        <span class="material-icons sb-icon">check_circle</span>
+        <div class="sb-body">
+          <strong>✅ "​{{ successBanner.clubName }}​" đã được tạo thành công!</strong>
+          <p>Bước tiếp theo để khung giờ đặt sân hiển thị cho khách:</p>
+          <div class="sb-actions">
+            <router-link to="/owner/courts" class="sb-btn primary">
+              <span class="material-icons">add_circle</span> Thêm sân vào CLB
+            </router-link>
+            <router-link to="/owner/pricing" class="sb-btn">
+              <span class="material-icons">attach_money</span> Thiết lập bảng giá
+            </router-link>
+          </div>
+        </div>
+        <button class="sb-close" @click="successBanner = null">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+    </transition>
+
       <div class="search-bar">
         <div class="s-wrap">
           <span class="material-icons s-icon">search</span>
@@ -86,6 +109,10 @@
              <div v-if="c.openingHours?.length" class="c-tag">
                <span class="material-icons">schedule</span>
                {{ fmt(c.openingHours[0].openTime) }} – {{ fmt(c.openingHours[0].closeTime) }}
+             </div>
+             <div v-else class="c-tag warn">
+               <span class="material-icons">warning_amber</span>
+               Chưa có giờ mở cửa
              </div>
              <div class="c-tag green">
                <span class="material-icons">layers</span>
@@ -128,6 +155,63 @@
           </div>
           <div class="dbody">
             <div v-if="addErr.length" class="alert err"><span class="material-icons">error</span><ul><li v-for="e in addErr" :key="e">{{e}}</li></ul></div>
+
+            <!-- Fields -->
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">info</span>Thông tin cơ bản</div>
+              <div class="fgrid">
+                <div class="f span2">
+                  <label>Tên CLB <span class="req">*</span></label>
+                  <input v-model="addForm.name" :class="{inv:addSub&&!addForm.name}" placeholder="Sân bóng Thành Phát..." />
+                  <small v-if="addSub&&!addForm.name" class="err-msg">Bắt buộc</small>
+                </div>
+                <div class="f">
+                  <label>Thành phố <span class="req">*</span></label>
+                  <input v-model="addForm.city" :class="{inv:addSub&&!addForm.city}" placeholder="Đà Nẵng" />
+                </div>
+                <div class="f">
+                  <label>Quận/Huyện <span class="req">*</span></label>
+                  <input v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" placeholder="Hải Châu" />
+                </div>
+                <div class="f span2">
+                  <label>Phường/Xã</label>
+                  <input v-model="addForm.ward" placeholder="Hòa Cường Bắc" />
+                </div>
+                <div class="f span2">
+                  <label>Địa chỉ <span class="req">*</span></label>
+                  <input v-model="addForm.address" :class="{inv:addSub&&!addForm.address}" placeholder="123 Nguyễn Văn A..." />
+                </div>
+                <div class="f"><label>Số điện thoại</label><input v-model="addForm.phone" placeholder="0901 234 567" /></div>
+                <div class="f"><label>Email</label><input v-model="addForm.email" type="email" placeholder="info@club.com" /></div>
+                <div class="f span2"><label>Mô tả</label><textarea v-model="addForm.description" rows="2" placeholder="Giới thiệu về câu lạc bộ..."></textarea></div>
+              </div>
+            </div>
+
+            <!-- Opening Hours section -->
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">schedule</span>Giờ mở cửa <span class="flabel-hint">— Bắt buộc để khung giờ đặt sân hiển thị</span></div>
+              <div class="hours-apply-row">
+                <span class="hap-label">Áp dụng chung:</span>
+                <input type="time" v-model="addBulkOpen" class="hap-input" />
+                <span>–</span>
+                <input type="time" v-model="addBulkClose" class="hap-input" />
+                <button class="hap-btn" @click="applyBulkHours('add')">Áp dụng tất cả ngày</button>
+              </div>
+              <div class="hours-list">
+                <div v-for="h in addForm.openingHours" :key="h.dayOfWeek" class="hour-row" :class="{closed: h.isClosed}">
+                  <div class="hr-day"><b>{{ h.label }}</b></div>
+                  <div class="hr-times" v-if="!h.isClosed">
+                    <input type="time" v-model="h.openTime" />
+                    <span>–</span>
+                    <input type="time" v-model="h.closeTime" />
+                  </div>
+                  <div class="hr-status" v-else>Nghỉ / Đóng cửa</div>
+                  <button class="hr-toggle" :title="h.isClosed ? 'Mở cửa' : 'Đóng cửa'" @click="h.isClosed = !h.isClosed">
+                    <span class="material-icons">{{ h.isClosed ? 'play_arrow' : 'block' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <!-- Cover Image (Primary) -->
             <div class="fsec">
@@ -195,43 +279,14 @@
                 </div>
             </div>
 
-            <!-- Fields -->
+            <!-- Map -->
             <div class="fsec">
-              <div class="flabel"><span class="material-icons">info</span>Thông tin cơ bản</div>
-              <div class="fgrid">
-                <div class="f span2">
-                  <label>Tên CLB <span class="req">*</span></label>
-                  <input v-model="addForm.name" :class="{inv:addSub&&!addForm.name}" placeholder="Sân bóng Thành Phát..." />
-                  <small v-if="addSub&&!addForm.name" class="err-msg">Bắt buộc</small>
-                </div>
-                <div class="f">
-                  <label>Thành phố <span class="req">*</span></label>
-                  <input v-model="addForm.city" :class="{inv:addSub&&!addForm.city}" placeholder="Đà Nẵng" />
-                </div>
-                <div class="f">
-                  <label>Quận/Huyện <span class="req">*</span></label>
-                  <input v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" placeholder="Hải Châu" />
-                </div>
-                <div class="f span2">
-                  <label>Phường/Xã</label>
-                  <input v-model="addForm.ward" placeholder="Hòa Cường Bắc" />
-                </div>
-                <div class="f span2">
-                  <label>Địa chỉ <span class="req">*</span></label>
-                  <input v-model="addForm.address" :class="{inv:addSub&&!addForm.address}" placeholder="123 Nguyễn Văn A..." />
-                </div>
-                <div class="f span2">
-                  <label>Vị trí Bản đồ</label>
-                  <LocationPicker 
-                    :lat="addForm.latitude" 
-                    :lng="addForm.longitude" 
-                    @update:location="l => { addForm.latitude = l.lat; addForm.longitude = l.lng; }" 
-                  />
-                </div>
-                <div class="f"><label>Số điện thoại</label><input v-model="addForm.phone" placeholder="0901 234 567" /></div>
-                <div class="f"><label>Email</label><input v-model="addForm.email" type="email" placeholder="info@club.com" /></div>
-                <div class="f span2"><label>Mô tả</label><textarea v-model="addForm.description" rows="3" placeholder="Giới thiệu về câu lạc bộ..."></textarea></div>
-              </div>
+              <div class="flabel"><span class="material-icons">map</span>Vị trí trên Bản đồ</div>
+              <LocationPicker 
+                :lat="addForm.latitude" 
+                :lng="addForm.longitude" 
+                @update:location="l => { addForm.latitude = l.lat; addForm.longitude = l.lng; }" 
+              />
             </div>
           </div>
           <div class="dfoot">
@@ -332,17 +387,35 @@
                 <div class="f"><label>Quận/Huyện <span class="req">*</span></label><input v-model="editForm.district" /></div>
                 <div class="f span2"><label>Phường/Xã</label><input v-model="editForm.ward" /></div>
                 <div class="f span2"><label>Địa chỉ <span class="req">*</span></label><input v-model="editForm.address" /></div>
-                <div class="f span2">
-                  <label>Vị trí Bản đồ</label>
-                  <LocationPicker 
-                    :lat="editForm.latitude" 
-                    :lng="editForm.longitude" 
-                    @update:location="l => { editForm.latitude = l.lat; editForm.longitude = l.lng; }" 
-                  />
-                </div>
                 <div class="f"><label>Số điện thoại</label><input v-model="editForm.phone" /></div>
                 <div class="f"><label>Email</label><input v-model="editForm.email" type="email" /></div>
-                <div class="f span2"><label>Mô tả</label><textarea v-model="editForm.description" rows="3"></textarea></div>
+                <div class="f span2"><label>Mô tả</label><textarea v-model="editForm.description" rows="2"></textarea></div>
+              </div>
+            </div>
+
+            <!-- Opening Hours section -->
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">schedule</span>Giờ mở cửa <span class="flabel-hint">— Bắt buộc để khung giờ hiển thị</span></div>
+              <div class="hours-apply-row">
+                <span class="hap-label">Áp dụng chung:</span>
+                <input type="time" v-model="editBulkOpen" class="hap-input" />
+                <span>–</span>
+                <input type="time" v-model="editBulkClose" class="hap-input" />
+                <button class="hap-btn" @click="applyBulkHours('edit')">Áp dụng tất cả ngày</button>
+              </div>
+              <div class="hours-list">
+                <div v-for="h in editForm.openingHours" :key="h.dayOfWeek" class="hour-row" :class="{closed: h.isClosed}">
+                  <div class="hr-day"><b>{{ h.label }}</b></div>
+                  <div class="hr-times" v-if="!h.isClosed">
+                    <input type="time" v-model="h.openTime" />
+                    <span>–</span>
+                    <input type="time" v-model="h.closeTime" />
+                  </div>
+                  <div class="hr-status" v-else>Nghỉ / Đóng cửa</div>
+                  <button class="hr-toggle" :title="h.isClosed ? 'Mở cửa' : 'Đóng cửa'" @click="h.isClosed = !h.isClosed">
+                    <span class="material-icons">{{ h.isClosed ? 'play_arrow' : 'block' }}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -361,23 +434,14 @@
               </div>
             </div>
 
-            <!-- Opening Hours section -->
+            <!-- Map edit -->
             <div class="fsec">
-              <div class="flabel"><span class="material-icons">schedule</span>Khung giờ hoạt động</div>
-              <div class="hours-list">
-                <div v-for="h in editForm.openingHours" :key="h.dayOfWeek" class="hour-row" :class="{closed: h.isClosed}">
-                  <div class="hr-day"><b>{{ h.label }}</b></div>
-                  <div class="hr-times" v-if="!h.isClosed">
-                    <input type="time" v-model="h.openTime" />
-                    <span>–</span>
-                    <input type="time" v-model="h.closeTime" />
-                  </div>
-                  <div class="hr-status" v-else>Nghỉ / Đóng cửa</div>
-                  <button class="hr-toggle" :title="h.isClosed ? 'Mở cửa' : 'Đóng cửa'" @click="h.isClosed = !h.isClosed">
-                    <span class="material-icons">{{ h.isClosed ? 'play_arrow' : 'block' }}</span>
-                  </button>
-                </div>
-              </div>
+              <div class="flabel"><span class="material-icons">map</span>Vị trí trên Bản đồ</div>
+              <LocationPicker 
+                :lat="editForm.latitude" 
+                :lng="editForm.longitude" 
+                @update:location="l => { editForm.latitude = l.lat; editForm.longitude = l.lng; }" 
+              />
             </div>
           </div>
           <div class="dfoot">
@@ -428,16 +492,19 @@ export default {
       clubs: [], loading: false,
       q: '', statusQ: 'all',
       fallbackImg: 'https://images.unsplash.com/photo-1575446106012-c344f5b75e13?w=600&q=80',
+      successBanner: null,
 
       // ADD
       showAdd: false, addForm: blank(), addSub: false, addLoading: false, addErr: [],
       addMode: 'upload', addOver: false, addPreview: null, addUploading: false, addPct: 0, addUpErr: '',
       addGalleryOver: false, addGalleryUploading: false, addGalleryPct: 0,
+      addBulkOpen: '08:00', addBulkClose: '22:00',
 
       // EDIT
       showEdit: false, editForm: {}, editSub: false, editLoading: false, editErr: [], editOk: false,
       editMode: 'upload', editOver: false, editPreview: null, editUploading: false, editPct: 0, editUpErr: '',
       editGalleryOver: false, editGalleryUploading: false, editGalleryPct: 0,
+      editBulkOpen: '08:00', editBulkClose: '22:00',
 
       // Amenities
       amens: [], amenitiesLoading: false,
@@ -461,8 +528,12 @@ export default {
     statusLabel(s) { return {APPROVED:'Hoạt động',PENDING:'Chờ duyệt',REJECTED:'Tạm ngưng'}[s] || s; },
     fmt(t) {
       if (!t) return '--:--';
-      const d = new Date(t);
-      return isNaN(d) ? t.slice(0,5) : d.toLocaleTimeString('vi-VN',{hour:'2-digit',minute:'2-digit'});
+      // If ISO string (e.g. "1970-01-01T16:00:00.000Z"), extract UTC HH:MM directly
+      if (typeof t === 'string') {
+        const m = t.match(/(\d{2}):(\d{2})/);
+        if (m) return `${m[1]}:${m[2]}`;
+      }
+      return '--:--';
     },
 
     async load() {
@@ -526,7 +597,8 @@ export default {
 
     // ── ADD ───────────────────────────────────────────────────
     openAdd() {
-      this.addForm = blank(); this.addSub = false; this.addErr = [];
+      this.addForm = { ...blank(), openingHours: this.initHours([]) }; 
+      this.addSub = false; this.addErr = [];
       this.addPreview = null; this.addUpErr = ''; this.addMode = 'upload';
       this.showAdd = true; document.body.style.overflow = 'hidden';
     },
@@ -537,11 +609,31 @@ export default {
       this.addLoading = true; this.addErr = [];
       try {
         const r = await clubService.addClub(this.buildPayload(this.addForm));
-        if (r.data.success) { this.clubs.unshift(r.data.data); this.closeAdd(); }
+        if (r.data.success) { 
+          const newClub = r.data.data;
+          if (this.addForm.openingHours?.length) {
+            const hrs = this.addForm.openingHours.map(h => ({
+              dayOfWeek: h.dayOfWeek, openTime: h.openTime,
+              closeTime: h.closeTime, isClosed: h.isClosed
+            }));
+            await clubService.updateOpeningHours(newClub.id, hrs);
+          }
+          this.closeAdd();
+          this.successBanner = { clubId: newClub.id, clubName: newClub.name };
+          this.load();
+        }
       } catch(e) {
         const fe = e.response?.data?.errors;
         this.addErr = fe ? Object.values(fe).flat() : [e.response?.data?.message || 'Có lỗi xảy ra.'];
       } finally { this.addLoading = false; }
+    },
+
+    applyBulkHours(ctx) {
+      const open  = ctx === 'add' ? this.addBulkOpen  : this.editBulkOpen;
+      const close = ctx === 'add' ? this.addBulkClose : this.editBulkClose;
+      const hours = ctx === 'add' ? this.addForm.openingHours : this.editForm.openingHours;
+      if (!hours) return;
+      hours.forEach(h => { if (!h.isClosed) { h.openTime = open; h.closeTime = close; } });
     },
 
     // ── EDIT ──────────────────────────────────────────────────
@@ -575,9 +667,12 @@ export default {
     },
     isoToHm(iso) {
       if (!iso) return '08:00';
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return typeof iso === 'string' ? iso.slice(0,5) : '08:00';
-      return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      // Extract HH:MM from ISO string directly to avoid timezone conversion
+      if (typeof iso === 'string') {
+        const m = iso.match(/(\d{2}):(\d{2})/);
+        if (m) return `${m[1]}:${m[2]}`;
+      }
+      return '08:00';
     },
     async loadAmenities(clubId) {
       this.amenitiesLoading = true;
@@ -844,6 +939,34 @@ export default {
 
 .spin{width:20px;height:20px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:loading-spin 0.8s linear infinite;}
 @keyframes loading-spin{to{transform:rotate(360deg)}}
+
+/* Hour Apply-all row */
+.hours-apply-row{display:flex;align-items:center;gap:10px;background:#eff6ff;border:1.5px solid #dbeafe;border-radius:12px;padding:10px 14px;margin-bottom:10px;flex-wrap:wrap;}
+.hap-label{font-size:13px;font-weight:700;color:#1d4ed8;white-space:nowrap;}
+.hap-input{height:36px;padding:0 10px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:13px;background:#fff;width:90px;font-family:inherit;}
+.hap-input:focus{outline:none;border-color:#3b82f6;}
+.hap-btn{margin-left:auto;background:#3b82f6;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.2s;white-space:nowrap;}
+.hap-btn:hover{background:#2563eb;transform:translateY(-1px);}
+
+/* Label hint */
+.flabel-hint{font-size:11px;font-weight:600;color:#f59e0b;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:2px 7px;margin-left:8px;}
+
+/* Warning tag on card */
+.c-tag.warn{background:#fff7ed;color:#c2410c;border-color:#fed7aa;}
+.c-tag.warn .material-icons{color:#f97316;}
+
+/* Success banner */
+.success-banner{display:flex;align-items:flex-start;gap:16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:20px;padding:20px 24px;margin-bottom:24px;position:relative;}
+.sb-icon{color:#16a34a;font-size:32px;flex-shrink:0;}
+.sb-body strong{display:block;font-size:15px;color:#15803d;margin-bottom:4px;}
+.sb-body p{font-size:13px;color:#64748b;margin:0 0 12px;}
+.sb-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.sb-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:12px;font-size:13px;font-weight:700;text-decoration:none;transition:.2s;background:#dcfce7;color:#15803d;border:1.5px solid #86efac;}
+.sb-btn:hover{background:#bbf7d0;transform:translateY(-1px);}
+.sb-btn.primary{background:#16a34a;color:#fff;border-color:#15803d;}
+.sb-btn.primary:hover{background:#15803d;}
+.sb-close{position:absolute;top:12px;right:12px;background:transparent;border:none;cursor:pointer;color:#94a3b8;display:flex;align-items:center;}
+.sb-close:hover{color:#1e293b;}
 
 /* Responsive */
 @media(max-width:768px){

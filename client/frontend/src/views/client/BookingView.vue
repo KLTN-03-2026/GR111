@@ -86,6 +86,8 @@
       >
         <div v-show="showMap" class="map-container" aria-label="Bản đồ các sân thể thao" role="region">
           <div ref="bookingMapEl" id="booking-map" class="booking-mapbox"></div>
+          <!-- Map Style Switcher -->
+          <MapStyleControl v-if="bookingMap" v-model="bookingMapStyle" />
           <div v-if="mapLoading" class="map-loader" aria-live="polite">
             <span class="map-spinner"></span>
             <span>Đang tải bản đồ...</span>
@@ -262,6 +264,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import BookingFilters from "@/components/client/booking/BookingFilters.vue";
 import VenueCard      from "@/components/client/booking/VenueCard.vue";
 import LoadingView    from "@/components/common/LoadingView.vue";
+import MapStyleControl from "@/components/common/MapStyleControl.vue";
 import { clubService } from "@/services/club.service.js";
 
 const SPORT_LABELS = {
@@ -274,7 +277,7 @@ const SPORT_LABELS = {
 
 export default {
   name: "BookingView",
-  components: { BookingFilters, VenueCard, LoadingView },
+  components: { BookingFilters, VenueCard, LoadingView, MapStyleControl },
   data() {
     return {
       venues:             [],
@@ -289,6 +292,7 @@ export default {
       userCoords:         null, // { lat: number, lng: number }
       // Map state
       bookingMap:         null,
+      bookingMapStyle:    'mapbox://styles/mapbox/streets-v12',
       bookingMarkers:     [],
       bookingPopups:      {},
       mapLoading:         false,
@@ -423,6 +427,14 @@ export default {
         this.fetchVenues();
       },
     },
+    bookingMapStyle(newStyle) {
+      if (this.bookingMap) {
+        this.bookingMap.setStyle(newStyle);
+        this.bookingMap.once('style.load', () => {
+          this.renderBookingMarkers();
+        });
+      }
+    }
   },
 
   async mounted() {
@@ -499,8 +511,13 @@ export default {
         minPrice:        item.minPrice         ?? null,
         amenities:       item.amenities        ?? [],
         openNow:         item.openNow          ?? null,
+        openTime:        item.openTime         ?? null,
         closeTime:       item.closeTime        ?? null,
         sportType:       item.sportType        ?? this.filters.sport,
+        sportTypes:      item.sportTypes       ?? [],
+        surface:         item.surface          ?? null,
+        format:          item.format           ?? null,
+        courtCount:      item.courtCount       ?? 0,
         latitude:        item.latitude,
         longitude:       item.longitude,
         pricingLabel:    item.pricingLabel     ?? null,
@@ -574,7 +591,7 @@ export default {
 
       this.bookingMap = new mapboxgl.Map({
         container: this.$refs.bookingMapEl,
-        style: 'mapbox://styles/mapbox/streets-v12',
+        style: this.bookingMapStyle,
         center,
         zoom: 12,
         attributionControl: false,

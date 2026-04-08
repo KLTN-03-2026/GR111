@@ -25,10 +25,10 @@ export async function getInferredSlotsForCourt(courtId: string, date: Date) {
   
   // 3. Chuẩn bị mốc thời gian lý thuyết
   const start = new Date(date);
-  start.setHours(oh.openTime.getHours(), oh.openTime.getMinutes(), 0, 0);
+  start.setHours(oh.openTime.getUTCHours(), oh.openTime.getUTCMinutes(), 0, 0);
 
   const end = new Date(date);
-  end.setHours(oh.closeTime.getHours(), oh.closeTime.getMinutes(), 0, 0);
+  end.setHours(oh.closeTime.getUTCHours(), oh.closeTime.getUTCMinutes(), 0, 0);
 
   // 4. Lấy các slot thực tế (BOOKED hoặc LOCKED) qua Repository
   const startRange = new Date(new Date(date).setHours(0, 0, 0, 0));

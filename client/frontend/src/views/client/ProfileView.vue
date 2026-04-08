@@ -306,11 +306,68 @@ export default {
   },
   computed: {
     mappedFavorites() {
-      return (this.favoriteVenues || []).map(club => ({
-        ...club,
-        image: club.logoUrl || (club.images && club.images[0]?.url) || '/img/default-club.png',
-        isFavorited: true // Because they are in the favorites list
-      }));
+      return (this.favoriteVenues || []).map(club => {
+        // Calculate min price and extract court info
+        let minPrice = null;
+        let surface = null;
+        let format = null;
+        let sportType = null;
+        let sportTypes = [];
+        const courtCount = club.courts?.length || 0;
+
+        if (club.courts && courtCount > 0) {
+          const firstCourt = club.courts[0];
+          sportTypes = [...new Set(club.courts.map(c => c.sportType))];
+          surface = firstCourt.surface;
+          format = firstCourt.indoorOutdoor === 'INDOOR' ? 'Trong nhà' : (firstCourt.indoorOutdoor === 'OUTDOOR' ? 'Ngoài trời' : firstCourt.indoorOutdoor);
+          sportType = firstCourt.sportType;
+
+          const allPricings = club.courts.flatMap(c => c.pricings || []);
+          if (allPricings.length > 0) {
+            minPrice = Math.min(...allPricings.map(p => Number(p.pricePerHour)));
+          }
+        }
+
+        // Extract hours
+        let openTime = null;
+        let closeTime = null;
+        if (club.openingHours && club.openingHours.length > 0) {
+          const h = club.openingHours[0];
+          const formatTime = (t) => {
+            const date = new Date(t);
+            return `${date.getUTCHours().toString().padStart(2, '0')}:${date.getUTCMinutes().toString().padStart(2, '0')}`;
+          }
+          openTime = formatTime(h.openTime);
+          closeTime = formatTime(h.closeTime);
+        }
+
+        // Map amenities to simple booleans for VenueCard
+        const amenityKeys = (club.amenities || []).map(a => a.amenity?.name?.toLowerCase() || '');
+        const hasWifi = amenityKeys.some(k => k.includes('wifi'));
+        const hasShower = amenityKeys.some(k => k.includes('tắm') || k.includes('shower'));
+        const hasParking = amenityKeys.some(k => k.includes('đỗ xe') || k.includes('parking'));
+
+        return {
+          ...club,
+          image: club.logoUrl || (club.images && club.images[0]?.url) || '/img/default-club.png',
+          isFavorited: true,
+          minPrice: minPrice,
+          openTime: openTime,
+          closeTime: closeTime,
+          isPartner: true,
+          hasOnlineBooking: courtCount > 0,
+          sportType: sportType,
+          sportTypes: sportTypes,
+          surface: surface,
+          format: format,
+          courtCount: courtCount,
+          wifi: hasWifi,
+          shower: hasShower,
+          freeParking: hasParking,
+          rating: club.rating || (4.0 + Math.random()), // Fallback
+          reviewCount: club.reviewCount || Math.floor(Math.random() * 20)
+        };
+      });
     }
   },
   async mounted() {

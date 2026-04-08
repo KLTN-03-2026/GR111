@@ -9,8 +9,25 @@
         <label><span class="material-icons">sports_tennis</span> Chọn sân bóng:</label>
         <select v-model="selectedCourtId" @change="loadPricing" class="court-select">
           <option value="" disabled>-- Lựa chọn sân --</option>
-          <option v-for="c in courts" :key="c.id" :value="c.id">{{ c.name }} ({{ c.clubName }})</option>
+          <option v-for="c in courts" :key="c.id" :value="c.id">
+            {{ c.pricingCount === 0 ? '⚠️ ' : '✅ ' }}{{ c.name }} ({{ c.clubName }})
+          </option>
         </select>
+        <span v-if="selectedCourt && selectedCourt.pricingCount === 0" class="no-pricing-tag">
+          <span class="material-icons" style="font-size:14px">warning_amber</span>
+          Sân này chưa có bảng giá!
+        </span>
+      </div>
+    </div>
+
+    <!-- Warning banner: courts with no pricing -->
+    <div v-if="courtsWithoutPricing.length > 0" class="no-pricing-banner">
+      <span class="material-icons">warning_amber</span>
+      <div>
+        <strong>{{ courtsWithoutPricing.length }} sân chưa có bảng giá:</strong>
+        <span v-for="c in courtsWithoutPricing" :key="c.id" class="npt-chip" @click="jumpToCourt(c.id)">
+          {{ c.name }}
+        </span>
       </div>
     </div>
 
@@ -45,9 +62,23 @@
                 <p>Áp dụng lặp lại theo Thứ trong tuần</p>
               </div>
             </div>
-            <button class="btn-add" @click="openModal('regular')">
-              <span class="material-icons">add</span> Thêm mới
-            </button>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <!-- Bulk copy button -->
+              <button
+                v-if="regularPricings.length > 0 && courtsInSameClub.length > 1"
+                class="btn-copy-all"
+                :disabled="isCopyingAll"
+                @click="copyPricingToAllCourts"
+                title="Sao chép bảng giá này đến tất cả sân khác trong cùng CLB"
+              >
+                <span class="material-icons">content_copy</span>
+                <span v-if="isCopyingAll">Đang sao chép...</span>
+                <span v-else>Sao chép cho tất cả sân</span>
+              </button>
+              <button class="btn-add" @click="openModal('regular')">
+                <span class="material-icons">add</span> Thêm mới
+              </button>
+            </div>
           </div>
 
           <div class="table-container">
@@ -263,6 +294,7 @@ export default {
       regularPricings: [],
       specialPricings: [],
       loadingCourts: true,
+      isCopyingAll: false,
       showModal: false,
       modalType: 'regular',
       isSaving: false,
@@ -288,6 +320,16 @@ export default {
   computed: {
     pricingPreview() {
       return this.form.pricePerHour > 0;
+    },
+    selectedCourt() {
+      return this.courts.find(c => c.id === this.selectedCourtId) || null;
+    },
+    courtsWithoutPricing() {
+      return this.courts.filter(c => c.pricingCount === 0);
+    },
+    courtsInSameClub() {
+      if (!this.selectedCourt) return [];
+      return this.courts.filter(c => c.clubName === this.selectedCourt.clubName);
     }
   },
   mounted() {
@@ -310,6 +352,68 @@ export default {
         console.error('Lỗi tải danh sách sân', e);
       } finally {
         this.loadingCourts = false;
+      }
+    },
+
+    jumpToCourt(courtId) {
+      this.selectedCourtId = courtId;
+      this.loadPricing();
+    },
+
+    async copyPricingToAllCourts() {
+      const otherCourts = this.courtsInSameClub.filter(c => c.id !== this.selectedCourtId);
+      if (otherCourts.length === 0) return;
+
+      const confirmed = confirm(
+        `Sẽ sao chép ${this.regularPricings.length} khung giá định kỳ sang ${otherCourts.length} sân còn lại trong cùng CLB.\n\n` +
+        `⚠️ Bảng giá định kỳ hiện có của các sân đích sẽ bị XÓA và thay thế.\n\n` +
+        `Sân sẽ cập nhật: ${otherCourts.map(c => c.name).join(', ')}\n\nTiếp tục?`
+      );
+      if (!confirmed) return;
+
+      this.isCopyingAll = true;
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const court of otherCourts) {
+        try {
+          // 1. Fetch existing pricings for target court
+          const res = await axios.get(`/api/owner/courts/${court.id}/pricing`, { headers });
+          const existingRegular = res.data?.data?.regularPricings || [];
+
+          // 2. Delete all existing regular pricings to avoid OVERLAP
+          for (const ep of existingRegular) {
+            await axios.delete(`/api/owner/courts/${court.id}/pricing?type=regular&id=${ep.id}`, { headers });
+          }
+
+          // 3. Create new pricings from source
+          for (const p of this.regularPricings) {
+            await axios.post(`/api/owner/courts/${court.id}/pricing`, {
+              id: null,
+              startTime: this.formatTimeRaw(p.startTime) + ':00',
+              endTime: this.formatTimeRaw(p.endTime) + ':00',
+              pricePerHour: Number(p.pricePerHour),
+              dayOfWeek: p.dayOfWeek,
+              label: p.label || ''
+            }, { headers });
+          }
+          successCount++;
+        } catch (e) {
+          console.error(`Lỗi copy giá sang sân ${court.name}:`, e);
+          errorCount++;
+        }
+      }
+
+      // Reload courts list to update pricingCount badges
+      await this.loadCourts();
+      this.isCopyingAll = false;
+
+      if (errorCount > 0) {
+        alert(`Hoàn thành: ${successCount} sân thành công, ${errorCount} sân bị lỗi. Kiểm tra console để biết chi tiết.`);
+      } else {
+        alert(`✅ Đã sao chép bảng giá lên ${successCount} sân thành công!`);
       }
     },
 
@@ -660,6 +764,40 @@ export default {
 
 .animate-in { animation: slideUp 0.3s ease-out; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* No-pricing warning */
+.no-pricing-banner {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #fffbeb; border: 1.5px solid #fde68a;
+  border-radius: 16px; padding: 16px 20px;
+  margin-bottom: 24px; color: #92400e;
+}
+.no-pricing-banner strong { display: block; margin-bottom: 6px; font-size: 14px; }
+.no-pricing-banner .material-icons { color: #f59e0b; font-size: 24px; flex-shrink: 0; margin-top: 2px; }
+.npt-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #fef3c7; border: 1px solid #fde68a;
+  border-radius: 8px; padding: 3px 10px;
+  font-size: 12px; font-weight: 700; color: #92400e;
+  margin-left: 6px; cursor: pointer; transition: 0.2s;
+}
+.npt-chip:hover { background: #fde68a; }
+.no-pricing-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #fff7ed; border: 1px solid #fed7aa;
+  color: #c2410c; border-radius: 8px; padding: 4px 10px;
+  font-size: 12px; font-weight: 700; margin-top: 4px;
+}
+.btn-copy-all {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #f0fdf4; color: #15803d;
+  border: 1.5px solid #bbf7d0; border-radius: 12px;
+  padding: 9px 18px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: 0.2s;
+}
+.btn-copy-all:hover:not(:disabled) { background: #dcfce7; border-color: #86efac; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(21,128,61,0.15); }
+.btn-copy-all:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-copy-all .material-icons { font-size: 18px; }
 
 @media (max-width: 1024px) { .pricing-grid { grid-template-columns: 1fr; } .view-header { flex-direction: column; align-items: stretch; } .split { grid-template-columns: 1fr; } }
 </style>
