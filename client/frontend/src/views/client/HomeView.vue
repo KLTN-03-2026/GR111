@@ -83,6 +83,12 @@
         </div>
       </section>
 
+      <!-- ── Mobile App Promotion ── -->
+      <MobileAppPromo />
+
+      <!-- ── Community News Feed ── -->
+      <PublicNewsFeed />
+
       <!-- ── Cities ── -->
       <section
         id="cities"
@@ -139,6 +145,8 @@ import StatisticsView from "@/components/client/home/StatisticsView.vue";
 import ServicesView   from "@/components/client/home/ServicesView.vue";
 import BlogView       from "@/components/client/home/BlogView.vue";
 import VenueView      from "@/components/client/home/VenueView.vue";
+import PublicNewsFeed from "@/components/client/home/PublicNewsFeed.vue";
+import MobileAppPromo from "@/components/client/home/MobileAppPromo.vue";
 import VenueCard      from "@/components/client/booking/VenueCard.vue";
 import { clubService } from "@/services/club.service.js";
 
@@ -157,6 +165,8 @@ export default {
     BlogView,
     VenueView,
     VenueCard,
+    PublicNewsFeed,
+    MobileAppPromo,
   },
 
   data() {

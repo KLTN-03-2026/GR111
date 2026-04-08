@@ -64,6 +64,14 @@
             <option v-for="s in SPORT_TYPES" :key="s.value" :value="s.value">{{ s.emoji }} {{ s.label }}</option>
           </select>
         </div>
+        <div class="f-item status-sel">
+          <select v-model="statusFilter">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="ACTIVE">Hoạt động</option>
+            <option value="MAINTENANCE">Bảo trì</option>
+            <option value="INACTIVE">Tạm dừng</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -90,7 +98,7 @@
           <div class="s-info">
             <div class="s-label">{{ getSportLabel(c.sportType) }}</div>
             <div class="s-status" :class="c.status">
-              <span class="dot"></span> {{ c.status === 'ACTIVE' ? 'Hoạt động' : 'Tạm dừng' }}
+              <span class="dot"></span> {{ getStatusLabel(c.status) }}
             </div>
           </div>
         </div>
@@ -233,6 +241,60 @@
                 <textarea v-model="addForm.description" rows="3" placeholder="Thêm thông tin về sân..."></textarea>
               </div>
             </div>
+
+            <!-- PRICING IN ADD DRAWER -->
+            <div class="f-upload-sec" style="margin-top:32px;">
+              <div class="flabel"><span class="material-icons">payments</span>Cài đặt bảng giá ban đầu</div>
+              <p class="small text-muted mb-3" style="font-size:12px; margin-top:-10px">Hệ thống tự động gợi ý giá dựa trên các sân cùng loại thể thao của bạn.</p>
+              
+              <div class="pricing-rules">
+                <div v-for="(p, idx) in addForm.pricings" :key="idx" class="price-rule-card">
+                  <div class="pr-head">
+                    <div class="pr-name">Khung giờ {{ idx + 1 }}</div>
+                    <button class="pr-del" v-if="addForm.pricings.length > 1" @click="addForm.pricings.splice(idx,1)">
+                      <span class="material-icons">delete</span>
+                    </button>
+                  </div>
+                  <div class="pr-body">
+                    <div class="pr-row">
+                      <div class="pr-field">
+                        <label>Thứ</label>
+                        <select v-model.number="p.dayOfWeek">
+                          <option :value="undefined">Mọi ngày</option>
+                          <option :value="1">Thứ 2</option>
+                          <option :value="2">Thứ 3</option>
+                          <option :value="3">Thứ 4</option>
+                          <option :value="4">Thứ 5</option>
+                          <option :value="5">Thứ 6</option>
+                          <option :value="6">Thứ 7</option>
+                          <option :value="0">Chủ Nhật</option>
+                        </select>
+                      </div>
+                      <div class="pr-field">
+                        <label>Giá / Giờ</label>
+                        <div class="price-input">
+                          <input v-model.number="p.pricePerHour" type="number" step="1000" />
+                          <span>đ</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="pr-row">
+                      <div class="pr-field">
+                        <label>Từ</label>
+                        <input type="time" v-model="p.startTime" />
+                      </div>
+                      <div class="pr-field">
+                        <label>Đến</label>
+                        <input type="time" v-model="p.endTime" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-add-price" @click="addForm.pricings.push({ dayOfWeek: undefined, startTime:'05:00', endTime:'23:00', pricePerHour: 100000 })">
+                  <span class="material-icons">add</span> Thêm khung giờ
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="drawer-footer">
@@ -323,6 +385,15 @@
                 </select>
               </div>
 
+              <div class="field full">
+                <label>Trạng thái vận hành</label>
+                <select v-model="editForm.status">
+                  <option value="ACTIVE">✅ Hoạt động</option>
+                  <option value="MAINTENANCE">🛠️ Đang bảo trì</option>
+                  <option value="INACTIVE">🚫 Tạm nghỉ</option>
+                </select>
+              </div>
+
               <div class="field">
                 <label>Vị trí</label>
                 <select v-model="editForm.indoorOutdoor">
@@ -350,7 +421,18 @@
 
             <!-- Pricing section -->
             <div class="f-upload-sec" style="margin-top:32px;">
-              <div class="flabel"><span class="material-icons">payments</span>Bảng giá theo khung giờ</div>
+              <div class="flabel-row">
+                <div class="flabel"><span class="material-icons">payments</span>Bảng giá theo khung giờ</div>
+                <div class="pricing-actions" v-if="courts.length > 1">
+                   <select v-model="pricingSourceId" class="pricing-copy-select">
+                      <option value="">Sao chép giá từ...</option>
+                      <option v-for="oc in otherCourts" :key="oc.id" :value="oc.id">{{ oc.name }}</option>
+                   </select>
+                   <button class="btn-copy-price" @click="copyPricing" :disabled="!pricingSourceId" title="Sao chép giá">
+                      <span class="material-icons">content_copy</span>
+                   </button>
+                </div>
+              </div>
               <div class="pricing-rules">
                 <div v-for="(p, idx) in editForm.pricings" :key="idx" class="price-rule-card">
                   <div class="pr-head">
@@ -448,7 +530,17 @@ const SPORT_TYPES = [
 ];
 
 function freshAdd() {
-  return { name: '', sportType: '', indoorOutdoor: '', capacity: '', surface: '', description: '', images: [], newUrl: '' };
+  return { 
+    name: '', 
+    sportType: '', 
+    indoorOutdoor: '', 
+    capacity: '', 
+    surface: '', 
+    description: '', 
+    images: [], 
+    newUrl: '',
+    pricings: [{ dayOfWeek: undefined, startTime: '05:00', endTime: '23:00', pricePerHour: 100000 }]
+  };
 }
 
 export default {
@@ -484,6 +576,8 @@ export default {
       editLoading: false,
       editErrors: [],
       editSuccess: false,
+      pricingSourceId: '',
+      statusFilter: 'all',
       editMode: 'upload',
       editOver: false,
       editPreview: null,
@@ -502,15 +596,28 @@ export default {
     selectedClubName() {
       return this.clubs.find(c => c.id === this.selectedClubId)?.name ?? '';
     },
+    otherCourts() {
+      return this.courts.filter(c => c.id !== this.editForm.id);
+    },
     filteredCourts() {
       return this.courts.filter(c => {
         const q = this.searchQuery.toLowerCase();
         return (
           c.name.toLowerCase().includes(q) &&
-          (this.sportFilter === 'all' || c.sportType === this.sportFilter)
+          (this.sportFilter === 'all' || c.sportType === this.sportFilter) &&
+          (this.statusFilter === 'all' || c.status === this.statusFilter)
         );
       });
     },
+  },
+
+  watch: {
+    'addForm.sportType'(newVal) {
+      if (newVal && this.addForm.pricings && this.addForm.pricings.length <= 1) {
+        // Only auto-fill if the user hasn't added multiple pricing rules yet
+        this.suggestPricingFromSimilarCourt(newVal);
+      }
+    }
   },
 
   async mounted() {
@@ -520,6 +627,10 @@ export default {
   methods: {
     getSportLabel(type) { return SPORT_TYPES.find(s => s.value === type)?.label ?? type; },
     getSportEmoji(type) { return SPORT_TYPES.find(s => s.value === type)?.emoji ?? '🏅'; },
+    getStatusLabel(status) {
+      const labels = { ACTIVE: 'Hoạt động', MAINTENANCE: 'Bảo trì', INACTIVE: 'Tạm dừng' };
+      return labels[status] || status;
+    },
 
     // ── Fetch ──────────────────────────────────────────────
     async fetchClubs() {
@@ -574,6 +685,18 @@ export default {
 
         const res = await courtService.createCourt(this.selectedClubId, p);
         if (res.data.success) {
+          const newCourtId = res.data.data.id;
+          // Also save pricing for the new court
+          if (this.addForm.pricings && this.addForm.pricings.length > 0) {
+             const prices = this.addForm.pricings.map(pr => ({
+                dayOfWeek: pr.dayOfWeek,
+                startTime: pr.startTime,
+                endTime:   pr.endTime,
+                pricePerHour: Number(pr.pricePerHour)
+             }));
+             await courtService.updatePricing(newCourtId, prices);
+          }
+
           await this.fetchCourts();
           this.closeAddDrawer();
         }
@@ -581,6 +704,14 @@ export default {
         const fe = e.response?.data?.errors;
         this.addErrors = fe ? Object.values(fe).flat() : [e.response?.data?.message ?? 'Có lỗi xảy ra.'];
       } finally { this.addLoading = false; }
+    },
+
+    suggestPricingFromSimilarCourt(sportType) {
+      // Find another court with the same sport type to suggest pricing
+      const similar = this.courts.find(c => c.sportType === sportType && c.pricings?.length > 0);
+      if (similar) {
+         this.addForm.pricings = this.initPricings(similar.pricings);
+      }
     },
 
     // ── Edit ───────────────────────────────────────────────
@@ -593,10 +724,12 @@ export default {
         capacity:      court.capacity       ?? '',
         surface:       court.surface        ?? '',
         description:   court.description    ?? '',
+        status:        court.status         ?? 'ACTIVE',
         images:        court.images?.map(i => i.url) ?? [],
         newUrl:        '',
         pricings:      this.initPricings(court.pricings)
       };
+      this.pricingSourceId = '';
       this.editSubmitted = false;
       this.editErrors    = [];
       this.editSuccess   = false;
@@ -641,6 +774,7 @@ export default {
         if (this.editForm.capacity)            p.capacity      = Number(this.editForm.capacity);
         if (this.editForm.surface?.trim())     p.surface       = this.editForm.surface.trim();
         if (this.editForm.description?.trim()) p.description   = this.editForm.description.trim();
+        if (this.editForm.status)              p.status        = this.editForm.status;
 
         const res = await courtService.updateCourt(this.editForm.id, p);
         if (res.data.success) {
@@ -661,6 +795,15 @@ export default {
         const fe = e.response?.data?.errors;
         this.editErrors = fe ? Object.values(fe).flat() : [e.response?.data?.message ?? 'Có lỗi xảy ra.'];
       } finally { this.editLoading = false; }
+    },
+
+    copyPricing() {
+      if (!this.pricingSourceId) return;
+      const source = this.courts.find(c => c.id === this.pricingSourceId);
+      if (source && source.pricings) {
+        this.editForm.pricings = this.initPricings(source.pricings);
+        alert(`Đã sao chép bảng giá từ sân ${source.name}`);
+      }
     },
 
     // ── Delete ─────────────────────────────────────────────
@@ -793,6 +936,9 @@ export default {
 .s-status .dot{width:6px;height:6px;border-radius:50%;background:#94a3b8;}
 .s-status.ACTIVE{color:#059669;}
 .s-status.ACTIVE .dot{background:#10b981;box-shadow:0 0 8px #10b981;}
+.s-status.MAINTENANCE{color:#f59e0b;}
+.s-status.MAINTENANCE .dot{background:#f59e0b;}
+.s-status.INACTIVE .dot{background:#ef4444;}
 
 .cbody{padding:24px;flex:1;display:flex;flex-direction:column;}
 .c-title{font-size:20px;font-weight:800;margin:0 0 16px;color:#0f172a;}
@@ -893,6 +1039,13 @@ export default {
 
 /* Pricing Rules */
 .pricing-rules{display:flex;flex-direction:column;gap:16px;}
+.flabel-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.pricing-actions{display:flex;gap:8px;align-items:center;}
+.pricing-copy-select{height:34px;border-radius:10px;border:1px solid #e2e8f0;padding:0 8px;font-size:12px;font-weight:600;color:#64748b;background:#f8fafc;}
+.btn-copy-price{width:34px;height:34px;border-radius:10px;border:none;background:#ecfdf5;color:#059669;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.btn-copy-price:disabled{opacity:0.5;cursor:not-allowed;}
+.btn-copy-price .material-icons{font-size:18px;}
+
 .price-rule-card{background:#f8fafc;border-radius:20px;border:1px solid #f1f5f9;padding:20px;transition:all .2s;}
 .price-rule-card:hover{border-color:#10b981;box-shadow:0 4px 12px rgba(16,185,129,0.05);}
 .pr-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}

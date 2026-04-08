@@ -213,8 +213,20 @@
                   <input v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" placeholder="Hải Châu" />
                 </div>
                 <div class="f span2">
+                  <label>Phường/Xã</label>
+                  <input v-model="addForm.ward" placeholder="Hòa Cường Bắc" />
+                </div>
+                <div class="f span2">
                   <label>Địa chỉ <span class="req">*</span></label>
                   <input v-model="addForm.address" :class="{inv:addSub&&!addForm.address}" placeholder="123 Nguyễn Văn A..." />
+                </div>
+                <div class="f span2">
+                  <label>Vị trí Bản đồ</label>
+                  <LocationPicker 
+                    :lat="addForm.latitude" 
+                    :lng="addForm.longitude" 
+                    @update:location="l => { addForm.latitude = l.lat; addForm.longitude = l.lng; }" 
+                  />
                 </div>
                 <div class="f"><label>Số điện thoại</label><input v-model="addForm.phone" placeholder="0901 234 567" /></div>
                 <div class="f"><label>Email</label><input v-model="addForm.email" type="email" placeholder="info@club.com" /></div>
@@ -318,7 +330,16 @@
                 <div class="f span2"><label>Tên CLB <span class="req">*</span></label><input v-model="editForm.name" :class="{inv:editSub&&!editForm.name}" /></div>
                 <div class="f"><label>Thành phố <span class="req">*</span></label><input v-model="editForm.city" /></div>
                 <div class="f"><label>Quận/Huyện <span class="req">*</span></label><input v-model="editForm.district" /></div>
+                <div class="f span2"><label>Phường/Xã</label><input v-model="editForm.ward" /></div>
                 <div class="f span2"><label>Địa chỉ <span class="req">*</span></label><input v-model="editForm.address" /></div>
+                <div class="f span2">
+                  <label>Vị trí Bản đồ</label>
+                  <LocationPicker 
+                    :lat="editForm.latitude" 
+                    :lng="editForm.longitude" 
+                    @update:location="l => { editForm.latitude = l.lat; editForm.longitude = l.lng; }" 
+                  />
+                </div>
                 <div class="f"><label>Số điện thoại</label><input v-model="editForm.phone" /></div>
                 <div class="f"><label>Email</label><input v-model="editForm.email" type="email" /></div>
                 <div class="f span2"><label>Mô tả</label><textarea v-model="editForm.description" rows="3"></textarea></div>
@@ -393,13 +414,15 @@
 
 <script>
 import { clubService } from '@/services/club.service';
+import LocationPicker from '@/components/common/LocationPicker.vue';
 
 const MAX = 5 * 1024 * 1024;
 const TYPES = ['image/jpeg','image/png','image/webp'];
-const blank = () => ({ name:'', city:'', district:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '' });
+const blank = () => ({ name:'', city:'', district:'', ward:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '', latitude: null, longitude: null });
 
 export default {
   name: 'OwnerClubsView',
+  components: { LocationPicker },
   data() {
     return {
       clubs: [], loading: false,
@@ -524,9 +547,10 @@ export default {
     // ── EDIT ──────────────────────────────────────────────────
     openEdit(c) {
       this.editForm = { 
-        id:c.id, name:c.name||'', city:c.city||'', district:c.district||'',
+        id:c.id, name:c.name||'', city:c.city||'', district:c.district||'', ward:c.ward||'',
         address:c.address||'', phone:c.phone||'', email:c.email||'',
         description:c.description||'', coverImageUrl:c.coverImageUrl||'',
+        latitude: c.latitude || null, longitude: c.longitude || null,
         images: c.images?.map(i => i.url) || [],
         newUrl: '',
         openingHours: this.initHours(c.openingHours)
@@ -613,7 +637,7 @@ export default {
 
     buildPayload(f) {
       const p = {};
-      ['name','city','district','address','phone','email','description','coverImageUrl','images']
+      ['name','city','district','ward','address','phone','email','description','coverImageUrl','images','latitude','longitude']
         .forEach(k => { if (f[k] !== undefined && f[k] !== '') p[k] = f[k]; });
       return p;
     },

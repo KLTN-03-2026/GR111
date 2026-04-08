@@ -81,4 +81,16 @@ export const clubService = {
     updateOpeningHours(clubId, hours) {
         return api.put(`/owner/clubs/${clubId}/opening-hours`, hours);
     },
+
+    // ── Favorites ──────────────────────────────────────────────
+    getFavorites() {
+        return api.get('/favorites');
+    },
+    /**
+     * Thêm/Xóa khỏi danh sách yêu thích
+     * @param {string} clubId 
+     */
+    toggleFavorite(clubId) {
+        return api.post('/favorites', { clubId });
+    },
 };
