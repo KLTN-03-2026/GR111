@@ -78,8 +78,8 @@ export async function GET(
 
       const slots = calculatedSlots.map((slot) => {
         const slotDate = new Date(slot.startTime);
-        const slotHour = slotDate.getUTCHours();
-        const slotDow = slotDate.getUTCDay();
+        const slotHour = slotDate.getHours();
+        const slotDow = slotDate.getDay();
 
         // ── CHIẾN LƯỢC TÍNH GIÁ ──
         // 1. ƯU TIÊN: Kiểm tra giá Ngày đặc biệt (Holidays) trước
@@ -115,11 +115,11 @@ export async function GET(
         const price = (pricePerHour * club.slotDuration) / 60;
 
         // Format thời gian thành "HH:mm – HH:mm"
-        const startH = slotDate.getUTCHours().toString().padStart(2, "0");
-        const startM = slotDate.getUTCMinutes().toString().padStart(2, "0");
+        const startH = slotDate.getHours().toString().padStart(2, "0");
+        const startM = slotDate.getMinutes().toString().padStart(2, "0");
         const endDate = new Date(slot.endTime);
-        const endH = endDate.getUTCHours().toString().padStart(2, "0");
-        const endM = endDate.getUTCMinutes().toString().padStart(2, "0");
+        const endH = endDate.getHours().toString().padStart(2, "0");
+        const endM = endDate.getMinutes().toString().padStart(2, "0");
         const time = `${startH}:${startM} – ${endH}:${endM}`;
 
         return {

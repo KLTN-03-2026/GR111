@@ -61,6 +61,18 @@
             {{ sport.label }}
           </button>
         </div>
+
+        <!-- Extra Filters (Radius) -->
+        <div class="radius-filter-row" v-show="!sidebarCollapsed">
+          <span class="filter-label">Bán kính:</span>
+          <select v-model="selectedRadius" class="radius-select" @change="onRadiusChange">
+            <option :value="null">Tất cả</option>
+            <option :value="3">Trong 3km</option>
+            <option :value="5">Trong 5km</option>
+            <option :value="10">Trong 10km</option>
+            <option :value="20">Trong 20km</option>
+          </select>
+        </div>
       </div>
 
       <!-- Results -->
@@ -159,6 +171,9 @@
     <!-- ── Map Container ── -->
     <div class="map-container">
       <div id="mapbox-map" ref="mapEl" class="mapbox-map" aria-label="Bản đồ sân thể thao"></div>
+
+      <!-- Map Style Switcher -->
+      <MapStyleControl v-if="map" v-model="currentMapStyle" :class="{ 'shifted-up': selectedClub && isMobile }" />
 
       <!-- Map Controls Overlay -->
       <div class="map-controls-overlay">
@@ -271,6 +286,7 @@
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { clubService } from '@/services/club.service.js';
+import MapStyleControl from '@/components/common/MapStyleControl.vue';
 
 const DEFAULT_CENTER = [106.6297, 10.8231]; // HCM
 const DEFAULT_ZOOM = 12;
@@ -288,9 +304,14 @@ const SPORT_LABELS = {
 export default {
   name: 'MapView',
 
+  components: {
+    MapStyleControl
+  },
+
   data() {
     return {
       map: null,
+      currentMapStyle: 'mapbox://styles/mapbox/streets-v12',
       markers: [],
       userMarker: null,
       clubs: [],
@@ -305,6 +326,7 @@ export default {
       popups: {},
       showDetailModal: false,
       detailedClub: null,
+      selectedRadius: null,
       defaultImg: 'https://images.unsplash.com/photo-1544691371-464a4d46af63?w=600&q=80',
       sports: Object.entries(SPORT_LABELS).map(([value, info]) => ({ value, ...info })),
     };
@@ -341,6 +363,11 @@ export default {
     window.addEventListener('resize', this.onResize);
     this.initMap();
     await this.loadClubs();
+    
+    // Tự động định vị khi vào trang
+    setTimeout(() => {
+      this.locateUser();
+    }, 1000);
   },
 
   beforeUnmount() {
@@ -352,6 +379,19 @@ export default {
     filteredClubs(newList) {
       this.renderMarkers(newList);
     },
+    currentMapStyle(newStyle) {
+      if (this.map) {
+        this.map.setStyle(newStyle);
+        // Style changes remove everything, so we must re-render after it loads
+        this.map.once('style.load', () => {
+          this.renderMarkers(this.filteredClubs);
+          if (this.userLocation) {
+            // Re-add user marker if needed (or just re-locate if that's easier, but let's try to just re-add)
+            this.reAddUserMarker();
+          }
+        });
+      }
+    }
   },
 
   methods: {
@@ -368,7 +408,7 @@ export default {
 
       this.map = new mapboxgl.Map({
         container: this.$refs.mapEl,
-        style: 'mapbox://styles/mapbox/streets-v12',
+        style: this.currentMapStyle,
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
         attributionControl: false,
@@ -454,6 +494,7 @@ export default {
                 <span class="map-popup-price">${priceStr}</span>
                 <div class="map-popup-actions">
                   <button class="map-popup-btn map-popup-btn--outline" data-view-id="${club.id}">Xem</button>
+                  <button class="map-popup-btn map-popup-btn--nav" data-nav-lat="${lat}" data-nav-lng="${lng}">Chỉ đường</button>
                   <a href="/venue/${club.slug}" class="map-popup-btn" onclick="return false;" data-slug="${club.slug}">Đặt sân</a>
                 </div>
               </div>
@@ -479,6 +520,14 @@ export default {
             btnView.addEventListener('click', () => {
               this.detailedClub = club;
               this.showDetailModal = true;
+            });
+          }
+
+          // Nút Chỉ đường
+          const btnNav = document.querySelector(`.map-popup [data-nav-lat="${lat}"]`);
+          if (btnNav) {
+            btnNav.addEventListener('click', () => {
+              window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank');
             });
           }
         });
@@ -556,10 +605,31 @@ export default {
       );
     },
 
+    reAddUserMarker() {
+      if (!this.userLocation || !this.map) return;
+      if (this.userMarker) this.userMarker.remove();
+      const el = document.createElement('div');
+      el.className = 'user-marker';
+      el.innerHTML = `<div class="user-pulse"></div><div class="user-dot"></div>`;
+      this.userMarker = new mapboxgl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([this.userLocation.lng, this.userLocation.lat])
+        .addTo(this.map);
+    },
+
+    onRadiusChange() {
+      if (this.userLocation) {
+        this.loadNearbyClubs(this.userLocation.lat, this.userLocation.lng);
+      } else {
+        alert('Vui lòng bật định vị để sử dụng tính năng này');
+        this.selectedRadius = null;
+      }
+    },
+
     async loadNearbyClubs(lat, lng) {
       this.loading = true;
       try {
-        const res = await clubService.getNearbyClubs(lat, lng, 20);
+        const radius = this.selectedRadius || 20;
+        const res = await clubService.getNearbyClubs(lat, lng, radius);
         this.clubs = res.data?.data || [];
         this.renderMarkers(this.filteredClubs);
       } catch {
@@ -688,8 +758,36 @@ export default {
   font-weight: 600;
 }
 
+/* Radius filter */
+.radius-filter-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.filter-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #4b5563;
+}
+.radius-select {
+  flex: 1;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: #1f2937;
+  cursor: pointer;
+  outline: none;
+}
+.radius-select:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
 .map-popup-btn {
-  background: linear-gradient(135deg, #3dd56d, #22c55e);
+  background: rgb(22, 163, 74);
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
@@ -705,17 +803,26 @@ export default {
 .map-popup-btn:hover { opacity: 0.85; }
 .map-popup-actions {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 .map-popup-btn--outline {
   background: #fff;
-  color: #16a34a;
-  border: 1.5px solid #16a34a;
-  padding: 4px 10px;
+  color: rgb(22, 163, 74);
+  border: 1.5px solid rgb(22, 163, 74);
+  padding: 4px 8px;
 }
 .map-popup-btn--outline:hover {
   background: #f0fdf4;
+}
+
+.map-popup-btn--nav {
+  background: #3b82f6;
+  color: #fff;
+  padding: 4px 8px;
+}
+.map-popup-btn--nav:hover {
+  background: #2563eb;
 }
 
 /* ── Modal (Quick View) ── */
@@ -1063,7 +1170,11 @@ export default {
   stroke-width: 2;
   fill: none;
 }
-.sidebar-toggle:hover { background: #f9fafb; }
+.sidebar-toggle:hover {
+  background: #f0fdf4;
+  color: rgb(22, 163, 74);
+  transform: scale(1.05);
+}
 
 /* Search row */
 .search-row {
@@ -1103,8 +1214,8 @@ export default {
 }
 
 .btn-locate {
-  background: linear-gradient(135deg, #3dd56d, #22c55e);
-  border: none;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
   border-radius: 10px;
   width: 40px; height: 38px;
   display: flex;
@@ -1112,15 +1223,20 @@ export default {
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: opacity 0.2s, transform 0.2s;
+  transition: all 0.2s;
 }
 .btn-locate svg {
   width: 16px; height: 16px;
-  stroke: #fff;
+  stroke: #6b7280;
   stroke-width: 2;
   fill: none;
 }
-.btn-locate:hover { opacity: 0.85; transform: scale(1.05); }
+.btn-locate:hover {
+  background: #f0fdf4;
+  color: rgb(22, 163, 74);
+  border-color: rgb(22, 163, 74);
+  transform: translateY(-1px);
+}
 
 /* Filters */
 .filters-row {
@@ -1149,13 +1265,14 @@ export default {
   transition: all 0.2s;
 }
 .filter-chip:hover {
-  border-color: #3dd56d;
-  color: #16a34a;
+  border-color: rgb(22, 163, 74);
+  color: rgb(22, 163, 74);
 }
 .filter-chip.active {
-  background: linear-gradient(135deg, #3dd56d, #22c55e);
-  border-color: transparent;
+  background: rgb(22, 163, 74);
   color: #fff;
+  border-color: rgb(22, 163, 74);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
 }
 .chip-icon { font-size: 0.85em; }
 
@@ -1218,7 +1335,7 @@ export default {
   cursor: pointer;
   transition: all 0.2s;
 }
-.btn-reset:hover { border-color: #3dd56d; color: #16a34a; }
+.btn-reset:hover { border-color: rgb(22, 163, 74); color: rgb(22, 163, 74); background: #f0fdf4; }
 
 /* Club List */
 .clubs-list {
@@ -1239,8 +1356,8 @@ export default {
 }
 .club-card:hover,
 .club-card--active {
-  border-color: #3dd56d;
-  box-shadow: 0 4px 16px rgba(61,213,109,0.15);
+  border-color: rgb(22, 163, 74);
+  box-shadow: 0 4px 16px rgba(22, 163, 74, 0.15);
   transform: translateY(-1px);
 }
 .club-card--active { background: #f0fdf4; }
@@ -1338,7 +1455,7 @@ export default {
 }
 
 .btn-book {
-  background: linear-gradient(135deg, #3dd56d, #22c55e);
+  background: rgb(22, 163, 74);
   color: #fff;
   font-size: 0.7rem;
   font-weight: 700;
@@ -1348,7 +1465,7 @@ export default {
   transition: opacity 0.2s;
   white-space: nowrap;
 }
-.btn-book:hover { opacity: 0.85; }
+.btn-book:hover { opacity: 0.9; }
 .btn-book--sm { font-size: 0.75rem; padding: 6px 14px; }
 
 /* Skeleton */
@@ -1401,6 +1518,10 @@ export default {
   z-index: 5;
 }
 
+.map-style-control.shifted-up {
+  bottom: 160px;
+}
+
 .map-ctrl-btn {
   width: 36px; height: 36px;
   background: #fff;
@@ -1422,6 +1543,11 @@ export default {
 .map-ctrl-btn:hover {
   background: #f9fafb;
   transform: scale(1.05);
+}
+.marker-pin--active {
+  background: rgb(22, 163, 74) !important;
+  transform: scale(1.15) translateY(-5px);
+  z-index: 10;
 }
 
 /* Mobile popup */

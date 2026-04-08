@@ -52,7 +52,7 @@ export async function POST(
         
         // Validation for single regular pricing item
         const itemSchema = z.object({
-            id: z.string().optional(),
+            id: z.string().optional().nullable(),
             dayOfWeek: z.number().int().min(0).max(6).nullable(),
             startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ bắt đầu không hợp lệ"),
             endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ kết thúc không hợp lệ"),
@@ -103,7 +103,7 @@ export async function PUT(
         
         // Validation for single special pricing item
         const specialSchema = z.object({
-            id: z.string().optional(),
+            id: z.string().optional().nullable(),
             specificDate: z.string(),
             startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ bắt đầu không hợp lệ"),
             endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ kết thúc không hợp lệ"),

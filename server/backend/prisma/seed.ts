@@ -9,12 +9,17 @@ async function main() {
 
   // 1. Clean up existing data (Order matters)
   console.log("🗑 Cleaning up database...");
+  await prisma.review.deleteMany();
+  await prisma.post.deleteMany();
+  await prisma.voucher.deleteMany();
+  await prisma.notification.deleteMany();
   await prisma.clubCustomer.deleteMany();
   await prisma.bookingItem.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.booking.deleteMany();
   await prisma.timeSlot.deleteMany();
   await prisma.courtPricing.deleteMany();
+  await prisma.specialDatePricing.deleteMany();
   await prisma.courtImage.deleteMany();
   await prisma.court.deleteMany();
   await prisma.clubAmenity.deleteMany();
@@ -59,7 +64,19 @@ async function main() {
   });
 
   // Owners
-  const owner1 = await prisma.user.create({
+  const hashedOwnerPassword = await bcrypt.hash("14112004", SALT_ROUNDS);
+  const vidinhOwner = await prisma.user.create({
+    data: {
+      email: "vidinh@gmail.com",
+      phone: "0388222333",
+      fullName: "Nguyễn Đình Vĩ",
+      passwordHash: hashedOwnerPassword,
+      role: "OWNER",
+      profile: { create: { address: "Hòa Khánh Bắc, Liên Chiểu, Đà Nẵng", bio: "Hệ thống sân bóng chuyên nghiệp miền Trung" } },
+    },
+  });
+
+  await prisma.user.create({
     data: {
       email: "owner1@gmail.com",
       phone: "0911111111",
@@ -70,7 +87,7 @@ async function main() {
     },
   });
 
-  const owner2 = await prisma.user.create({
+  await prisma.user.create({
     data: {
       email: "owner2@gmail.com",
       phone: "0922222222",
@@ -108,7 +125,7 @@ async function main() {
   console.log("🏢 Creating clubs...");
   const club1 = await prisma.club.create({
     data: {
-      ownerId: owner1.id,
+      ownerId: vidinhOwner.id, // Assign to new owner
       name: "Sân Bóng Thanh Đa Super",
       slug: "san-bong-thanh-da-super",
       address: "15 Thanh Đa",
@@ -128,8 +145,8 @@ async function main() {
       openingHours: {
         create: [0, 1, 2, 3, 4, 5, 6].map((day) => ({
           dayOfWeek: day,
-          openTime: new Date(1970, 0, 1, 6, 0),
-          closeTime: new Date(1970, 0, 1, 23, 0),
+          openTime: new Date(Date.UTC(1970, 0, 1, 6, 0)),
+          closeTime: new Date(Date.UTC(1970, 0, 1, 23, 0)),
         })),
       },
     },
@@ -137,7 +154,7 @@ async function main() {
 
   const club2 = await prisma.club.create({
     data: {
-      ownerId: owner2.id,
+      ownerId: vidinhOwner.id, // Assign to new owner
       name: "Cầu Lông Quận 7 Pro",
       slug: "cau-long-quan-7-pro",
       address: "100 Huỳnh Tấn Phát",
@@ -157,8 +174,8 @@ async function main() {
       openingHours: {
         create: [0, 1, 2, 3, 4, 5, 6].map((day) => ({
           dayOfWeek: day,
-          openTime: new Date(1970, 0, 1, 5, 0),
-          closeTime: new Date(1970, 0, 1, 22, 0),
+          openTime: new Date(Date.UTC(1970, 0, 1, 5, 0)),
+          closeTime: new Date(Date.UTC(1970, 0, 1, 22, 0)),
         })),
       },
     },
@@ -166,7 +183,7 @@ async function main() {
 
   const club3 = await prisma.club.create({
     data: {
-      ownerId: owner1.id,
+      ownerId: vidinhOwner.id, // Assign to new owner
       name: "Tennis Thảo Điền Luxury",
       slug: "tennis-thao-dien-luxury",
       address: "24 Xuân Thủy",
@@ -187,8 +204,8 @@ async function main() {
       openingHours: {
         create: [0, 1, 2, 3, 4, 5, 6].map((day) => ({
           dayOfWeek: day,
-          openTime: new Date(1970, 0, 1, 6, 0),
-          closeTime: new Date(1970, 0, 1, 21, 0),
+          openTime: new Date(Date.UTC(1970, 0, 1, 6, 0)),
+          closeTime: new Date(Date.UTC(1970, 0, 1, 21, 0)),
         })),
       },
     },
@@ -196,7 +213,7 @@ async function main() {
 
   const club4 = await prisma.club.create({
     data: {
-      ownerId: owner2.id,
+      ownerId: vidinhOwner.id, // Assign to new owner
       name: "Trung Tâm Pickleball & Basketball",
       slug: "pickleball-basketball-center",
       address: "50 Lê Lợi",
@@ -216,8 +233,8 @@ async function main() {
       openingHours: {
         create: [0, 1, 2, 3, 4, 5, 6].map((day) => ({
           dayOfWeek: day,
-          openTime: new Date(1970, 0, 1, 7, 0),
-          closeTime: new Date(1970, 0, 1, 23, 0),
+          openTime: new Date(Date.UTC(1970, 0, 1, 7, 0)),
+          closeTime: new Date(Date.UTC(1970, 0, 1, 23, 0)),
         })),
       },
     },
@@ -236,8 +253,8 @@ async function main() {
       indoorOutdoor: "OUTDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 6, 0), endTime: new Date(1970, 0, 1, 16, 0), pricePerHour: 200000, label: "Giờ thường" },
-          { startTime: new Date(1970, 0, 1, 16, 0), endTime: new Date(1970, 0, 1, 23, 0), pricePerHour: 350000, label: "Giờ cao điểm" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 6, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 16, 0)), pricePerHour: 200000, label: "Giờ thường" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 16, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 23, 0)), pricePerHour: 350000, label: "Giờ cao điểm" },
         ],
       },
     },
@@ -252,8 +269,8 @@ async function main() {
       indoorOutdoor: "OUTDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 6, 0), endTime: new Date(1970, 0, 1, 16, 0), pricePerHour: 500000, label: "Giờ thường" },
-          { startTime: new Date(1970, 0, 1, 16, 0), endTime: new Date(1970, 0, 1, 23, 0), pricePerHour: 800000, label: "Giờ cao điểm" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 6, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 16, 0)), pricePerHour: 500000, label: "Giờ thường" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 16, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 23, 0)), pricePerHour: 800000, label: "Giờ cao điểm" },
         ],
       },
     },
@@ -269,7 +286,7 @@ async function main() {
       indoorOutdoor: "INDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 0, 0), endTime: new Date(1970, 0, 1, 24, 0), pricePerHour: 90000, label: "Đồng giá" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 0, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 24, 0)), pricePerHour: 90000, label: "Đồng giá" },
         ],
       },
     },
@@ -284,7 +301,7 @@ async function main() {
       indoorOutdoor: "INDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 0, 0), endTime: new Date(1970, 0, 1, 24, 0), pricePerHour: 120000, label: "Đồng giá" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 0, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 24, 0)), pricePerHour: 120000, label: "Đồng giá" },
         ],
       },
     },
@@ -300,8 +317,8 @@ async function main() {
       indoorOutdoor: "OUTDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 6, 0), endTime: new Date(1970, 0, 1, 17, 0), pricePerHour: 200000, label: "Giờ sáng" },
-          { startTime: new Date(1970, 0, 1, 17, 0), endTime: new Date(1970, 0, 1, 22, 0), pricePerHour: 400000, label: "Giờ đèn" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 6, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 17, 0)), pricePerHour: 200000, label: "Giờ sáng" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 17, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 22, 0)), pricePerHour: 400000, label: "Giờ đèn" },
         ],
       },
     },
@@ -317,7 +334,7 @@ async function main() {
       indoorOutdoor: "INDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 0, 0), endTime: new Date(1970, 0, 1, 24, 0), pricePerHour: 150000, label: "Đồng giá" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 0, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 24, 0)), pricePerHour: 150000, label: "Đồng giá" },
         ],
       },
     },
@@ -333,7 +350,7 @@ async function main() {
       indoorOutdoor: "INDOOR",
       pricings: {
         create: [
-          { startTime: new Date(1970, 0, 1, 0, 0), endTime: new Date(1970, 0, 1, 24, 0), pricePerHour: 400000, label: "Thuê trọn sân" },
+          { startTime: new Date(Date.UTC(1970, 0, 1, 0, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 24, 0)), pricePerHour: 400000, label: "Thuê trọn sân" },
         ],
       },
     },
@@ -480,6 +497,64 @@ async function main() {
     });
     await prisma.timeSlot.update({ where: { id: court2Slots[13].id }, data: { status: "BOOKED" } });
   }
+
+  // 9. Seed Posts (News Feed)
+  console.log("✍️ Seeding posts...");
+  await prisma.post.createMany({
+    data: [
+      { clubId: club1.id, title: "Giải bóng đá tứ hùng Thanh Đa", content: "Chào mừng các đội bóng tham gia giải đấu lớn nhất năm tại sân Thanh Đa Super.", type: "EVENT", status: "ACTIVE" },
+      { clubId: club1.id, title: "Giảm giá 20% khung giờ sáng", content: "Đồng giá chỉ 150k cho các khung giờ từ 6h-10h sáng các ngày trong tuần.", type: "DISCOUNT", status: "ACTIVE" },
+      { clubId: club2.id, title: "Khai trương sân thảm VIP mới", content: "Trải nghiệm sân thảm Yonex chuẩn quốc tế vừa được hoàn thiện tại Q7 Pro.", type: "ANNOUNCEMENT", status: "ACTIVE" },
+    ]
+  });
+
+  // 10. Seed Vouchers
+  console.log("🎫 Seeding vouchers...");
+  const futureDate = new Date();
+  futureDate.setMonth(futureDate.getMonth() + 1);
+  await prisma.voucher.createMany({
+    data: [
+      { clubId: club1.id, code: "THANHDA20", title: "Ưu đãi 20%", type: "PERCENTAGE", value: 20, startDate: new Date(), endDate: futureDate, usageLimit: 100 },
+      { clubId: club2.id, code: "HELLO2026", title: "Chào mừng 2026", type: "FIXED_AMOUNT", value: 50000, startDate: new Date(), endDate: futureDate, usageLimit: 50 },
+    ]
+  });
+
+  // 11. Seed Reviews
+  console.log("⭐ Seeding reviews...");
+  const recentBooking = await prisma.booking.findFirst({ where: { status: "COMPLETED" } });
+  if (recentBooking) {
+    await prisma.review.create({
+      data: {
+        userId: recentBooking.userId,
+        bookingId: recentBooking.id,
+        clubId: recentBooking.clubId,
+        rating: 5,
+        comment: "Sân rất đẹp, nhân viên phục vụ nhiệt tình. Sẽ quay lại!",
+      }
+    });
+  }
+
+  // 12. Seed Notifications
+  console.log("🔔 Seeding notifications...");
+  await prisma.notification.createMany({
+    data: [
+      { userId: vidinhOwner.id, title: "Yêu cầu rút tiền thành công", body: "Yêu cầu rút 5.000.000đ của bạn đã được xử lý.", type: "SYSTEM" },
+      { userId: vidinhOwner.id, title: "Đơn đặt sân mới", body: "Có khách vừa đặt sân A1 khung giờ 18:00 hôm nay.", type: "BOOKING_CONFIRMED" },
+    ]
+  });
+
+  // 13. Seed Special Pricing
+  console.log("🏷 Seeding special pricing...");
+  await prisma.specialDatePricing.create({
+    data: {
+      courtId: court1.id,
+      specificDate: new Date(),
+      startTime: new Date(Date.UTC(1970, 0, 1, 18, 0)),
+      endTime: new Date(Date.UTC(1970, 0, 1, 22, 0)),
+      pricePerHour: 500000,
+      note: "Giá đặc biệt ngày lễ"
+    }
+  });
 
   console.log("✅ Seed completed successfully!");
 }

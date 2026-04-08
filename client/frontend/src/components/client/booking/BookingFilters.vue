@@ -334,9 +334,9 @@ export default {
 <style scoped>
 /* ── Variables ── */
 .filters-form {
-  --green:       #3dd56d;
-  --green-dark:  #28b857;
-  --green-light: rgba(61,213,109,.12);
+  --green:       rgb(22, 163, 74);
+  --green-dark:  rgb(15, 118, 54);
+  --green-light: rgba(22, 163, 74, 0.12);
   --text:        #111827;
   --muted:       #6b7280;
   --border:      #e5e7eb;
@@ -548,7 +548,7 @@ export default {
   background: var(--green-light); color: #166534;
   border-radius: 999px; padding: 4px 8px 4px 11px;
   font-size: 11.5px; font-weight: 600;
-  border: 1px solid rgba(61,213,109,.3);
+  border: 1px solid rgba(22, 163, 74, 0.3);
 }
 .chip-remove {
   width: 14px; height: 14px; border-radius: 50%;

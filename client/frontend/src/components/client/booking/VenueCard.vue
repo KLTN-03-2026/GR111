@@ -95,6 +95,14 @@
           <span itemprop="streetAddress" class="address-text">{{ venue.address }}</span>
         </address>
 
+        <!-- Sport Pllls -->
+        <div v-if="venue.sportTypes && venue.sportTypes.length" class="sport-pills-row">
+          <span v-for="type in venue.sportTypes" :key="type" class="sport-pill">
+            <span class="material-icons size-12">{{ getSportIcon(type) }}</span>
+            {{ translateSportType(type) }}
+          </span>
+        </div>
+
         <!-- Hours -->
         <div v-if="venue.openTime && venue.closeTime" class="venue-hours">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -155,11 +163,9 @@
       <div class="card-actions">
         <!-- Pricing -->
         <div v-if="venue.pricings && venue.pricings.length" class="price-block">
-          <span class="price-label">Giá từ</span>
           <span class="price-value">{{ formatPrice(venue.pricings[0].pricePerHour) }}<small>/h</small></span>
         </div>
         <div v-else-if="venue.minPrice" class="price-block">
-          <span class="price-label">Giá từ</span>
           <span class="price-value" itemprop="priceRange">{{ formatPrice(venue.minPrice) }}<small>/h</small></span>
         </div>
 
@@ -245,6 +251,19 @@ export default {
       return this.sportLabels[upper] || type;
     },
 
+    getSportIcon(type) {
+      const icons = {
+        FOOTBALL: "sports_soccer",
+        BADMINTON: "sports_badminton",
+        TENNIS: "sports_tennis",
+        PICKLEBALL: "sports_handball",
+        BASKETBALL: "sports_basketball",
+        VOLLEYBALL: "sports_volleyball",
+        OTHER: "sports"
+      };
+      return icons[type?.toUpperCase()] || "sports";
+    },
+
     async checkIfFavorited() {
       const user = localStorage.getItem("user");
       if (!user || !this.venue.id) return;
@@ -325,8 +344,8 @@ export default {
 .card-image {
   position: relative;
   flex-shrink: 0;
-  width: 220px;
-  min-height: 160px;
+  width: 300px;
+  min-height: 140px;
   background: #f1f5f9;
   overflow: hidden;
 }
@@ -449,8 +468,8 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 16px 20px;
+  gap: 4px;
+  padding: 12px 18px;
   min-width: 0;
   border-right: 1.5px solid var(--border);
 }
@@ -517,6 +536,31 @@ export default {
   stroke: var(--muted);
   fill: none;
   stroke-width: 2.2;
+}
+
+/* Sport Pills */
+.sport-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 6px;
+}
+
+.sport-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #f1f5f9;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.sport-pill .material-icons {
+  font-size: 14px;
+  color: var(--green);
 }
 
 /* Meta Grid */
@@ -610,13 +654,13 @@ export default {
 /* ─── Actions (right column) ─── */
 .card-actions {
   flex-shrink: 0;
-  width: 180px;
+  width: 170px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 12px 16px;
   position: relative;
   background: #fafafb;
 }

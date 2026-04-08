@@ -38,7 +38,10 @@ export async function createCourt(clubId: string, ownerId: string, input: Create
  */
 export async function getCourtsByClubId(clubId: string) {
   return prisma.court.findMany({
-    where: { clubId },
+    where: { 
+      clubId,
+      deletedAt: null 
+    },
     include: {
       pricings: true,
       images: true,
@@ -82,10 +85,13 @@ export async function deleteCourt(courtId: string, ownerId: string) {
 
   if (!court) throw new Error("COURT_NOT_FOUND_OR_UNAUTHORIZED");
 
-  // Chuyển sang trạng thái INACTIVE để giữ lại lịch sử booking (Soft Delete)
+  // Chuyển sang trạng thái INACTIVE và đặt deletedAt để giữ lại lịch sử booking (Soft Delete)
   return prisma.court.update({
     where: { id: courtId },
-    data: { status: "INACTIVE" }
+    data: { 
+      status: "INACTIVE",
+      deletedAt: new Date()
+    }
   });
 }
 
@@ -131,7 +137,11 @@ export async function updateCourtPricing(courtId: string, ownerId: string, prici
  */
 export async function getCourtPricings(courtId: string, ownerId: string) {
   const court = await prisma.court.findFirst({
-    where: { id: courtId, club: { ownerId } },
+    where: { 
+      id: courtId, 
+      club: { ownerId },
+      deletedAt: null
+    },
     include: {
       pricings: true,
       specialPricings: true,

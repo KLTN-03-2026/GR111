@@ -2,9 +2,9 @@
 
 /* ══ Variables ══ */
 .booking-page {
-  --green:       #3dd56d;
-  --green-dark:  #28b857;
-  --green-light: rgba(61, 213, 109, 0.12);
+  --green:       rgb(22, 163, 74);
+  --green-dark:  rgb(15, 118, 54);
+  --green-light: rgba(22, 163, 74, 0.12);
   --cyan:        #0891b2;
   --text:        #111827;
   --muted:       #6b7280;

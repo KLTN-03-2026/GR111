@@ -12,17 +12,21 @@ export async function GET(req: NextRequest) {
     const roleError = requireRole(user, ["OWNER"]);
     if (roleError) return roleError;
 
-    // Lấy tất cả các CLB của Owner này, sau đó lấy Courts
+    // Lấy tất cả các CLB của Owner này, sau đó lấy Courts kèm số bảng giá
     const clubs = await prisma.club.findMany({
       where: { ownerId: user.userId },
       include: {
         courts: {
-            select: {
-              id: true,
-              name: true,
-              sportType: true,
-              status: true,
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            sportType: true,
+            status: true,
+            _count: {
+              select: { pricings: { where: { isActive: true } } }
             }
+          }
         }
       }
     });
@@ -30,8 +34,12 @@ export async function GET(req: NextRequest) {
     // Gom dữ liệu lại dạng phẳng để Frontend dễ dùng cho dropdown
     const allCourts = clubs.flatMap(club => 
       club.courts.map(court => ({
-        ...court,
-        clubName: club.name
+        id: court.id,
+        name: court.name,
+        sportType: court.sportType,
+        status: court.status,
+        clubName: club.name,
+        pricingCount: court._count.pricings,
       }))
     );
 

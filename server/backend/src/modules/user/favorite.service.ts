@@ -52,7 +52,18 @@ export async function getMyFavorites(userId: string) {
         club: {
           include: {
             images: { take: 1 },
-            courts: { select: { sportType: true } }
+            courts: { 
+              include: { 
+                pricings: true 
+              } 
+            },
+            openingHours: {
+              where: { isClosed: false },
+              take: 1
+            },
+            amenities: {
+              include: { amenity: true }
+            }
           }
         }
       },
