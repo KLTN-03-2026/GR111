@@ -1,118 +1,196 @@
 <template>
-  <div class="customer-bookings">
-    <!-- Header thông tin khách hàng -->
-    <div class="user-header">
-      <div class="user-avatar">{{ userInitials }}</div>
-      <div class="user-info">
-        <h2>{{ userName }}</h2>
-        <p>{{ userPhone }}</p>
-      </div>
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-number">{{ orders.length }}</span>
-          <span class="stat-label">Tổng đơn</span>
+  <div class="chk-page">
+    <div class="chk-header-simple">
+      <div class="container d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <button class="chk-back-btn" @click="$router.push('/')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <h1 class="chk-title mb-0">Lịch sử đặt sân</h1>
         </div>
-        <div class="stat">
-          <span class="stat-number">{{ totalSpentFormatted }}</span>
-          <span class="stat-label">Đã chi</span>
-        </div>
-        <div class="stat">
-          <span class="stat-number">{{ pendingCount }}</span>
-          <span class="stat-label">Chờ XN</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bộ lọc (chỉ trạng thái + ngày) -->
-    <div class="filters">
-      <select v-model="statusFilter">
-        <option value="all">Tất cả trạng thái</option>
-        <option value="pending">Chờ xác nhận</option>
-        <option value="confirmed">Đã xác nhận</option>
-        <option value="completed">Hoàn thành</option>
-        <option value="cancelled">Đã huỷ</option>
-      </select>
-      <input type="date" v-model="dateFrom" placeholder="Từ ngày" />
-      <input type="date" v-model="dateTo" placeholder="Đến ngày" />
-      <button v-if="hasFilter" @click="resetFilters">Xoá lọc</button>
-    </div>
-
-    <!-- Danh sách đơn dạng card (grid) -->
-    <div class="orders-grid">
-      <div v-for="order in paginatedOrders" :key="order.id" class="order-card" :class="order.status">
-        <div class="card-header">
-          <span class="order-code">{{ order.code }}</span>
-          <span class="order-status" :class="order.status">{{ statusLabel(order.status) }}</span>
-        </div>
-        <div class="card-body">
-          <div class="court">{{ order.court }}</div>
-          <div class="datetime">
-            <span>{{ order.date }}</span>
-            <span>{{ order.timeSlot }}</span>
+        <div class="user-pill d-none d-md-flex">
+          <div class="user-pill__avatar">{{ userInitials }}</div>
+          <div class="user-pill__info">
+            <div class="fw-bold fs-6">{{ userName }}</div>
+            <div class="text-muted small">{{ userPhone }}</div>
           </div>
-          <div class="total">{{ formatPrice(order.total) }}đ</div>
         </div>
-        <div class="card-actions">
-          <button @click="openDetail(order)">Chi tiết</button>
-          <button v-if="order.status === 'pending'" @click="confirmCancel(order)">Hủy đơn</button>
-          <button @click="rebookOrder(order)">Đặt lại</button>
-        </div>
-      </div>
-      <div v-if="filteredOrders.length === 0" class="empty">
-        Không có đơn đặt sân nào
       </div>
     </div>
 
-    <!-- Phân trang -->
-    <div class="pagination" v-if="totalPages > 1">
-      <button @click="currentPage--" :disabled="currentPage === 1">‹</button>
-      <span>Trang {{ currentPage }} / {{ totalPages }}</span>
-      <button @click="currentPage++" :disabled="currentPage === totalPages">›</button>
+    <div class="container mt-4">
+      <!-- STATS GRID -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card__icon stat-card__icon--blue"><span class="material-icons">receipt_long</span></div>
+            <div class="stat-card__val">{{ orders.length }}</div>
+            <div class="stat-card__lab">Tổng đơn hàng</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card__icon stat-card__icon--green"><span class="material-icons">payments</span></div>
+            <div class="stat-card__val">{{ formatPrice(totalSpent) }}đ</div>
+            <div class="stat-card__lab">Tổng chi tiêu</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card__icon stat-card__icon--amber"><span class="material-icons">pending_actions</span></div>
+            <div class="stat-card__val">{{ pendingCount }}</div>
+            <div class="stat-card__lab">Đang chờ xử lý</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="stat-card">
+            <div class="stat-card__icon stat-card__icon--red"><span class="material-icons">cancel_presentation</span></div>
+            <div class="stat-card__val">{{ cancelledCount }}</div>
+            <div class="stat-card__lab">Số đơn đã hủy</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FILTERS -->
+      <div class="filter-bar mb-4">
+        <div class="material-icons text-muted">filter_list</div>
+        <select v-model="statusFilter" class="filter-select">
+          <option value="all">Tất cả trạng thái</option>
+          <option value="WAITING_PAYMENT">Chờ thanh toán</option>
+          <option value="PENDING">Chờ xác nhận</option>
+          <option value="CONFIRMED">Đã xác nhận</option>
+          <option value="COMPLETED">Hoàn thành</option>
+          <option value="CANCELLED">Đã hủy</option>
+        </select>
+        <div class="d-none d-md-flex align-items-center gap-2 ms-auto">
+          <input type="date" v-model="dateFilter" class="filter-date" />
+          <button v-if="statusFilter !== 'all' || dateFilter" @click="resetFilters" class="btn-reset">Xóa lọc</button>
+        </div>
+      </div>
+
+      <!-- ORDERS LIST -->
+      <div v-if="isLoading" class="text-center py-5">
+        <div class="spinner-border text-success"></div>
+        <p class="mt-3 fw-bold text-muted">Đang tải lịch sử đơn hàng...</p>
+      </div>
+
+      <div v-else-if="filteredOrders.length === 0" class="empty-state">
+        <div class="empty-state__icon">📭</div>
+        <h3>Chưa có đơn hàng nào</h3>
+        <p>Có vẻ như bạn chưa đặt sân nào. Hãy bắt đầu niềm đam mê ngay!</p>
+        <button class="btn btn-success fw-bold px-4 py-2 mt-2" @click="$router.push('/')">Khám phá sân ngay</button>
+      </div>
+
+      <div v-else class="row g-4">
+        <div v-for="order in paginatedOrders" :key="order.id" class="col-md-6 col-xl-4">
+          <div class="order-card-premium" @click="openDetail(order)">
+            <div class="card-p-header">
+              <span class="p-code">#{{ order.bookingCode }}</span>
+              <span :class="['p-status', 'p-status--' + order.status.toLowerCase()]">
+                {{ statusLabel(order.status) }}
+              </span>
+            </div>
+            <div class="card-p-body">
+              <h3 class="p-venue">{{ order.club?.name || 'Sân bóng' }}</h3>
+              <div class="p-meta">
+                <div class="p-meta-item">
+                  <span class="material-icons">event</span>
+                  {{ formatDate(order.items[0]?.timeSlot?.startTime) }}
+                </div>
+                <div class="p-meta-item">
+                  <span class="material-icons">schedule</span>
+                  {{ formatTimeRange(order.items) }}
+                </div>
+              </div>
+              <div class="p-footer">
+                <div class="p-total">{{ formatPrice(order.finalAmount) }}đ</div>
+                <div class="p-method">
+                   <span class="material-icons">payments</span>
+                   {{ payLabel(order.payment?.method) }}
+                </div>
+              </div>
+            </div>
+            <div class="card-p-actions">
+              <button class="btn-detail">Xem chi tiết</button>
+              <button v-if="order.status === 'WAITING_PAYMENT'" class="btn-cancel" @click.stop="confirmCancel(order)">Hủy đơn</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGINATION -->
+      <div v-if="totalPages > 1" class="d-flex justify-content-center mt-5 mb-5 gap-2">
+        <button v-for="p in totalPages" :key="p" :class="['page-btn', { active: currentPage === p }]" @click="currentPage = p">
+          {{ p }}
+        </button>
+      </div>
     </div>
 
-    <!-- Drawer chi tiết (giữ nguyên từ trước) -->
+    <!-- DETAIL DRAWER -->
     <transition name="drawer">
       <div v-if="detailOrder" class="drawer-overlay" @click.self="detailOrder = null">
         <div class="drawer">
-          <div class="drawer-header">
-            <div>
-              <div class="drawer-title">Chi tiết đơn</div>
-              <div class="drawer-code">{{ detailOrder.code }}</div>
-            </div>
-            <button @click="detailOrder = null">✕</button>
-          </div>
-          <div class="drawer-body">
-            <div class="row"><label>Sân:</label><span>{{ detailOrder.court }}</span></div>
-            <div class="row"><label>Ngày:</label><span>{{ detailOrder.date }} - {{ detailOrder.timeSlot }}</span></div>
-            <div class="row"><label>PTTT:</label><span>{{ payLabel(detailOrder.payMethod) }}</span></div>
-            <div class="row" v-if="detailOrder.services?.length"><label>Dịch vụ:</label><span>{{ detailOrder.services.join(', ') }}</span></div>
-            <div class="row"><label>Tổng tiền:</label><span class="total">{{ formatPrice(detailOrder.total) }}đ</span></div>
-            <div class="timeline" v-if="detailOrder.timeline">
-              <div class="timeline-title">Lịch sử</div>
-              <div v-for="(ev, idx) in detailOrder.timeline" :key="idx" class="timeline-item">
-                <div class="dot"></div>
-                <div><strong>{{ ev.label }}</strong><br><small>{{ ev.time }}</small></div>
+          <div class="drawer-header-p">
+            <div class="d-flex align-items-center gap-3">
+              <button class="btn-close-drawer" @click="detailOrder = null"><span class="material-icons">close</span></button>
+              <div>
+                <div class="fw-black text-dark fs-5">Chi tiết đơn #{{ detailOrder.bookingCode }}</div>
+                <div class="text-muted small">{{ formatDate(detailOrder.items[0]?.timeSlot?.startTime) }}</div>
               </div>
             </div>
           </div>
-          <div class="drawer-footer">
-            <button v-if="detailOrder.status === 'pending'" @click="cancelOrder(detailOrder); detailOrder=null">Hủy đơn</button>
-            <button @click="rebookOrder(detailOrder); detailOrder=null">Đặt lại</button>
+          <div class="drawer-body-p">
+            <!-- Items -->
+            <div class="section-title">Khung giờ đặt</div>
+            <div class="booking-items-list mb-4">
+              <div v-for="item in detailOrder.items" :key="item.id" class="booking-item">
+                <div class="booking-item__info">
+                  <div class="fw-bold text-dark">{{ item.timeSlot.court.name }}</div>
+                  <div class="text-muted small">{{ formatSlotTime(item.timeSlot) }}</div>
+                </div>
+                <div class="booking-item__price">{{ formatPrice(item.price) }}đ</div>
+              </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="section-title">Tổng quan thanh toán</div>
+            <div class="summary-box mb-4">
+              <div class="s-row"><span>Tạm tính:</span><span>{{ formatPrice(detailOrder.totalAmount) }}đ</span></div>
+              <div v-if="detailOrder.discountAmount > 0" class="s-row s-row--discount"><span>Giảm giá:</span><span>-{{ formatPrice(detailOrder.discountAmount) }}đ</span></div>
+              <div class="s-row s-row--total"><span>Tổng cộng:</span><span>{{ formatPrice(detailOrder.finalAmount) }}đ</span></div>
+              <div class="s-row"><span>Phương thức:</span><span>{{ payLabel(detailOrder.payment?.method) }}</span></div>
+            </div>
+
+            <!-- Payment Proof -->
+            <div v-if="detailOrder.payment?.proofImageUrl" class="section-title">Minh chứng thanh toán</div>
+            <div v-if="detailOrder.payment?.proofImageUrl" class="proof-view mb-4" @click="openImage(detailOrder.payment.proofImageUrl)">
+               <img :src="detailOrder.payment.proofImageUrl" class="img-fluid rounded-3 border" />
+               <div class="proof-overlay"><span class="material-icons">zoom_in</span> Nhấn để xem lớn</div>
+            </div>
+
+            <!-- Notes -->
+            <div v-if="detailOrder.note" class="section-title">Ghi chú</div>
+             <p class="text-muted small mb-4 p-3 bg-light rounded-3">{{ detailOrder.note }}</p>
+          </div>
+          <div class="drawer-footer-p">
+             <button v-if="detailOrder.status === 'WAITING_PAYMENT'" class="btn btn-outline-danger w-100 fw-bold rounded-pill mb-2" @click="confirmCancel(detailOrder)">Hủy đơn đặt sân</button>
+             <button class="btn btn-success w-100 fw-bold rounded-pill py-2" @click="detailOrder = null">Đóng chi tiết</button>
           </div>
         </div>
       </div>
     </transition>
 
-    <!-- Toast + Confirm dialog (giống cũ) -->
-    <div class="toasts">
-      <div v-for="t in toasts" :key="t.id" class="toast">{{ t.msg }}</div>
-    </div>
-    <div v-if="cancelTarget" class="confirm-overlay" @click.self="cancelTarget=null">
-      <div class="confirm-dialog">
-        <p>Xác nhận huỷ đơn <strong>{{ cancelTarget.code }}</strong>?</p>
-        <div class="confirm-buttons">
-          <button @click="cancelTarget=null">Quay lại</button>
-          <button @click="proceedCancel">Huỷ đơn</button>
+    <!-- CONFIRM CANCEL -->
+    <div v-if="cancelTarget" class="modal-p-overlay" @click.self="cancelTarget = null">
+      <div class="modal-p-card">
+        <div class="modal-p-icon">⚠️</div>
+        <h3 class="fw-black mt-3">Xác nhận hủy đơn</h3>
+        <p class="text-muted small">Bạn có chắc muốn hủy đơn đặt sân <strong>#{{ cancelTarget.bookingCode }}</strong>? Hành động này không thể hoàn tác.</p>
+        <div class="d-flex gap-3 mt-4">
+          <button class="btn btn-light flex-grow-1 fw-bold rounded-pill" @click="cancelTarget = null">Quay lại</button>
+          <button class="btn btn-danger flex-grow-1 fw-bold rounded-pill shadow-sm" @click="proceedCancel" :disabled="isProcessing">
+            {{ isProcessing ? 'Đang lý...' : 'Xác nhận hủy' }}
+          </button>
         </div>
       </div>
     </div>
@@ -120,302 +198,360 @@
 </template>
 
 <script>
+import { bookingService } from '@/services/booking.service';
+import { authService } from '@/services/auth.service';
+import { toast } from 'vue3-toastify';
+
 export default {
-  name: 'CustomerBookings',
+  name: 'OrderManagement',
   data() {
-    // Dữ liệu mẫu (đơn hàng của user hiện tại)
-    const currentUser = { name: 'Nguyễn Văn An', phone: '0901234567' };
-    const courts = ['Sân 7 – Số 1', 'Sân 7 – Số 2', 'Sân 11 – Chính'];
-    const timeSlots = ['16:30 – 18:00', '18:00 – 20:00', '19:00 – 20:30', '20:00 – 21:00'];
-    const dates = ['25/03/2026', '27/03/2026', '28/03/2026', '29/03/2026', '24/03/2026'];
-    const statuses = ['pending', 'confirmed', 'completed', 'cancelled'];
-    const payMethods = ['bank', 'momo', 'vnpay', 'card', 'cash'];
-
-    const orders = Array.from({ length: 12 }, (_, i) => {
-      const status = statuses[i % statuses.length];
-      const court = courts[i % courts.length];
-      const baseTotal = court.includes('11') ? 1200000 : 450000;
-      const svcExtra = (i % 3) * 80000;
-      return {
-        id: i+1,
-        code: `TP${3000+i}`,
-        name: currentUser.name,
-        phone: currentUser.phone,
-        court,
-        date: dates[i % dates.length],
-        timeSlot: timeSlots[i % timeSlots.length],
-        payMethod: payMethods[i % payMethods.length],
-        total: baseTotal + svcExtra,
-        status,
-        services: i % 2 === 0 ? ['Nước uống'] : [],
-        timeline: status === 'completed' ? [{ label: 'Hoàn thành', time: '10:00 28/03' }] : [{ label: 'Đặt sân', time: '08:30 27/03' }]
-      };
-    });
-
     return {
-      orders,
-      currentUser,
+      orders: [],
+      user: null,
+      isLoading: true,
+      isProcessing: false,
       statusFilter: 'all',
-      dateFrom: '',
-      dateTo: '',
+      dateFilter: '',
       currentPage: 1,
       pageSize: 6,
       detailOrder: null,
-      toasts: [],
       cancelTarget: null,
     };
   },
   computed: {
-    userName() { return this.currentUser.name; },
-    userPhone() { return this.currentUser.phone; },
-    userInitials() { return this.userName.split(' ').map(n=>n[0]).join('').slice(0,2); },
-    totalSpent() { return this.orders.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+o.total,0); },
-    totalSpentFormatted() { return this.formatPrice(this.totalSpent); },
-    pendingCount() { return this.orders.filter(o=>o.status==='pending').length; },
+    userName() { return this.user?.fullName || 'Người dùng'; },
+    userPhone() { return this.user?.phone || ''; },
+    userInitials() { return this.userName.split(' ').map(n => n[0]).join('').slice(0, 2); },
+    
+    totalSpent() { 
+      return this.orders
+        .filter(o => o.status === 'COMPLETED' || o.status === 'CONFIRMED')
+        .reduce((s, o) => s + Number(o.finalAmount), 0); 
+    },
+    pendingCount() { return this.orders.filter(o => ['WAITING_PAYMENT', 'PENDING'].includes(o.status)).length; },
+    cancelledCount() { return this.orders.filter(o => o.status === 'CANCELLED').length; },
+
     filteredOrders() {
       let list = [...this.orders];
-      if (this.statusFilter !== 'all') list = list.filter(o => o.status === this.statusFilter);
-      if (this.dateFrom) {
-        const from = this.dateFrom.split('-').reverse().join('/');
-        list = list.filter(o => o.date >= from);
+      if (this.statusFilter !== 'all') {
+        list = list.filter(o => o.status === this.statusFilter);
       }
-      if (this.dateTo) {
-        const to = this.dateTo.split('-').reverse().join('/');
-        list = list.filter(o => o.date <= to);
+      if (this.dateFilter) {
+        list = list.filter(o => {
+          const startTime = o.items[0]?.timeSlot?.startTime;
+          if (!startTime) return false;
+          return startTime.startsWith(this.dateFilter);
+        });
       }
-      return list.sort((a,b)=>b.id - a.id);
+      return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     },
+    
     totalPages() { return Math.ceil(this.filteredOrders.length / this.pageSize); },
     paginatedOrders() {
-      const start = (this.currentPage-1)*this.pageSize;
-      return this.filteredOrders.slice(start, start+this.pageSize);
+      const start = (this.currentPage - 1) * this.pageSize;
+      return this.filteredOrders.slice(start, start + this.pageSize);
     },
-    hasFilter() { return this.statusFilter !== 'all' || this.dateFrom || this.dateTo; }
+  },
+  async created() {
+    await this.fetchData();
   },
   methods: {
-    formatPrice(v) { return new Intl.NumberFormat('vi-VN').format(v); },
-    statusLabel(s) { return { pending:'Chờ xác nhận', confirmed:'Đã xác nhận', completed:'Hoàn thành', cancelled:'Đã huỷ' }[s]; },
-    payLabel(p) { return { bank:'Chuyển khoản', momo:'MoMo', vnpay:'VNPAY', card:'Thẻ QT', cash:'Tiền mặt' }[p]; },
-    resetFilters() { this.statusFilter='all'; this.dateFrom=''; this.dateTo=''; this.currentPage=1; },
-    openDetail(o) { this.detailOrder = {...o}; },
-    confirmCancel(o) { this.cancelTarget = o; },
-    proceedCancel() {
-      const idx = this.orders.findIndex(o=>o.id===this.cancelTarget.id);
-      if (idx !== -1 && this.orders[idx].status === 'pending') {
-        this.orders[idx].status = 'cancelled';
-        this.toast('Đã huỷ đơn ' + this.cancelTarget.code);
-      } else this.toast('Không thể huỷ đơn này', 'error');
-      this.cancelTarget = null;
-      if (this.detailOrder?.id === this.cancelTarget?.id) this.detailOrder = null;
+    async fetchData() {
+      this.isLoading = true;
+      try {
+        const [ordersRes, userRes] = await Promise.all([
+          bookingService.getMyBookings(),
+          authService.getMe()
+        ]);
+        this.orders = ordersRes.data || [];
+        this.user = userRes.data?.data;
+      } catch (err) {
+        console.error("Lỗi dữ liệu:", err);
+        toast.error("Không thể tải lịch sử đơn hàng");
+      } finally {
+        this.isLoading = false;
+      }
     },
-    cancelOrder(o) { this.confirmCancel(o); },
-    rebookOrder(o) { this.toast(`Đặt lại sân ${o.court} - ${o.date}`); },
-    toast(msg, type='success') {
-      const id = Date.now();
-      this.toasts.push({ id, msg });
-      setTimeout(()=> this.toasts = this.toasts.filter(t=>t.id!==id), 2500);
-    }
+
+    formatPrice(v) { return new Intl.NumberFormat('vi-VN').format(v); },
+    formatDate(d) { 
+      if (!d) return '—';
+      return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    },
+    formatSlotTime(slot) {
+      const start = new Date(slot.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const end = new Date(slot.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      return `${start} – ${end}`;
+    },
+    formatTimeRange(items) {
+      if (!items?.length) return '—';
+      const sorted = [...items].sort((a,b) => new Date(a.timeSlot.startTime) - new Date(b.timeSlot.startTime));
+      const start = new Date(sorted[0].timeSlot.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const end = new Date(sorted[sorted.length-1].timeSlot.endTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      return `${start} – ${end}`;
+    },
+
+    statusLabel(s) {
+      const map = {
+        WAITING_PAYMENT: 'Chờ thanh toán',
+        PENDING: 'Chờ xác nhận',
+        CONFIRMED: 'Đã xác nhận',
+        COMPLETED: 'Hoàn thành',
+        CANCELLED: 'Đã hủy'
+      };
+      return map[s] || s;
+    },
+    payLabel(p) {
+      const map = { BANK_TRANSFER: 'Chuyển khoản', MOMO: 'MoMo', VNPAY: 'VNPAY', CREDIT_CARD: 'Thẻ QT', CASH: 'Tiền mặt' };
+      return map[p] || 'VNPay';
+    },
+
+    resetFilters() {
+      this.statusFilter = 'all';
+      this.dateFilter = '';
+      this.currentPage = 1;
+    },
+    
+    openDetail(o) { this.detailOrder = o; },
+    confirmCancel(o) { this.cancelTarget = o; },
+    
+    async proceedCancel() {
+      if (this.isProcessing) return;
+      this.isProcessing = true;
+      try {
+        await bookingService.cancelBooking(this.cancelTarget.bookingCode);
+        toast.success("Đã hủy đơn hàng thành công");
+        this.cancelTarget = null;
+        this.detailOrder = null;
+        await this.fetchData();
+      } catch (err) {
+        toast.error(err.response?.data?.message || "Không thể hủy đơn hàng này");
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+
+    openImage(url) { window.open(url, '_blank'); }
   }
 }
 </script>
 
 <style scoped>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-.customer-bookings {
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800;900&display=swap');
+
+.chk-page {
   font-family: 'Lexend', sans-serif;
-  background: #f1f5f9;
+  background: #f8fafc;
   min-height: 100vh;
-  padding: 20px;
+  color: #1e293b;
 }
 
-/* User header */
-.user-header {
+.chk-header-simple {
+  background: white;
+  padding: 16px 0;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+}
+
+.chk-title { font-weight: 800; font-size: 18px; color: #0f172a; }
+.chk-back-btn {
+  background: #f1f5f9;
+  border: none;
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .2s;
+}
+.chk-back-btn:hover { background: #e2e8f0; transform: translateX(-3px); }
+
+.user-pill {
+  background: #f1f5f9;
+  padding: 5px 15px 5px 5px;
+  border-radius: 40px;
+  align-items: center;
+  gap: 12px;
+}
+.user-pill__avatar {
+  width: 32px; height: 32px;
+  background: #198754; color: white;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 12px;
+}
+
+/* STAT CARDS */
+.stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  border: 1px solid #edf2f7;
+  text-align: center;
+  transition: transform .2s;
+}
+.stat-card:hover { transform: translateY(-5px); }
+.stat-card__icon {
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+}
+.stat-card__icon--blue { background: #eff6ff; color: #2563eb; }
+.stat-card__icon--green { background: #f0fdf4; color: #16a34a; }
+.stat-card__icon--amber { background: #fffbeb; color: #d97706; }
+.stat-card__icon--red { background: #fff1f2; color: #dc2626; }
+.stat-card__val { font-weight: 900; font-size: 20px; line-height: 1.2; }
+.stat-card__lab { font-size: 11px; font-weight: 600; color: #64748b; margin-top: 4px; }
+
+/* FILTERS */
+.filter-bar {
+  background: white;
+  padding: 12px 20px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.filter-select, .filter-date {
+  border: 1.5px solid #edf2f7;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #f8fafc;
+  outline: none;
+}
+.filter-select:focus, .filter-date:focus { border-color: #198754; }
+.btn-reset {
+  background: #fff1f2; color: #dc2626;
+  border: none; padding: 8px 16px;
+  border-radius: 10px; font-weight: 700; font-size: 12px;
+  cursor: pointer;
+}
+
+/* ORDER CARDS */
+.order-card-premium {
   background: white;
   border-radius: 24px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-.user-avatar {
-  width: 56px;
-  height: 56px;
-  background: linear-gradient(135deg,#0f172a,#1e3a5f);
-  border-radius: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 800;
-  font-size: 22px;
-}
-.user-info h2 { font-size: 18px; margin-bottom: 4px; }
-.user-info p { color: #64748b; font-size: 13px; }
-.stats { display: flex; gap: 24px; margin-left: auto; }
-.stat { text-align: right; }
-.stat-number { font-weight: 800; font-size: 20px; display: block; }
-.stat-label { font-size: 11px; color: #64748b; }
-
-/* Filters */
-.filters {
-  background: white;
-  border-radius: 20px;
-  padding: 12px 20px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: center;
-}
-.filters select, .filters input {
-  border: 1.5px solid #e2e8f0;
-  border-radius: 40px;
-  padding: 8px 16px;
-  background: #f8fafc;
-  font-family: inherit;
-}
-.filters button {
-  background: #fee2e2;
-  border: none;
-  border-radius: 40px;
-  padding: 8px 16px;
-  font-weight: 700;
-  color: #dc2626;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  position: relative;
+  transition: all .3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
 }
+.order-card-premium:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+  border-color: #198754;
+}
+.card-p-header {
+  padding: 18px 20px 10px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.p-code { font-family: monospace; font-weight: 800; font-size: 13px; color: #64748b; }
+.p-status {
+  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 10px;
+}
+.p-status--confimed, .p-status--confirmed { background: #dcfce7; color: #166534; }
+.p-status--pending, .p-status--waiting_payment { background: #fef3c7; color: #92400e; }
+.p-status--cancelled { background: #fee2e2; color: #991b1b; }
+.p-status--completed { background: #eff6ff; color: #1e40af; }
 
-/* Card grid */
-.orders-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 20px;
-  margin-bottom: 20px;
+.card-p-body { padding: 0 20px 20px; }
+.p-venue { font-weight: 900; font-size: 18px; margin-bottom: 12px; }
+.p-meta { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.p-meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #64748b; font-weight: 500; }
+.p-meta-item .material-icons { font-size: 18px; color: #94a3b8; }
+.p-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-top: 15px; border-top: 1px dashed #e2e8f0;
 }
-.order-card {
-  background: white;
-  border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  padding: 18px;
-  transition: 0.2s;
-}
-.order-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.order-code {
-  font-weight: 800;
-  font-family: monospace;
-  background: #f1f5f9;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 13px;
-}
-.order-status {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 30px;
-}
-.order-status.pending { background: #fef3c7; color: #b45309; }
-.order-status.confirmed { background: #dbeafe; color: #1e40af; }
-.order-status.completed { background: #dcfce7; color: #166534; }
-.order-status.cancelled { background: #fee2e2; color: #991b1b; }
+.p-total { font-weight: 900; font-size: 20px; color: #198754; }
+.p-method { display: flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: #94a3b8; }
+.p-method .material-icons { font-size: 14px; }
 
-.card-body .court { font-weight: 800; font-size: 16px; margin-bottom: 6px; }
-.datetime { display: flex; gap: 12px; font-size: 13px; color: #64748b; margin-bottom: 12px; }
-.total { font-weight: 900; font-size: 18px; color: #16a34a; }
-
-.card-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
+.card-p-actions {
+  display: flex; gap: 1px; background: #e2e8f0; border-top: 1px solid #e2e8f0;
 }
-.card-actions button {
-  flex: 1;
-  background: none;
-  border: 1px solid #e2e8f0;
-  border-radius: 40px;
-  padding: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s;
+.card-p-actions button {
+  flex: 1; border: none; background: #f8fafc; padding: 12px;
+  font-size: 13px; font-weight: 700; transition: all .2s;
 }
-.card-actions button:first-child { color: #3b82f6; border-color: #bfdbfe; }
-.card-actions button:first-child:hover { background: #eff6ff; }
-.card-actions button:nth-child(2) { color: #dc2626; border-color: #fecaca; }
-.card-actions button:nth-child(2):hover { background: #fee2e2; }
-.card-actions button:last-child { color: #16a34a; border-color: #bbf7d0; }
-.card-actions button:last-child:hover { background: #dcfce7; }
+.btn-detail { color: #198754; }
+.btn-cancel { color: #dc2626; }
+.card-p-actions button:hover { background: #f1f5f9; }
 
-.empty { grid-column: 1/-1; text-align: center; padding: 60px; background: white; border-radius: 20px; }
-
-/* Pagination */
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  align-items: center;
-  margin-top: 20px;
-}
-.pagination button {
-  border: 1px solid #e2e8f0;
-  background: white;
-  border-radius: 30px;
-  padding: 6px 14px;
-  cursor: pointer;
-  font-weight: 700;
-}
-.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* Drawer (giống cũ nhưng đơn giản hóa) */
+/* DRAWER */
 .drawer-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(2px); display: flex; justify-content: flex-end; z-index: 1000;
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px); z-index: 1000; display: flex; justify-content: flex-end;
 }
 .drawer {
-  width: 400px; max-width: 90vw; background: white; height: 100vh;
-  display: flex; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+  width: 500px; max-width: 100vw; background: white; height: 100vh;
+  display: flex; flex-direction: column;
 }
-.drawer-header {
-  display: flex; justify-content: space-between; padding: 20px; border-bottom: 1px solid #e2e8f0;
+.drawer-header-p { padding: 24px; border-bottom: 1px solid #f1f5f9; }
+.btn-close-drawer {
+  background: #f1f5f9; border: none; width: 40px; height: 40px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.drawer-title { font-weight: 800; font-size: 18px; }
-.drawer-code { font-size: 12px; color: #64748b; }
-.drawer-header button { background: #f1f5f9; border: none; width: 32px; height: 32px; border-radius: 10px; cursor: pointer; }
-.drawer-body { flex: 1; padding: 20px; overflow-y: auto; }
-.row { display: flex; justify-content: space-between; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9; }
-.row .total { font-weight: 900; color: #16a34a; font-size: 18px; }
-.timeline-title { font-weight: 700; margin: 16px 0 8px; }
-.timeline-item { display: flex; gap: 12px; margin-bottom: 12px; }
-.dot { width: 8px; height: 8px; background: #22c55e; border-radius: 10px; margin-top: 4px; }
-.drawer-footer {
-  padding: 16px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px;
+.drawer-body-p { flex: 1; padding: 24px; overflow-y: auto; }
+.section-title {
+  font-size: 11px; font-weight: 800; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px;
 }
-.drawer-footer button { flex: 1; padding: 10px; border-radius: 40px; border: none; font-weight: 700; cursor: pointer; }
-.drawer-footer button:first-child { background: #dc2626; color: white; }
-.drawer-footer button:last-child { background: #f1f5f9; }
+.booking-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px; background: #f8fafc; border-radius: 12px; margin-bottom: 8px;
+}
+.booking-item__price { font-weight: 800; color: #198754; }
+.summary-box { background: #f1f5f9; border-radius: 16px; padding: 20px; }
+.s-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+.s-row--total { border-top: 1px solid #cbd5e1; padding-top: 12px; margin-top: 12px; font-weight: 900; font-size: 18px; }
+.s-row--discount { color: #dc2626; }
 
-/* Toast + Confirm */
-.toasts { position: fixed; bottom: 20px; right: 20px; z-index: 1100; }
-.toast { background: #0f172a; color: white; padding: 8px 16px; border-radius: 40px; margin-top: 8px; }
-.confirm-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-  display: flex; align-items: center; justify-content: center; z-index: 1200;
+.proof-view { position: relative; cursor: pointer; }
+.proof-overlay {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 700; opacity: 0; transition: .2s;
+  border-radius: 8px;
 }
-.confirm-dialog {
-  background: white; border-radius: 24px; padding: 24px; width: 300px; text-align: center;
+.proof-view:hover .proof-overlay { opacity: 1; }
+
+.drawer-footer-p { padding: 20px 24px 40px; border-top: 1px solid #f1f5f9; }
+
+/* MODAL */
+.modal-p-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+  z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px;
 }
-.confirm-buttons { display: flex; gap: 12px; margin-top: 20px; }
-.confirm-buttons button { flex: 1; padding: 10px; border-radius: 40px; border: none; font-weight: 700; cursor: pointer; }
-.confirm-buttons button:first-child { background: #f1f5f9; }
-.confirm-buttons button:last-child { background: #dc2626; color: white; }
+.modal-p-card {
+  background: white; border-radius: 32px; padding: 32px; max-width: 400px; width: 100%; text-align: center;
+}
+.modal-p-icon { font-size: 48px; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 100px 20px; }
+.empty-state__icon { font-size: 64px; margin-bottom: 20px; }
+
+.page-btn {
+  width: 40px; height: 40px; border-radius: 12px; border: 1.5px solid #e2e8f0;
+  background: white; font-weight: 800; transition: .2s;
+}
+.page-btn.active { background: #198754; color: white; border-color: #198754; }
+
+@media (max-width: 768px) {
+  .drawer { width: 100vw; }
+}
 
 .drawer-enter-active, .drawer-leave-active { transition: opacity 0.3s; }
 .drawer-enter-from, .drawer-leave-to { opacity: 0; }
@@ -424,8 +560,9 @@ export default {
 .drawer-leave-to .drawer { transform: translateX(100%); }
 
 @media (max-width: 640px) {
-  .customer-bookings { padding: 12px; }
-  .stats { margin-left: 0; width: 100%; justify-content: space-between; }
-  .filters { flex-direction: column; align-items: stretch; }
+  .chk-page { padding: 12px; }
+  .stat-card { padding: 15px 10px; }
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .user-pill { display: none !important; }
 }
 </style>

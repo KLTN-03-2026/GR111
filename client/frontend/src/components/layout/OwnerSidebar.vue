@@ -68,6 +68,7 @@ export default {
         { name: 'finance',   label: 'Tài chính',    path: '/owner/finance',   icon: 'account_balance_wallet',   lockable: true },
         { name: 'customers', label: 'Khách hàng',   path: '/owner/customers', icon: 'groups',                   lockable: true },
         { name: 'vouchers',  label: 'Khuyến mãi',   path: '/owner/vouchers',  icon: 'local_offer',              lockable: true },
+        { name: 'news-feed', label: 'Bảng tin',      path: '/owner/news-feed', icon: 'rss_feed',                 lockable: true },
         { name: 'reviews',   label: 'Đánh giá',     path: '/owner/reviews',   icon: 'reviews',                  lockable: true },
         { name: 'settings',  label: 'Cài đặt',      path: '/owner/settings',  icon: 'settings',                 lockable: false },
       ]

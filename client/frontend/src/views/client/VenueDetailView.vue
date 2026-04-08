@@ -444,7 +444,6 @@
 import '@/assets/vdp.css'
 import { clubService } from '@/services/club.service.js';
 import { toast } from 'vue3-toastify';
-import 'vue3-toastify/dist/index.css';
 import { voucherService } from '@/services/voucher.service.js';
 
 import VenueHero from '@/components/client/venue/VenueHero.vue';
