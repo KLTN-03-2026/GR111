@@ -48,7 +48,7 @@
 
       <div class="promo-mockup">
         <div class="mockup-wrapper">
-          <img src="/Users/nguyendv/.gemini/antigravity/brain/ab7c3d20-e172-4632-848e-1c9d8c1251af/playfinder_mockups_1775628107375.png" alt="Playfinder Mobile App Mockups" class="mockup-img" />
+          <img src="https://placehold.co/300x600/2d1b4d/white?text=Mobile+App" alt="Playfinder Mobile App Mockups" class="mockup-img" />
         </div>
       </div>
     </div>
