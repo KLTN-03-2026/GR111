@@ -8,7 +8,6 @@
         </router-link>
 
         <div class="nav-menu desktop-only">
-          <router-link to="/" class="nav-menu-link">TRANG CHỦ</router-link>
           <router-link to="/booking" class="nav-menu-link">ĐẶT SÂN</router-link>
           <router-link to="/map" class="nav-menu-link">BẢN ĐỒ</router-link>
           <router-link to="/friend" class="nav-menu-link">TÌM BẠN</router-link>
@@ -38,14 +37,14 @@
 
 
       <div class="navbar-right desktop-only">
-        <template v-if="user">
-          <span class="welcome-text">Chào, {{ user.fullName }}</span>
-          <router-link to="/order" class="nav-link">
+        <template v-if="user"  >
+          <router-link to="/profile" class="welcome-text">Chào, {{ user.fullName }}</router-link>
+          <router-link v-if="user.role === 'USER'" to="/order" class="nav-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            QUẢN LÝ ĐẶT CHỖ
+            Lịch Sử Đặt Sân
           </router-link>
           <button @click="handleLogout" class="nav-link btn-logout">
             ĐĂNG XUẤT
@@ -62,9 +61,20 @@
           </router-link>
         </template>
 
-        <router-link to="/owner" class="nav-link nav-link--cta">
-          LIỆT KÊ ĐỊA ĐIỂM CỦA BẠN
-        </router-link>
+        <!-- Dynamic CTA based on Role -->
+        <template v-if="user">
+          <router-link v-if="user.role === 'OWNER'" to="/owner" class="nav-link nav-link--cta">
+            DASHBOARD
+          </router-link>
+          <router-link v-else to="/profile" class="nav-link nav-link--cta">
+            HỒ SƠ 
+          </router-link>
+        </template>
+        <template v-else>
+          <router-link to="/owner" class="nav-link nav-link--cta">
+            LIỆT KÊ ĐỊA ĐIỂM CỦA BẠN
+          </router-link>
+        </template>
       </div>
 
       <!-- Hamburger Button (Mobile only) -->
@@ -153,10 +163,13 @@
             
             <template v-if="user">
               <div class="user-info-mobile">
-                <span class="welcome-text">Chào, {{ user.fullName }}</span>
+                <router-link @click="closeMenu" to="/profile" class="welcome-text">Chào, {{ user.fullName }}</router-link>
               </div>
               <router-link @click="closeMenu" to="/order" class="mobile-nav-item">
                 QUẢN LÝ ĐẶT CHỖ
+              </router-link>
+              <router-link @click="closeMenu" to="/profile" class="mobile-nav-item">
+                HỒ SƠ CỦA TÔI
               </router-link>
               <button @click="handleLogout" class="mobile-nav-item btn-logout-mobile">
                 ĐĂNG XUẤT
@@ -179,6 +192,8 @@
 </template>
 
 <script>
+import { RouterLink } from 'vue-router';
+
 
 export default {
   name: "ClientHeader",
@@ -421,6 +436,7 @@ export default {
   font-weight: 700;
   font-size: 13px;
   margin-right: 12px;
+  text-decoration: none;
 }
 
 .btn-logout {

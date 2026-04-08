@@ -53,7 +53,7 @@
 
         <div class="dc-field dc-field--select">
           <div class="dc-field__icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.8" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="12" r="9"/>
               <path d="M12 3a14.5 14.5 0 0 0 0 18M12 3a14.5 14.5 0 0 1 0 18M3 12h18"/>
             </svg>
@@ -68,7 +68,7 @@
 
         <div class="dc-field">
           <div class="dc-field__icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.8" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
               <circle cx="12" cy="10" r="3"/>
             </svg>
@@ -91,7 +91,7 @@
         <!-- Date Field -->
         <div class="dc-field">
           <div class="dc-field__icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#aaa" stroke-width="1.8" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
               <line x1="16" y1="2" x2="16" y2="6"/>
               <line x1="8" y1="2" x2="8" y2="6"/>
@@ -458,7 +458,14 @@ export default {
   transition: border-color .2s;
 }
 .dc-field:focus-within { border-color: #16a34a; }
-.dc-field__icon { padding: 0 10px 0 12px; display: flex; align-items: center; flex-shrink: 0; }
+.dc-field__icon { 
+  padding: 0 10px 0 12px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  flex-shrink: 0; 
+  color: #aaa;
+}
 .dc-field--select { position: relative; }
 .dc-field__select {
   flex: 1; border: none; outline: none;
@@ -471,6 +478,21 @@ export default {
   flex: 1; border: none; outline: none;
   font-family: "Barlow", sans-serif; font-size: 14.5px; font-weight: 500;
   color: #333; background: transparent; padding: 13px 0;
+  height: 48px;
+}
+
+/* Hide default date picker icon */
+.dc-field__input[type="date"]::-webkit-calendar-picker-indicator {
+  background: transparent;
+  bottom: 0;
+  color: transparent;
+  cursor: pointer;
+  height: auto;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: auto;
 }
 .dc-field__input::placeholder { color: #aaa; font-weight: 400; }
 .dc-locate {
@@ -577,8 +599,8 @@ export default {
   .ms-field:focus-within { border-color: #16a34a; }
   .ms-field--select { position: relative; }
 
-  .ms-icon { padding: 0 10px 0 13px; display: flex; align-items: center; flex-shrink: 0; }
-  .ms-icon svg { width: 17px; height: 17px; }
+  .ms-icon { padding: 0 10px 0 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #aaa; }
+  .ms-icon svg { width: 18px; height: 18px; }
 
   .ms-select {
     flex: 1; border: none; outline: none;
@@ -593,6 +615,20 @@ export default {
     flex: 1; border: none; outline: none;
     font-family: "Barlow", sans-serif; font-size: 15px; font-weight: 500;
     color: #333; background: transparent; padding: 14px 0;
+    height: 48px;
+  }
+  
+  .ms-input[type="date"]::-webkit-calendar-picker-indicator {
+    background: transparent;
+    bottom: 0;
+    color: transparent;
+    cursor: pointer;
+    height: auto;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: auto;
   }
   .ms-input::placeholder { color: #aaa; font-weight: 400; }
 
