@@ -49,6 +49,12 @@ const routes = [
     component: () => import("../views/client/AboutView.vue"),
   },
   {
+    path: "/profile",
+    name: "profile",
+    component: () => import("../views/client/ProfileView.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/map",
     name: "map",
     component: () => import("../views/client/MapView.vue"),
@@ -196,6 +202,12 @@ const routes = [
     path: "/owner/vouchers",
     name: "owner-vouchers",
     component: () => import("../views/owner/VouchersView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
+    path: "/owner/news-feed",
+    name: "owner-news-feed",
+    component: () => import("../views/owner/NewsFeedView.vue"),
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
   {

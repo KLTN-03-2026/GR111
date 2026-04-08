@@ -203,6 +203,19 @@
                 <input type="text" v-model="form.label" class="form-input" :placeholder="modalType === 'regular' ? 'VD: Khung giờ sáng' : 'VD: Ngày giải phóng'" />
               </div>
             </div>
+
+            <div v-if="overlapError" class="conflict-alert animate-in">
+              <div class="alert-icon"><span class="material-icons">warning</span></div>
+              <div class="alert-content">
+                <strong>Xung đột khung giờ!</strong>
+                <p>Khung giờ này bị trùng với cấu hình đã có ({{ overlapError.time }}). Vui lòng điều chỉnh lại.</p>
+              </div>
+            </div>
+
+            <div v-if="pricingPreview" class="pricing-preview-box">
+              <span class="label">Tổng quan giá:</span>
+              <span class="value">{{ formatPrice(form.pricePerHour) }}/giờ</span>
+            </div>
           </div>
 
           <div class="modal-footer footer-special">
@@ -268,8 +281,14 @@ export default {
         endTime: '22:00',
         pricePerHour: 200000,
         label: ''
-      }
+      },
+      overlapError: null
     };
+  },
+  computed: {
+    pricingPreview() {
+      return this.form.pricePerHour > 0;
+    }
   },
   mounted() {
     this.loadCourts();
@@ -336,6 +355,46 @@ export default {
         };
       }
       this.showModal = true;
+      this.overlapError = null;
+    },
+
+    checkOverlap() {
+      const start = this.form.startTime;
+      const end = this.form.endTime;
+      const day = this.form.dayOfWeek;
+      const date = this.form.specificDate;
+      
+      const list = this.modalType === 'regular' ? this.regularPricings : this.specialPricings;
+      
+      for (const item of list) {
+        if (item.id === this.form.id) continue;
+        
+        let match = false;
+        if (this.modalType === 'regular') {
+          // Check day overlap (null = all days)
+          if (day === null || item.dayOfWeek === null || day === item.dayOfWeek) {
+            match = true;
+          }
+        } else {
+          // Check specific date overlap
+          if (date === new Date(item.specificDate).toISOString().split('T')[0]) {
+            match = true;
+          }
+        }
+
+        if (match) {
+          const itemStart = this.formatTimeRaw(item.startTime);
+          const itemEnd = this.formatTimeRaw(item.endTime);
+          
+          // Time overlap logic
+          if (start < itemEnd && end > itemStart) {
+            this.overlapError = { time: `${itemStart} - ${itemEnd}` };
+            return true;
+          }
+        }
+      }
+      this.overlapError = null;
+      return false;
     },
 
     async handleSave() {
@@ -347,6 +406,10 @@ export default {
          return;
       }
       this.timeError = false;
+
+      if (this.checkOverlap()) {
+        return;
+      }
 
       this.isSaving = true;
       try {
@@ -585,6 +648,18 @@ export default {
 .empty-state span, .select-prompt span { font-size: 64px; color: #e2e8f0; }
 .empty-state h3, .select-prompt h3 { font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 4px; }
 .empty-state p, .select-prompt p { color: #64748b; font-size: 15px; }
+
+.conflict-alert { margin-top: 20px; background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 14px; padding: 16px; display: flex; gap: 12px; align-items: flex-start; }
+.alert-icon { color: #ef4444; }
+.alert-content strong { display: block; color: #991b1b; font-size: 14px; margin-bottom: 2px; }
+.alert-content p { font-size: 13px; color: #b91c1c; margin: 0; }
+
+.pricing-preview-box { margin-top: 20px; background: #f0fdf4; border-radius: 14px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; border: 1.5px solid #dcfce7; }
+.pricing-preview-box .label { font-size: 13px; font-weight: 700; color: #166534; }
+.pricing-preview-box .value { font-size: 16px; font-weight: 800; color: #15803d; font-family: 'Barlow Condensed', sans-serif; }
+
+.animate-in { animation: slideUp 0.3s ease-out; }
+@keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (max-width: 1024px) { .pricing-grid { grid-template-columns: 1fr; } .view-header { flex-direction: column; align-items: stretch; } .split { grid-template-columns: 1fr; } }
 </style>

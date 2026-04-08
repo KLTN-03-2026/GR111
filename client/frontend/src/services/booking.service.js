@@ -64,5 +64,14 @@ export const bookingService = {
     cancelBooking: async (bookingCode) => {
         const response = await api.delete(`/bookings/${bookingCode}`);
         return response.data;
+    },
+    // 11. Tải lên minh chứng chuyển khoản (cho người dùng) 
+    uploadPaymentProof: async (bookingId, imageFile) => {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        const response = await api.post(`/bookings/${bookingId}/payment-proof`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
     }
 }

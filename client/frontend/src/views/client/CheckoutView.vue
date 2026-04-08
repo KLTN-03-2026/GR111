@@ -299,6 +299,45 @@
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                       Vui lòng chuyển khoản trong vòng <strong>5 phút</strong>. Sân sẽ được xác nhận sau khi nhận được thanh toán.
                     </div>
+
+                    <!-- UPLOAD PAYMENT PROOF -->
+                    <div v-if="bookingSuccess" class="chk-proof-upload mt-4 pt-3 border-top">
+                      <div class="chk-proof-header mb-3">
+                        <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                          <span class="material-icons text-success" style="font-size:20px">cloud_upload</span>
+                          Gửi minh chứng chuyển khoản
+                        </div>
+                        <p class="text-muted small mb-0">Tải lên ảnh chụp màn hình bill chuyển khoản để Admin duyệt nhanh hơn.</p>
+                      </div>
+
+                      <div v-if="paymentProofUrl" class="chk-proof-preview mb-3 position-relative">
+                        <img :src="paymentProofUrl" class="rounded-3 w-100 shadow-sm border" style="max-height:200px; object-fit:cover" />
+                        <button class="btn-remove-proof" @click="paymentProofUrl = ''; proofFile = null">
+                          <span class="material-icons">cancel</span>
+                        </button>
+                      </div>
+
+                      <div v-else class="chk-upload-box" @click="$refs.proofInput.click()" :class="{ 'is-uploading': isUploadingProof }">
+                        <input type="file" ref="proofInput" class="d-none" accept="image/*" @change="handleFileUpload" />
+                        <div v-if="!isUploadingProof" class="text-center">
+                          <span class="material-icons fs-1 text-muted">add_photo_alternate</span>
+                          <div class="fw-bold text-muted small mt-2">Nhấn để chọn ảnh Bill</div>
+                        </div>
+                        <div v-else class="text-center">
+                          <div class="spinner-border spinner-border-sm text-success mb-2"></div>
+                          <div class="fw-bold text-success small">Đang tải lên...</div>
+                        </div>
+                      </div>
+
+                      <button v-if="proofFile && !paymentProofUrl && !isUploadingProof" class="btn btn-success w-100 fw-bold mt-3" @click="uploadProof">
+                        Xác nhận gửi bill
+                      </button>
+                      
+                      <div v-if="paymentProofUrl" class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mt-3 border-0 small fw-bold" style="background:#f0fdf4; color:#16a34a">
+                         <span class="material-icons" style="font-size:18px">check_circle</span>
+                         Đã gửi minh chứng thành công!
+                      </div>
+                    </div>
                   </div>
                 </transition>
 
@@ -636,8 +675,11 @@ export default {
         email: '',
         note: '',
         voucher_code: '',
-        base_total: 0, // Lưu giá trước giảm để tính lại nếu cần
+        base_total: 0, 
       },
+      proofFile: null,
+      paymentProofUrl: '',
+      isUploadingProof: false,
     };
   },
 
@@ -1099,6 +1141,11 @@ export default {
             this.timerSeconds = Math.max(0, 300 - elapsed);
           }
 
+          // Thông tin minh chứng (nếu có)
+          if (b.payment?.proofImageUrl) {
+            this.paymentProofUrl = b.payment.proofImageUrl;
+          }
+
           // Kết nối socket để tiếp tục lắng nghe trạng thái
           if (b.id && !this.paymentConfirmed) {
             this.currentBookingId = b.id;
@@ -1107,6 +1154,36 @@ export default {
         }
       } catch (err) {
         console.error('Không thể tải thông tin booking:', err);
+      }
+    },
+
+    handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert("File quá lớn! Vui lòng chọn ảnh < 5MB");
+        return;
+      }
+      this.proofFile = file;
+      this.uploadProof(); // Tự động upload sau khi chọn
+    },
+
+    async uploadProof() {
+      if (!this.proofFile || !this.currentBookingId) return;
+      
+      this.isUploadingProof = true;
+      try {
+        const res = await bookingService.uploadPaymentProof(this.currentBookingId, this.proofFile);
+        if (res.success) {
+          this.paymentProofUrl = res.data.proofImageUrl;
+          toast.success("Tải minh chứng thành công! Đang chờ duyệt.");
+        }
+      } catch (err) {
+        console.error("Upload proof error:", err);
+        toast.error("Lỗi khi tải ảnh lên. Vui lòng thử lại.");
+      } finally {
+        this.isProcessing = false; // Just in case loading overlay is on
+        this.isUploadingProof = false;
       }
     },
   },
