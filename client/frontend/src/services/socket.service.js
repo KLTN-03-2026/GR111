@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Get base API URL from environment variable or default
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
 
 class SocketService {
   constructor() {

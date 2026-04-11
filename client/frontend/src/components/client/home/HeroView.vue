@@ -456,6 +456,7 @@ export default {
   border: 1.5px solid #d1d5db; border-radius: 4px;
   background: #fff; margin-bottom: 12px; overflow: hidden;
   transition: border-color .2s;
+  position: relative;
 }
 .dc-field:focus-within { border-color: #16a34a; }
 .dc-field__icon { 
@@ -595,6 +596,7 @@ export default {
     border: 1.5px solid #d1d5db; border-radius: 6px;
     background: #fff; margin-bottom: 11px; overflow: hidden;
     transition: border-color .2s;
+    position: relative;
   }
   .ms-field:focus-within { border-color: #16a34a; }
   .ms-field--select { position: relative; }

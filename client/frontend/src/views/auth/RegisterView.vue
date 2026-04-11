@@ -393,7 +393,7 @@ export default {
       script.async = true; script.defer = true;
       script.onload = () => {
         window.google.accounts.id.initialize({
-          client_id: "265183201039-tbm0nkoad98ftmn5pt43uiql7tnm3iuv.apps.googleusercontent.com",
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "265183201039-tbm0nkoad98ftmn5pt43uiql7tnm3iuv.apps.googleusercontent.com",
           callback: (response) => {
             this.processSocialLogin(response.credential, 'google');
           }
