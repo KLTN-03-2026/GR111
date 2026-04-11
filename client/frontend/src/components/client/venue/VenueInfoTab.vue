@@ -34,6 +34,12 @@
         </div>
       </div>
 
+      <h5 class="fw-bold mt-4 mb-3">Giờ mở cửa</h5>
+      <div v-for="(d,i) in venue.openingHours" :key="d.day" :class="['d-flex justify-content-between px-3 py-2 rounded-2', i%2===1?'bg-light':'']">
+        <span class="fw-semibold small">{{ d.day }}</span>
+        <span class="fw-bold small" :class="d.isClosed?'text-danger':'text-success'">{{ d.isClosed?'Đóng cửa':`${d.open} – ${d.close}` }}</span>
+      </div>
+
       <h5 class="fw-bold mt-4 mb-3">Tiện ích sân</h5>
       <div class="row g-2">
         <div v-for="a in venue.amenities" :key="a.id" class="col-6 d-flex align-items-center gap-2">
@@ -42,12 +48,6 @@
           <span v-if="a.price > 0" class="badge rounded-pill bg-success-subtle text-success border border-success-subtle" style="font-size:10px">{{ formatPrice(a.price) }}</span>
           <span v-else class="text-muted" style="font-size:10px; font-style: italic;">Miễn phí</span>
         </div>
-      </div>
-
-      <h5 class="fw-bold mt-4 mb-3">Giờ mở cửa</h5>
-      <div v-for="(d,i) in venue.openingHours" :key="d.day" :class="['d-flex justify-content-between px-3 py-2 rounded-2', i%2===1?'bg-light':'']">
-        <span class="fw-semibold small">{{ d.day }}</span>
-        <span class="fw-bold small" :class="d.isClosed?'text-danger':'text-success'">{{ d.isClosed?'Đóng cửa':`${d.open} – ${d.close}` }}</span>
       </div>
 
       <!-- BẢN ĐỒ VỊ TRÍ -->
