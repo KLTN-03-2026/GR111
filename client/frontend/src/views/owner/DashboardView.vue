@@ -10,15 +10,20 @@
       />
     </div>
 
+    <!-- Visual Calendar (Full width) -->
+    <VisualCalendar :courts="courts" :bookings="allBookings" />
+
     <div class="content-row">
       <!-- Recent Bookings Table -->
-      <RecentBookings :bookings="recentBookings" />
+      <div style="flex:2">
+        <RecentBookings :bookings="recentBookings" />
+      </div>
 
       <!-- Side Panel -->
-      <div class="side-content">
+      <div class="side-content" style="flex:1">
         <!-- Quick Actions -->
         <QuickActions 
-          @add-offline-booking="handleOfflineBooking"
+          @add-offline-booking="showOfflineModal = true"
           @lock-court="handleLockCourt"
           @view-reports="handleViewReports"
         />
@@ -27,6 +32,14 @@
         <CourtStatus :courts="courts" />
       </div>
     </div>
+
+    <!-- Modals -->
+    <OfflineBookingModal 
+      :show="showOfflineModal" 
+      :courts="courts" 
+      @close="showOfflineModal = false"
+      @submit="submitOfflineBooking"
+    />
   </div>
 </template>
 
@@ -35,6 +48,13 @@ import StatCard from '../../components/owner/dashboard/StatCard.vue';
 import RecentBookings from '../../components/owner/dashboard/RecentBookings.vue';
 import QuickActions from '../../components/owner/dashboard/QuickActions.vue';
 import CourtStatus from '../../components/owner/dashboard/CourtStatus.vue';
+import VisualCalendar from '../../components/owner/dashboard/VisualCalendar.vue';
+import OfflineBookingModal from '../../components/owner/dashboard/OfflineBookingModal.vue';
+
+import { clubService } from '@/services/club.service';
+import { courtService } from '@/services/court.service';
+import { bookingService } from '@/services/booking.service';
+import { toast } from 'vue3-toastify';
 
 export default {
   name: 'OwnerDashboardView',
@@ -42,38 +62,159 @@ export default {
     StatCard,
     RecentBookings,
     QuickActions,
-    CourtStatus
+    CourtStatus,
+    VisualCalendar,
+    OfflineBookingModal
   },
   data() {
     return {
+      currentClubId: null,
       summaryStats: [
-        { label: 'Doanh thu tháng này', value: '45.280.000đ', icon: 'payments',       color: 'green',  trend: 'up',   change: 12.5, fill: 72 },
-        { label: 'Lượt đặt sân',        value: '382',          icon: 'calendar_month', color: 'blue', trend: 'up',   change: 8.2,  fill: 60 },
-        { label: 'Khách hàng mới',      value: '124',          icon: 'group',          color: 'teal', trend: 'up',   change: 15.0, fill: 84 },
-        { label: 'Đánh giá trung bình', value: '4.8 / 5',      icon: 'star',           color: 'amber',trend: 'up',   change: 2.1,  fill: 96 },
+        { label: 'Doanh thu tháng này', value: '0đ', icon: 'payments',       color: 'green',  trend: 'up',   change: 0, fill: 0 },
+        { label: 'Lượt đặt sân',        value: '0',          icon: 'calendar_month', color: 'blue', trend: 'up',   change: 0,  fill: 0 },
+        { label: 'Khách hàng mới',      value: '0',          icon: 'group',          color: 'teal', trend: 'up',   change: 0, fill: 0 },
+        { label: 'Đánh giá trung bình', value: '0 / 5',      icon: 'star',           color: 'amber',trend: 'up',   change: 0,  fill: 0 },
       ],
-      recentBookings: [
-        { id: 1, name: 'Nguyễn Văn A', phone: '0987 xxx 321', court: 'Sân 5 – A', time: '18:00 – 19:30', date: 'Hôm nay, 18/03', amount: '350.000đ', method: 'Chuyển khoản', status: 'PENDING',   statusText: 'Chờ xác nhận', statusClass: 'warning' },
-        { id: 2, name: 'Trần Thị B',   phone: '0912 xxx 888', court: 'Sân 7 – C', time: '20:00 – 21:00', date: 'Hôm nay, 18/03', amount: '450.000đ', method: 'Momo',         status: 'CONFIRMED', statusText: 'Đã xác nhận',  statusClass: 'success' },
-        { id: 3, name: 'Lê Văn C',     phone: '0345 xxx 999', court: 'Sân 5 – B', time: '17:00 – 18:30', date: 'Hôm nay, 18/03', amount: '300.000đ', method: 'Tiền mặt',     status: 'COMPLETED', statusText: 'Hoàn thành',   statusClass: 'info'    },
-      ],
-      courts: [
-        { id: 1, name: 'Sân 5 – A', status: 'occupied',  statusText: 'Đang đá',   session: 'Còn 45 phút' },
-        { id: 2, name: 'Sân 5 – B', status: 'occupied',  statusText: 'Đang đá',   session: 'Còn 15 phút' },
-        { id: 3, name: 'Sân 7 – C', status: 'available', statusText: 'Trống sân', session: null },
-        { id: 4, name: 'Sân 5 – D', status: 'locked',    statusText: 'Bảo trì',   session: 'Đến 17:00' },
-      ]
+      allBookings: [],
+      recentBookings: [],
+      courts: [],
+      showOfflineModal: false,
     }
   },
+  async mounted() {
+    await this.initDashboard();
+  },
   methods: {
-    handleOfflineBooking() {
-      console.log('Navigating to offline booking...');
+    async initDashboard() {
+      try {
+        // 1. Get clubs and select the first one
+        const clubRes = await clubService.getOwnerClubs();
+        if (clubRes.data.success && clubRes.data.data.length > 0) {
+          // Just using the first club for dashboard preview
+          this.currentClubId = clubRes.data.data[0].id;
+          
+          await Promise.all([
+            this.fetchCourts(),
+            this.fetchBookings()
+          ]);
+          this.updateStats();
+        }
+      } catch (err) {
+        console.error('Failed to init dashboard', err);
+      }
+    },
+    async fetchCourts() {
+      if (!this.currentClubId) return;
+      try {
+        const res = await courtService.getCourts(this.currentClubId);
+        if (res.data.success) {
+          this.courts = res.data.data.map(c => ({
+             ...c,
+             status: 'available', // Example status
+             statusText: 'Trống sân'
+          }));
+        }
+      } catch (err) {
+         console.error('Failed to fetch courts', err);
+      }
+    },
+    async fetchBookings() {
+      if (!this.currentClubId) return;
+      try {
+        const date = new Date().toISOString().split('T')[0]; // Today
+        const res = await bookingService.getBookingsByClub(this.currentClubId, date);
+        if (res.data.success) {
+          const bookings = res.data.data || [];
+          this.allBookings = bookings;
+          
+          // Map to recentBookings format
+          this.recentBookings = bookings.map(b => ({
+            id: b.id,
+            name: b.customerName || 'Khách',
+            phone: b.customerPhone || 'N/A',
+            court: b.court?.name || 'Sân',
+            time: `${this.formatTime(b.startTime)} - ${this.formatTime(b.endTime)}`,
+            date: new Date(b.bookingDate).toLocaleDateString('vi-VN'),
+            amount: `${b.totalPrice?.toLocaleString('vi-VN') || 0}đ`,
+            method: b.paymentMethod === 'ONLINE' ? 'Chuyển khoản' : 'Tiền mặt',
+            status: b.status,
+            statusText: this.getStatusText(b.status),
+            statusClass: this.getStatusClass(b.status)
+          })).slice(0, 10); // Display only recent 10
+        }
+      } catch (err) {
+        console.error('Failed to fetch bookings', err);
+      }
+    },
+    updateStats() {
+      // Mock update based on loaded data
+      const totalBookings = this.allBookings.length;
+      let revenue = 0;
+      this.allBookings.forEach(b => {
+          if (b.status === 'COMPLETED' || b.status === 'CONFIRMED') revenue += (b.totalPrice || 0);
+      });
+      
+      this.summaryStats[0].value = `${revenue.toLocaleString('vi-VN')}đ`;
+      this.summaryStats[0].fill = revenue > 0 ? 80 : 0;
+      this.summaryStats[1].value = `${totalBookings}`;
+      this.summaryStats[1].fill = totalBookings > 0 ? 60 : 0;
+      this.summaryStats[1].change = totalBookings * 2; 
+
+      // courts status processing...
+      this.courts.forEach(court => {
+         const busy = this.allBookings.some(b => b.courtId === court.id && ['CONFIRMED','PENDING'].includes(b.status));
+         if (busy) { court.status = 'occupied'; court.statusText = 'Đang đá'; court.session = 'Có lịch đặt'; }
+      });
+    },
+    async submitOfflineBooking(formData) {
+      if (!this.currentClubId) return;
+      try {
+        const payload = {
+          clubId: this.currentClubId,
+          ...formData, // courtId, startTime, endTime, date, customerName, customerPhone
+        };
+        const res = await bookingService.createManualBooking(payload);
+        if (res.data.success) {
+          toast.success("Đặt sân thành công!");
+          this.showOfflineModal = false;
+          await this.fetchBookings();
+          this.updateStats();
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Lỗi khi đặt sân.");
+      }
     },
     handleLockCourt() {
       console.log('Opening lock court modal...');
     },
     handleViewReports() {
-      console.log('Navigating to reports...');
+      this.$router.push('/owner/finance');
+    },
+    formatTime(t) {
+      if (!t) return '';
+      if (typeof t === 'string' && t.includes('T')) {
+          return new Date(t).toLocaleTimeString('en-GB').slice(0,5);
+      }
+      return typeof t === 'string' ? t.slice(0,5) : t;
+    },
+    getStatusText(status) {
+       switch(status) {
+         case 'PENDING': return 'Chờ xác nhận';
+         case 'CONFIRMED': return 'Đã xác nhận';
+         case 'COMPLETED': return 'Hoàn thành';
+         case 'CANCELLED': return 'Đã hủy';
+         default: return status;
+       }
+    },
+    getStatusClass(status) {
+       switch(status) {
+         case 'PENDING': return 'warning';
+         case 'CONFIRMED': return 'success';
+         case 'COMPLETED': return 'info';
+         case 'CANCELLED': return 'danger';
+         default: return '';
+       }
     }
   }
 }

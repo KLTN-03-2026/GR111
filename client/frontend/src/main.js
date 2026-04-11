@@ -5,6 +5,7 @@ import AuthLayout from './layouts/AuthLayout.vue'
 import ClientLayout from './layouts/ClientLayout.vue'
 import AdminLayout from './layouts/AdminLayout.vue'
 import OwnerLayout from './layouts/OwnerLayout.vue'
+import 'vue3-toastify/dist/index.css';
 
 const app = createApp(App)
 app.use(router)

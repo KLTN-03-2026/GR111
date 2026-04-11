@@ -1,113 +1,165 @@
 import { NextRequest } from "next/server";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
 import { 
-  getCourtFullPricing, 
-  upsertRegularPricing, 
-  addSpecialPricing, 
+  getCourtPricings, 
+  addRegularPricing, 
+  upsertSpecialPricing, 
   deletePricing 
-} from "@/services/pricing.service";
+} from "@/modules/club/court.service";
+import { z } from "zod";
 
 /**
- * UTILITY: Kiểm tra Owner có quyền sở hữu sân hay không
+ * GET /api/owner/courts/[id]/pricing
+ * Lấy tất cả bảng giá của sân
  */
-async function checkCourtOwnership(userId: string, courtId: string) {
-  const court = await prisma.court.findFirst({
-    where: { 
-      id: courtId,
-      club: { ownerId: userId }
-    }
-  });
-  return !!court;
-}
-
-// GET /api/owner/courts/[id]/pricing  → Lấy bảng giá sân
 export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
+    try {
+        const { id } = await params;
+        const { user, error } = await getAuthUser(req);
+        if (error) return error;
 
-    const courtId = params.id;
-    const isOwner = await checkCourtOwnership(user.userId, courtId);
-    if (!isOwner) return errorResponse("Bạn không có quyền quản lý sân này.", 403);
+        const roleErr = requireRole(user, ["OWNER", "ADMIN"]);
+        if (roleErr) return roleErr;
 
-    const data = await getCourtFullPricing(courtId);
-    return successResponse("Lấy bảng giá thành công", data);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
+        const data = await getCourtPricings(id, user.userId);
+        return successResponse("Tải bảng giá thành công", data);
+    } catch (error: unknown) {
+        return serverErrorResponse(error);
+    }
 }
 
-// POST /api/owner/courts/[id]/pricing  → Thêm/Cập nhật giá định kỳ (Regular)
+/**
+ * POST /api/owner/courts/[id]/pricing
+ * Thêm bảng giá định kỳ
+ */
 export async function POST(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
+    try {
+        const { id } = await params;
+        const { user, error } = await getAuthUser(req);
+        if (error) return error;
 
-    const courtId = params.id;
-    const isOwner = await checkCourtOwnership(user.userId, courtId);
-    if (!isOwner) return errorResponse("Không có quyền", 403);
+        const roleErr = requireRole(user, ["OWNER", "ADMIN"]);
+        if (roleErr) return roleErr;
 
-    const body = await req.json();
-    const result = await upsertRegularPricing(courtId, body);
+        const body = await req.json();
+        
+        // Validation for single regular pricing item
+        const itemSchema = z.object({
+            id: z.string().optional().nullable(),
+            dayOfWeek: z.number().int().min(0).max(6).nullable(),
+            startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ bắt đầu không hợp lệ"),
+            endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ kết thúc không hợp lệ"),
+            pricePerHour: z.number().positive(),
+            label: z.string().optional()
+        });
 
-    return successResponse("Cập nhật giá thành công", result);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
+        const parsed = itemSchema.safeParse(body);
+        if (!parsed.success) {
+            return errorResponse("Dữ liệu không hợp lệ", 422, (parsed.error.flatten().fieldErrors as unknown) as Record<string, string[]>);
+        }
+
+        // We clean HH:mm:ss to HH:mm for the service
+        const cleanData = {
+            ...parsed.data,
+            startTime: parsed.data.startTime.substring(0, 5),
+            endTime: parsed.data.endTime.substring(0, 5)
+        };
+
+        const data = await addRegularPricing(id, user.userId, cleanData);
+        return successResponse(cleanData.id ? "Cập nhật giá định kỳ thành công" : "Thêm giá định kỳ thành công", data);
+    } catch (error: unknown) {
+        const err = error as Error;
+        if (err.message?.includes("OVERLAP")) {
+          return errorResponse(err.message, 400);
+        }
+        return serverErrorResponse(error);
+    }
 }
 
-// PUT /api/owner/courts/[id]/pricing  → Thêm giá ngày lễ (Special)
+/**
+ * PUT /api/owner/courts/[id]/pricing
+ * Thêm/Cập nhật bảng giá đặc biệt
+ */
 export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
+    try {
+        const { id } = await params;
+        const { user, error } = await getAuthUser(req);
+        if (error) return error;
 
-    const courtId = params.id;
-    if (!await checkCourtOwnership(user.userId, courtId)) return errorResponse("Không có quyền", 403);
+        const roleErr = requireRole(user, ["OWNER", "ADMIN"]);
+        if (roleErr) return roleErr;
 
-    const body = await req.json();
-    // Parse date từ string
-    if (typeof body.specificDate === 'string') body.specificDate = new Date(body.specificDate);
+        const body = await req.json();
+        
+        // Validation for single special pricing item
+        const specialSchema = z.object({
+            id: z.string().optional().nullable(),
+            specificDate: z.string(),
+            startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ bắt đầu không hợp lệ"),
+            endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ kết thúc không hợp lệ"),
+            pricePerHour: z.number().positive(),
+            note: z.string().optional()
+        });
 
-    const result = await addSpecialPricing(courtId, body);
-    return successResponse("Thêm giá ngày lễ thành công", result);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
+        const parsed = specialSchema.safeParse(body);
+        if (!parsed.success) {
+            return errorResponse("Dữ liệu không hợp lệ", 422, (parsed.error.flatten().fieldErrors as unknown) as Record<string, string[]>);
+        }
+
+        const cleanData = {
+            ...parsed.data,
+            startTime: parsed.data.startTime.substring(0, 5),
+            endTime: parsed.data.endTime.substring(0, 5)
+        };
+
+        const data = await upsertSpecialPricing(id, user.userId, cleanData);
+        return successResponse(cleanData.id ? "Cập nhật giá đặc biệt thành công" : "Thêm giá đặc biệt thành công", data);
+    } catch (error: unknown) {
+        const err = error as Error;
+        if (err.message?.includes("OVERLAP")) {
+          return errorResponse(err.message, 400);
+        }
+        return serverErrorResponse(error);
+    }
 }
 
-// DELETE /api/owner/courts/[id]/pricing  → Xóa cấu hình giá cụ thể
+/**
+ * DELETE /api/owner/courts/[id]/pricing
+ * Xóa một cấu hình giá
+ */
 export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { user, error } = await getAuthUser(req);
-    if (error) return error;
+    try {
+        const { id } = await params;
+        const { user, error } = await getAuthUser(req);
+        if (error) return error;
 
-    const courtId = params.id;
-    if (!await checkCourtOwnership(user.userId, courtId)) return errorResponse("Không có quyền", 403);
+        const roleErr = requireRole(user, ["OWNER", "ADMIN"]);
+        if (roleErr) return roleErr;
 
-    const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type") as "regular" | "special";
-    const pricingId = searchParams.get("id");
+        const { searchParams } = new URL(req.url);
+        const type = searchParams.get("type") as 'regular' | 'special';
+        const pricingId = searchParams.get("id");
 
-    if (!type || !pricingId) return errorResponse("Thiếu thông tin xóa", 400);
+        if (!type || !pricingId) {
+            return errorResponse("Thiếu thông tin xóa", 400);
+        }
 
-    await deletePricing(type, pricingId);
-    return successResponse("Đã xóa cấu hình giá", null);
-  } catch (err) {
-    return serverErrorResponse(err);
-  }
+        await deletePricing(type, pricingId, user.userId);
+        return successResponse(`Xóa giá ${type} thành công (Court: ${id})`, null);
+    } catch (error: unknown) {
+        return serverErrorResponse(error);
+    }
 }

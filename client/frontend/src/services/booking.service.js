@@ -24,7 +24,7 @@ export const bookingService = {
     getBookingsByClub: async (clubId, date) => {
         const response = await api.get(`/owner/clubs/${clubId}/bookings`, {
             params: { date }
-        });
+        });``
         return response.data;
     },
 
@@ -43,6 +43,35 @@ export const bookingService = {
     // 7. Lấy chi tiết 1 đơn hàng
     getBookingById: async (bookingId) => {
         const response = await api.get(`/bookings/${bookingId}`);
+        return response.data;
+    },
+
+    // 8. Lấy chi tiết đơn hàng theo mã bookingCode (cho checkout reload)
+    getBookingByCode: async (bookingCode) => {
+        const response = await api.get(`/bookings/${bookingCode}`);
+        return response.data;
+    },
+
+    // 9. Xác minh thanh toán Stripe
+    verifyStripeSession: async (sessionId) => {
+        const response = await api.get("/payments/stripe-verify", {
+            params: { session_id: sessionId }
+        });
+        return response.data;
+    },
+
+    // 10. Hủy đơn đặt sân (Người dùng tự hủy hoặc khi hết hạn hold time)
+    cancelBooking: async (bookingCode) => {
+        const response = await api.delete(`/bookings/${bookingCode}`);
+        return response.data;
+    },
+    // 11. Tải lên minh chứng chuyển khoản (cho người dùng) 
+    uploadPaymentProof: async (bookingId, imageFile) => {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        const response = await api.post(`/bookings/${bookingId}/payment-proof`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
         return response.data;
     }
 }
