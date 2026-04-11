@@ -252,3 +252,123 @@
   transition: transform .2s;
 }
 .btn-remove-proof:hover { transform: scale(1.1); }
+
+/* POLICY MODAL */
+.policy-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+.policy-modal-card {
+  background: white;
+  width: 100%;
+  max-width: 550px;
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  animation: slideUp-policy 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.policy-modal-header {
+  padding: 15px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+}
+
+.policy-tabs {
+  display: flex;
+  gap: 20px;
+}
+
+.policy-tabs button {
+  background: none;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: #94a3b8;
+  padding: 8px 0;
+  position: relative;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.policy-tabs button.active {
+  color: #198754;
+}
+
+.policy-tabs button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: #198754;
+  border-radius: 10px;
+}
+
+.policy-close {
+  background: #f1f5f9;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #64748b;
+}
+
+.policy-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  transform: rotate(90deg);
+}
+
+.policy-modal-body {
+  padding: 24px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.policy-content h6 {
+  font-size: 16px;
+  margin-bottom: 0px;
+}
+
+.policy-content p {
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.policy-refund-list {
+  list-style: none;
+}
+
+.policy-refund-list li {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+@keyframes slideUp-policy {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
