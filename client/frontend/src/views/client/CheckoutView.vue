@@ -674,8 +674,8 @@
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
-                <span class="small text-muted">Tôi đồng ý với <a href="#"
-                    class="text-success fw-bold text-decoration-none">Điều khoản dịch vụ</a> và <a href="#"
+                <span class="small text-muted">Tôi đồng ý với <a href="javascript:void(0)" @click="openPolicy('terms')"
+                    class="text-success fw-bold text-decoration-none">Điều khoản dịch vụ</a> và <a href="javascript:void(0)" @click="openPolicy('refund')"
                     class="text-success fw-bold text-decoration-none">Chính sách hoàn tiền</a> của sân bóng.</span>
               </label>
             </div>
@@ -834,6 +834,82 @@
         </div>
       </div>
     </div>
+
+    <!-- POLICY MODAL -->
+    <div v-if="showPolicyModal" class="policy-modal-overlay" @click.self="closePolicy">
+      <div class="policy-modal-card">
+        <div class="policy-modal-header">
+          <div class="policy-tabs">
+            <button :class="{ active: policyTab === 'terms' }" @click="policyTab = 'terms'">Điều khoản dịch vụ</button>
+            <button :class="{ active: policyTab === 'refund' }" @click="policyTab = 'refund'">Chính sách hoàn lại</button>
+          </div>
+          <button class="policy-close" @click="closePolicy">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="policy-modal-body">
+          <transition name="fade" mode="out-in">
+            <!-- Nội dung Điều khoản -->
+            <div v-if="policyTab === 'terms'" key="terms" class="policy-content">
+              <div class="d-flex align-items-center gap-2 mb-3 text-success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <h6 class="mb-0 fw-bold">Quy định sử dụng dịch vụ</h6>
+              </div>
+              <section class="mb-4">
+                <p class="fw-bold text-dark small mb-2">1. Trách nhiệm đặt sân</p>
+                <p>Khách hàng cần đảm bảo thông tin cá nhân (Họ tên, Số điện thoại) là chính xác để sân liên hệ khi cần thiết. Chúng tôi không chịu trách nhiệm nếu thông tin sai lệch dẫn đến việc hủy lịch.</p>
+              </section>
+              <section class="mb-4">
+                <p class="fw-bold text-dark small mb-2">2. Check-in & Thời gian</p>
+                <p>Quý khách vui lòng có mặt tại sân ít nhất 10 phút trước giờ thi đấu. Nếu quá 15 phút so với giờ bắt đầu mà chưa có mặt, sân có quyền hủy lịch và không hoàn tiền.</p>
+              </section>
+              <section>
+                <p class="fw-bold text-dark small mb-2">3. Nội quy sân</p>
+                <p>Tuân thủ nội quy trang phục và ứng xử tại sân. Nghiêm cấm các hành vi gây mất trật tự hoặc phá hoại tài sản chung.</p>
+              </section>
+            </div>
+
+            <!-- Nội dung Hoàn tiền -->
+            <div v-else key="refund" class="policy-content">
+              <div class="d-flex align-items-center gap-2 mb-3 text-success">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 8 8 12 12 16"/><line x1="16" y1="12" x2="8" y2="12"/></svg>
+                <h6 class="mb-0 fw-bold">Chính sách hủy lịch & Hoàn tiền</h6>
+              </div>
+              <div class="alert alert-success border-0 small mb-4" style="background: #f0fdf4; color: #16a34a">
+                <strong>Lưu ý:</strong> Tỷ lệ hoàn tiền được tính dựa trên thời điểm bạn gửi yêu cầu hủy so với giờ bắt đầu.
+              </div>
+              <ul class="policy-refund-list ps-0 mb-4">
+                <li>
+                  <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-bold text-dark">Trước 24 giờ</span>
+                    <span class="badge bg-success">Hoàn 100%</span>
+                  </div>
+                  <p class="mb-0 small text-muted">Hỗ trợ hoàn tiền mặt hoặc dời lịch miễn phí 1 lần.</p>
+                </li>
+                <li>
+                  <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-bold text-dark">Từ 12h - 24 giờ</span>
+                    <span class="badge bg-warning text-dark">Hoàn 50%</span>
+                  </div>
+                  <p class="mb-0 small text-muted">Hoặc hỗ trợ dời lịch nếu còn khung giờ trống.</p>
+                </li>
+                <li>
+                  <div class="d-flex justify-content-between mb-1">
+                    <span class="fw-bold text-dark">Dưới 12 giờ</span>
+                    <span class="badge bg-danger">Không hoàn phí</span>
+                  </div>
+                  <p class="mb-0 small text-muted">Trừ các trường hợp thiên tai, bão lũ bất khả kháng.</p>
+                </li>
+              </ul>
+              <p class="small text-muted italic">* Tiền sẽ được hoàn về Ví trong tài khoản hoặc chuyển khoản trong vòng 2-3 ngày làm việc.</p>
+            </div>
+          </transition>
+        </div>
+      </div>
+    </div>
 </template>
 
 <script>
@@ -888,6 +964,8 @@ export default {
       proofFile: null,
       paymentProofUrl: '',
       isUploadingProof: false,
+      showPolicyModal: false,
+      policyTab: 'terms',
     };
   },
 
@@ -1392,6 +1470,17 @@ export default {
         this.isProcessing = false; // Just in case loading overlay is on
         this.isUploadingProof = false;
       }
+    },
+
+    openPolicy(tab) {
+      this.policyTab = tab;
+      this.showPolicyModal = true;
+      document.body.style.overflow = 'hidden';
+    },
+
+    closePolicy() {
+      this.showPolicyModal = false;
+      document.body.style.overflow = '';
     },
   },
 };
