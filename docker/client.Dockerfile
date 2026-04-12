@@ -2,11 +2,7 @@
 # CLIENT (Frontend) - Production Dockerfile
 # ================================================================
 
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-
+# Stage 1: Build
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
@@ -14,16 +10,13 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
+# Stage 2: Production image with Nginx
+FROM nginx:stable-alpine AS runner
+# Copy built files from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy custom nginx config if exists, otherwise use default
+# COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/public ./public
-COPY package*.json ./
+EXPOSE 80
 
-EXPOSE 3000
-ENV PORT=3000
-
-CMD ["npm", "start"]
+CMD ["nginx", "-g", "daemon off;"]
