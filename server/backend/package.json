@@ -11,11 +11,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.62",
     "@mapbox/mapbox-sdk": "^0.16.2",
     "@prisma/client": "^6.19.2",
     "@socket.io/redis-adapter": "^8.3.0",
     "@types/node-cron": "^3.0.11",
     "@types/socket.io": "^3.0.1",
+    "ai": "^6.0.158",
     "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.9.0",
