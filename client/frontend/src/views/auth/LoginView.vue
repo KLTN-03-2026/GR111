@@ -256,7 +256,7 @@ export default {
     initFacebook() {
       window.fbAsyncInit = () => {
         window.FB.init({
-          appId      : '1129002909328616', // ID ứng dụng từ Meta
+          appId      : import.meta.env.VITE_FACEBOOK_APP_ID || '1129002909328616', // ID ứng dụng từ Meta
           cookie     : true,
           xfbml      : true,
           version    : 'v18.0'
@@ -280,7 +280,7 @@ export default {
       script.defer = true;
       script.onload = () => {
         window.google.accounts.id.initialize({
-          client_id: "265183201039-tbm0nkoad98ftmn5pt43uiql7tnm3iuv.apps.googleusercontent.com",
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "265183201039-tbm0nkoad98ftmn5pt43uiql7tnm3iuv.apps.googleusercontent.com",
           callback: (response) => {
             this.processSocialLogin(response.credential, 'google');
           }
