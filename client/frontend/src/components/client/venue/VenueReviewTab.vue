@@ -26,20 +26,17 @@
       <div v-if="reviewAuthState === 'idle'">
         <h6 class="fw-black mb-1" style="font-size:15px">Viết đánh giá của bạn</h6>
         <p class="text-muted small mb-3">Chỉ khách hàng đã đặt sân tại đây mới có thể đánh giá.</p>
-        <div class="vdp-rv-auth-box p-4 rounded-3">
-          <div class="d-flex align-items-center gap-3 mb-3">
-            <div class="vdp-rv-auth-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            </div>
-            <div>
-              <div class="fw-bold small">Xác thực lịch sử đặt sân</div>
-              <div class="text-muted" style="font-size:12px">Nhập số điện thoại bạn đã dùng khi đặt sân</div>
-            </div>
+        <div v-if="isVerifying" class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span class="ms-2 small text-muted">Đang kiểm tra lịch sử đặt sân...</span>
+        </div>
+        <div v-else class="vdp-rv-auth-box p-4 rounded-3 text-center">
+          <div class="vdp-rv-auth-icon mx-auto mb-3">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-          <div class="d-flex gap-2">
-            <input v-model="authPhone" type="tel" class="form-control form-control-sm flex-grow-1" placeholder="Nhập số điện thoại đã đặt sân..." @keyup.enter="checkBookingHistory"/>
-            <button class="btn btn-success btn-sm fw-bold px-3" :disabled="!authPhone" @click="checkBookingHistory">Xác nhận</button>
-          </div>
+          <h6 class="fw-bold mb-1">Xác thực lịch sử đánh giá</h6>
+          <p class="text-muted small mb-3">Chỉ khách hàng đã hoàn thành lượt đặt sân tại đây mới có thể để lại đánh giá.</p>
+          <button class="btn btn-success btn-sm fw-bold px-4" @click="checkBookingHistory">Kiểm tra ngay</button>
         </div>
       </div>
 
@@ -48,8 +45,11 @@
           <h6 class="fw-black mb-0" style="font-size:15px">Viết đánh giá của bạn</h6>
           <div class="vdp-rv-verified-badge d-flex align-items-center gap-2">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Đã xác thực · {{ authPhone }}
-            <button class="vdp-rv-verified-reset" @click="resetAuth" title="Đổi số khác">
+            Sẵn sàng đánh giá
+            <select v-model="selectedBookingId" class="form-select form-select-sm ms-2" style="width: auto; font-size: 11px; padding: 2px 24px 2px 8px;">
+               <option v-for="b in userBookings" :key="b.id" :value="b.id">Mã đơn: {{ b.bookingCode }}</option>
+            </select>
+            <button class="vdp-rv-verified-reset" @click="resetAuth" title="Làm mới">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -90,9 +90,10 @@
           </div>
         </div>
         <div class="d-flex justify-content-end">
-          <button class="btn btn-success fw-bold px-5" :disabled="!reviewForm.rating||!reviewForm.author||!reviewForm.content" @click="submitReview">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            Gửi đánh giá
+          <button class="btn btn-success fw-bold px-5 d-flex align-items-center gap-2" :disabled="!reviewForm.rating||!reviewForm.author||!reviewForm.content || isSubmitting" @click="submitReview">
+            <span v-if="isSubmitting" class="spinner-border spinner-border-sm" role="status"></span>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            {{ isSubmitting ? 'Đang gửi...' : 'Gửi đánh giá' }}
           </button>
         </div>
       </div>
@@ -102,12 +103,23 @@
           <div class="vdp-rv-locked-icon mx-auto mb-3">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
           </div>
-          <h6 class="fw-black mb-1">Bạn chưa có lịch sử đặt sân</h6>
-          <p class="text-muted small mb-3">Số điện thoại <strong>{{ authPhone }}</strong> chưa từng đặt sân tại đây.<br>Chỉ khách hàng đã đặt sân mới được để lại đánh giá.</p>
+          <h6 class="fw-black mb-1">Cần hoàn thành đơn đặt sân</h6>
+          <p class="text-muted small mb-3">Hệ thống không tìm thấy đơn đặt sân nào của bạn tại câu lạc bộ này.<br>Chỉ khách hàng đã sử dụng dịch vụ mới có thể đánh giá.</p>
           <div class="d-flex gap-2 justify-content-center flex-wrap">
             <button class="btn btn-success btn-sm fw-bold px-4" @click="$emit('switch-to-booking')">Đặt sân ngay →</button>
-            <button class="btn btn-outline-secondary btn-sm" @click="resetAuth">Thử số khác</button>
+            <button class="btn btn-outline-secondary btn-sm" @click="resetAuth">Kiểm tra lại</button>
           </div>
+        </div>
+      </div>
+
+      <div v-else-if="reviewAuthState === 'reviewed'">
+        <div class="vdp-rv-locked-box p-4 rounded-3 text-center" style="border-color: #10b981; background: #f0fdf4;">
+          <div class="vdp-rv-locked-icon mx-auto mb-3" style="background: #10b981; color: white;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h6 class="fw-black mb-1" style="color: #065f46;">Bạn đã đánh giá sân này</h6>
+          <p class="text-muted small mb-3">Cảm ơn bạn! Bạn đã gửi đánh giá cho tất cả các lượt đặt sân đã hoàn thành tại đây.<br>Chúng tôi ghi nhận ý kiến từ bạn.</p>
+          <button class="btn btn-outline-success btn-sm fw-bold px-4" @click="reviewAuthState = 'idle'">Xem lại quy định</button>
         </div>
       </div>
     </div>
@@ -164,57 +176,229 @@
 </template>
 
 <script>
+import { reviewService } from '@/services/review.service';
+import { bookingService } from '@/services/booking.service';
+import { authService } from '@/services/auth.service';
+import { toast } from 'vue3-toastify';
+
 export default {
   name: 'VenueReviewTab',
+  props: {
+    clubId: {
+      type: String,
+      required: true
+    }
+  },
   data() {
     return {
-      reviewAuthState: 'idle',
-      authPhone: '',
-      bookedPhones: [],
+      reviewAuthState: 'idle', // 'idle', 'verifying', 'verified', 'denied'
+      userBookings: [],
+      selectedBookingId: null,
       reviewHover: 0,
       reviewSort: 'newest',
-      reviewForm: { rating: 0, author: '', title: '', content: '', images: [] },
-      reviews: []
+      reviewForm: { rating: 0, author: '', title: '', content: '', images: [], rawFiles: [] },
+      reviews: [],
+      isSubmitting: false,
+      isFetching: false,
+      isVerifying: false
     }
   },
   computed: {
-    avgRating() { return this.reviews.length?this.reviews.reduce((s,r)=>s+r.rating,0)/this.reviews.length:0; },
+    avgRating() { 
+      if (!this.reviews.length) return 0;
+      return this.reviews.reduce((s,r) => s + r.rating, 0) / this.reviews.length;
+    },
     sortedReviews() {
-      const r=[...this.reviews];
-      if(this.reviewSort==='highest')r.sort((a,b)=>b.rating-a.rating);
-      else if(this.reviewSort==='lowest')r.sort((a,b)=>a.rating-b.rating);
-      else r.sort((a,b)=>b.id-a.id);
+      const r = [...this.reviews];
+      if (this.reviewSort === 'highest') r.sort((a,b) => b.rating - a.rating);
+      else if (this.reviewSort === 'lowest') r.sort((a,b) => a.rating - b.rating);
+      else r.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
       return r;
     }
   },
+  async mounted() {
+    await this.fetchReviews();
+    this.checkIfVerified();
+  },
   methods: {
-    checkBookingHistory() {
-      const phone = this.authPhone.trim().replace(/\s/g,'');
-      if(!phone) return;
-      const normalize = p => p.replace(/[\s\-\.]/g,'');
-      const matched = this.bookedPhones.some(p => normalize(p) === normalize(phone));
-      this.reviewAuthState = matched ? 'verified' : 'denied';
+    async fetchReviews() {
+      if (!this.clubId) return;
+      try {
+        this.isFetching = true;
+        const res = await reviewService.getReviewsByClub(this.clubId);
+        if (res && res.data) {
+          this.reviews = res.data.map(rv => ({
+            id: rv.id,
+            author: rv.user?.fullName || 'Người dùng',
+            rating: rv.rating,
+            title: rv.title,
+            content: rv.comment,
+            images: rv.images?.map(img => img.url) || [],
+            date: new Date(rv.createdAt).toLocaleDateString('vi-VN'),
+            createdAt: rv.createdAt,
+            likes: 0 // Backend currently doesn't store likes
+          }));
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải đánh giá:", err);
+      } finally {
+        this.isFetching = false;
+      }
     },
-    resetAuth() { this.reviewAuthState='idle'; this.authPhone=''; },
-    ratingCount(star)   { return this.reviews.filter(r=>r.rating===star).length; },
-    ratingPercent(star) { return this.reviews.length?Math.round((this.ratingCount(star)/this.reviews.length)*100):0; },
+
+    async checkIfVerified() {
+      const user = authService.getCurrentUser();
+      if (!user) {
+        this.reviewAuthState = 'idle';
+        return;
+      }
+
+      // Pre-fill author name
+      if (!this.reviewForm.author) {
+        this.reviewForm.author = user.fullName || '';
+      }
+
+      // Try to find bookings for this club
+      await this.checkBookingHistory();
+    },
+
+    async checkBookingHistory() {
+      const user = authService.getCurrentUser();
+      if (!user) {
+        toast.warning("Bạn cần đăng nhập để thực hiện đánh giá", {
+            position: 'top-center'
+        });
+        // Có thể chuyển hướng sang trang login nếu cần
+        // this.$router.push('/login');
+        return;
+      }
+
+      try {
+        this.isVerifying = true;
+        console.log("Checking history for club:", this.clubId);
+        
+        const res = await bookingService.getMyBookings();
+        console.log("All bookings received:", res.data);
+        
+        const allBookings = res.data || [];
+        
+        // Find all bookings for this club
+        const clubBookings = allBookings.filter(b => String(b.clubId) === String(this.clubId));
+        
+        // Filter for those that are eligible (COMPLETED/CONFIRMED) AND haven't been reviewed yet
+        this.userBookings = clubBookings.filter(b => {
+          const isEligibleStatus = b.status === 'COMPLETED' || b.status === 'CONFIRMED';
+          const isNotReviewed = !b.review; // Only allow review if b.review is null/undefined
+          return isEligibleStatus && isNotReviewed;
+        });
+
+        console.log("Eligible unreviewed bookings:", this.userBookings);
+
+        if (this.userBookings.length > 0) {
+          this.reviewAuthState = 'verified';
+          this.selectedBookingId = this.userBookings[0].id;
+        } else if (clubBookings.some(b => b.review)) {
+          // If we found bookings but they all have reviews
+          this.reviewAuthState = 'reviewed';
+        } else {
+          console.warn("No eligible bookings found for this club.");
+          this.reviewAuthState = 'denied';
+        }
+      } catch (err) {
+        console.error("Lỗi khi kiểm tra lịch sử đặt sân:", err);
+        toast.error("Không thể kiểm tra lịch sử đặt sân. Vui lòng thử lại.");
+        this.reviewAuthState = 'denied';
+      } finally {
+        this.isVerifying = false;
+      }
+    },
+
+    resetAuth() { 
+      this.reviewAuthState = 'idle'; 
+      this.userBookings = [];
+      this.selectedBookingId = null;
+    },
+
+    ratingCount(star) { 
+      return this.reviews.filter(r => r.rating === star).length; 
+    },
+
+    ratingPercent(star) { 
+      return this.reviews.length ? Math.round((this.ratingCount(star) / this.reviews.length) * 100) : 0; 
+    },
+
     handleReviewImages(e) {
-      const files=Array.from(e.target.files).slice(0,5-this.reviewForm.images.length);
-      files.forEach(f=>{const reader=new FileReader();reader.onload=ev=>{if(this.reviewForm.images.length<5)this.reviewForm.images.push(ev.target.result);};reader.readAsDataURL(f);});
-      e.target.value='';
+      const files = Array.from(e.target.files).slice(0, 5 - this.reviewForm.images.length);
+      files.forEach(f => {
+        this.reviewForm.rawFiles.push(f);
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (this.reviewForm.images.length < 5) {
+            this.reviewForm.images.push(ev.target.result);
+          }
+        };
+        reader.readAsDataURL(f);
+      });
+      e.target.value = '';
     },
-    removeReviewImage(i) { this.reviewForm.images.splice(i,1); },
-    submitReview() {
-      if(!this.reviewForm.rating||!this.reviewForm.author||!this.reviewForm.content)return;
-      const now=new Date();
-      this.reviews.unshift({id:Date.now(),author:this.reviewForm.author,rating:this.reviewForm.rating,title:this.reviewForm.title||null,content:this.reviewForm.content,images:[...this.reviewForm.images],date:`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`,likes:0});
-      this.reviewForm={rating:0,author:'',title:'',content:'',images:[]};
-      this.reviewAuthState='idle';
-      this.authPhone='';
+
+    removeReviewImage(i) { 
+      this.reviewForm.images.splice(i, 1);
+      this.reviewForm.rawFiles.splice(i, 1);
     },
-    likeReview(rv) { rv.likes++; },
-    openLightbox(images,index) { 
-        this.$emit('open-lightbox', {images, index});
+
+    async submitReview() {
+      if (!this.reviewForm.rating || !this.reviewForm.author || !this.reviewForm.content || !this.selectedBookingId) {
+        toast.error("Vui lòng điền đầy đủ thông tin bắt buộc");
+        return;
+      }
+
+      try {
+        this.isSubmitting = true;
+        
+        // 1. Upload images if any
+        let uploadedUrls = [];
+        if (this.reviewForm.rawFiles.length > 0) {
+          uploadedUrls = await reviewService.uploadImages(this.reviewForm.rawFiles);
+        }
+
+        // 2. Submit review to backend
+        const reviewData = {
+          bookingId: this.selectedBookingId,
+          rating: this.reviewForm.rating,
+          comment: this.reviewForm.content,
+          title: this.reviewForm.title,
+          imageUrls: uploadedUrls
+        };
+
+        const res = await reviewService.submitReview(reviewData);
+        
+        if (res) {
+          toast.success("Cảm ơn bạn đã gửi đánh giá!");
+          // Reset form
+          this.reviewForm = { rating: 0, author: '', title: '', content: '', images: [], rawFiles: [] };
+          // Refresh list
+          await this.fetchReviews();
+          // Reset auth state to check for other bookings
+          await this.checkBookingHistory();
+        }
+      } catch (err) {
+        console.error("Lỗi khi gửi đánh giá:", err);
+        const msg = err.response?.data?.message || "Đã có lỗi xảy ra khi gửi đánh giá";
+        toast.error(msg);
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+
+    likeReview(rv) { 
+      // Current backend doesn't support likes, so we just increment locally for UI feedback
+      rv.likes++; 
+      toast.info("Cảm ơn bạn đã phản hồi!");
+    },
+
+    openLightbox(images, index) { 
+        this.$emit('open-lightbox', { images, index });
     }
   }
 }
