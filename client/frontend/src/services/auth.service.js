@@ -28,5 +28,18 @@ export const authService = {
 
     getMe() {
         return api.get('/users/me');
+    },
+
+    /**
+     * Lấy thông tin người dùng đang đăng nhập từ localStorage
+     */
+    getCurrentUser() {
+        try {
+            const user = localStorage.getItem('user');
+            return user ? JSON.parse(user) : null;
+        } catch (e) {
+            console.error("Lỗi khi lấy thông tin user từ localStorage:", e);
+            return null;
+        }
     }
 };
