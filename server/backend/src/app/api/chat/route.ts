@@ -1,4 +1,4 @@
-import { streamText, tool, stepCountIs } from "ai";
+import { streamText, tool, stepCountIs, ModelMessage } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { createBooking } from "@/modules/booking/booking.service";
@@ -27,9 +27,24 @@ const formatTime = (d: Date | string) => new Date(d).toLocaleTimeString("vi-VN",
   hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Ho_Chi_Minh",
 });
 
+interface RawMessagePart {
+  type: string;
+  text?: string;
+}
+
+interface RawMessage {
+  role: "user" | "assistant" | "system" | "tool";
+  content?: string;
+  parts?: RawMessagePart[];
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const { messages } = await req.json();
+    const { messages: rawMessages } = await req.json();
+    const messages = (rawMessages as RawMessage[]).map((m) => ({
+      role: m.role,
+      content: m.content || (m.parts && Array.isArray(m.parts) ? m.parts.map((p) => (p.type === 'text' ? p.text : '')).join('') : ''),
+    }) as ModelMessage);
     const { user } = await getAuthUser(req);
     const userId = (user as unknown as { id: string })?.id ?? null;
 
