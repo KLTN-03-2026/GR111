@@ -37,6 +37,7 @@ export const bookingRepository = {
         club: { select: { name: true, slug: true, address: true, logoUrl: true } },
         items: { include: { timeSlot: { include: { court: true } } } },
         payment: true,
+        review: true,
       },
       orderBy: { createdAt: "desc" },
     });
