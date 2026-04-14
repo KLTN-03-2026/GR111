@@ -6,7 +6,6 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-     "types": ["node"],
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -29,7 +28,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "**/*.d.ts"
   ],
   "exclude": ["node_modules"]
 }
