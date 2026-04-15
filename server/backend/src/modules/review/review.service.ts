@@ -84,6 +84,73 @@ export async function getReviewsByClubId(clubId: string) {
 }
 
 /**
+ * Lấy danh sách đánh giá của người dùng hiện tại
+ */
+export async function getUserReviews(userId: string) {
+  return prisma.review.findMany({
+    where: { userId },
+    include: {
+      images: true,
+      booking: {
+        include: {
+          club: {
+            select: { name: true, slug: true }
+          }
+        }
+      }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+}
+
+/**
+ * Cập nhật đánh giá
+ */
+export async function updateReview(userId: string, reviewId: string, data: {
+  rating?: number;
+  comment?: string;
+}) {
+  const review = await prisma.review.findFirst({
+    where: { id: reviewId, userId }
+  });
+
+  if (!review) {
+    throw new Error("REVIEW_NOT_FOUND_OR_NOT_OWNED");
+  }
+
+  return prisma.review.update({
+    where: { id: reviewId },
+    data: {
+      rating: data.rating,
+      comment: data.comment
+    },
+    include: {
+      images: true
+    }
+  });
+}
+
+/**
+ * Xóa đánh giá (Ẩn đánh giá)
+ */
+export async function deleteReview(userId: string, reviewId: string) {
+  const review = await prisma.review.findFirst({
+    where: { id: reviewId, userId }
+  });
+
+  if (!review) {
+    throw new Error("REVIEW_NOT_FOUND_OR_NOT_OWNED");
+  }
+
+  // Thay vì xóa cứng, ta có thể ẩn nó đi hoặc xóa cứng tùy requirement. 
+  // Ở đây ta xóa cứng để đơn giản hoặc update isVisible thành false.
+  return prisma.review.update({
+    where: { id: reviewId },
+    data: { isVisible: false }
+  });
+}
+
+/**
  * Tính toán điểm đánh giá trung bình cho một CLB
  */
 export async function getAverageRating(clubId: string) {
