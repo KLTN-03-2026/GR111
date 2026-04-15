@@ -60,17 +60,18 @@ export default {
   data() {
     return {
       menuItems: [
-        { name: 'dashboard', label: 'Tổng quan',   path: '/owner',           icon: 'space_dashboard',          lockable: false },
-        { name: 'clubs',     label: 'Câu lạc bộ',  path: '/owner/clubs',     icon: 'business',                 lockable: true },
-        { name: 'courts',    label: 'Quản lý sân',  path: '/owner/courts',    icon: 'sports_soccer',            lockable: true },
-        { name: 'pricing',   label: 'Bảng giá',     path: '/owner/pricing',   icon: 'sell',                     lockable: true },
-        { name: 'bookings',  label: 'Đơn đặt sân',  path: '/owner/bookings',  icon: 'event_available',          lockable: true, badge: '5' },
-        { name: 'finance',   label: 'Tài chính',    path: '/owner/finance',   icon: 'account_balance_wallet',   lockable: true },
-        { name: 'customers', label: 'Khách hàng',   path: '/owner/customers', icon: 'groups',                   lockable: true },
-        { name: 'vouchers',  label: 'Khuyến mãi',   path: '/owner/vouchers',  icon: 'local_offer',              lockable: true },
-        { name: 'news-feed', label: 'Bảng tin',      path: '/owner/news-feed', icon: 'rss_feed',                 lockable: true },
-        { name: 'reviews',   label: 'Đánh giá',     path: '/owner/reviews',   icon: 'reviews',                  lockable: true },
-        { name: 'settings',  label: 'Cài đặt',      path: '/owner/settings',  icon: 'settings',                 lockable: false },
+        { name: 'dashboard', label: 'Tổng quan',        path: '/owner',           icon: 'space_dashboard',          lockable: false },
+        { name: 'clubs',     label: 'Câu lạc bộ',       path: '/owner/clubs',     icon: 'business',                 lockable: true },
+        { name: 'courts',    label: 'Quản lý sân',       path: '/owner/courts',    icon: 'sports_soccer',            lockable: true },
+        { name: 'pricing',   label: 'Bảng giá',          path: '/owner/pricing',   icon: 'sell',                     lockable: true },
+        { name: 'slots',     label: 'Khung giờ',         path: '/owner/slots',     icon: 'event_note',               lockable: true },
+        { name: 'bookings',  label: 'Đơn đặt sân',       path: '/owner/bookings',  icon: 'event_available',          lockable: true, badge: '5' },
+        { name: 'finance',   label: 'Tài chính',         path: '/owner/finance',   icon: 'account_balance_wallet',   lockable: true },
+        { name: 'customers', label: 'Khách hàng',        path: '/owner/customers', icon: 'groups',                   lockable: true },
+        { name: 'vouchers',  label: 'Khuyến mãi',        path: '/owner/vouchers',  icon: 'local_offer',              lockable: true },
+        { name: 'news-feed', label: 'Bảng tin',          path: '/owner/news-feed', icon: 'rss_feed',                 lockable: true },
+        { name: 'reviews',   label: 'Đánh giá',          path: '/owner/reviews',   icon: 'reviews',                  lockable: true },
+        { name: 'settings',  label: 'Cài đặt',           path: '/owner/settings',  icon: 'settings',                 lockable: false },
       ]
     }
   },

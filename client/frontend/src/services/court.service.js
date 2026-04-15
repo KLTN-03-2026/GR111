@@ -53,4 +53,22 @@ export const courtService = {
     updatePricing(courtId, pricings) {
         return api.put(`/owner/courts/${courtId}/pricing`, pricings);
     },
+
+    // ── Slots ───────────────────────────────────────────────────
+    /**
+     * Lấy danh sách khung giờ ảo + thực tế theo sân và ngày
+     * GET /api/owner/slots?courtId=...&date=YYYY-MM-DD
+     */
+    getSlots(courtId, date) {
+        return api.get(`/owner/slots`, { params: { courtId, date } });
+    },
+
+    /**
+     * Khóa hoặc mở khung giờ cho chủ sân
+     * POST /api/owner/slots/lock
+     * Body: { courtId, startTime, endTime, status: 'LOCKED' | 'AVAILABLE' }
+     */
+    toggleSlotLock(courtId, startTime, endTime, status) {
+        return api.post(`/owner/slots/lock`, { courtId, startTime, endTime, status });
+    },
 };

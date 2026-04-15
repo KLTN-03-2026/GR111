@@ -217,6 +217,12 @@ const routes = [
     meta: { layout: "nocore", requiresAuth: true, roles: ["OWNER"] }, // Dùng nocore để tập trung vào form, không hiện sidebar
   },
   {
+    path: "/owner/slots",
+    name: "owner-slots",
+    component: () => import("../views/owner/SlotManagementView.vue"),
+    meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
+  },
+  {
     path: "/owner/settings",
     name: "owner-settings",
     component: () => import("../views/owner/SettingsView.vue"),
