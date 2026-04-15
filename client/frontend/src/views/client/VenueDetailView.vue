@@ -412,6 +412,7 @@
       <!-- REVIEW TAB -->
       <VenueReviewTab 
         v-if="activeTab==='review'"
+        :club-id="clubId"
         @switch-to-booking="activeTab='booking'"
         @open-lightbox="({images, index}) => openLightbox(images, index)"
       />

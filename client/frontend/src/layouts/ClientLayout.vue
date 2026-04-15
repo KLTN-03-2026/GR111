@@ -5,6 +5,7 @@
     </header>
     <router-view></router-view>
     <div class="overlay toggle-icon"></div>
+    <ChatAI />
     <a href="javaScript:;" class="back-to-top"
       ><i class="bx bxs-up-arrow-alt"></i
     ></a>
@@ -17,6 +18,7 @@
 <script>
 import ClientFooter from "../components/layout/ClientFooter.vue";
 import ClientHeader from "../components/layout/ClientHeader.vue";
+import ChatAI from "../components/ChatAI.vue";
 
 import "../assets/assets/js/bootstrap.bundle.min.js";
 import "../assets/assets/js/jquery.min.js";
@@ -30,6 +32,7 @@ export default {
   components: {
     ClientHeader,
     ClientFooter,
+    ChatAI,
   },
 };
 </script>
