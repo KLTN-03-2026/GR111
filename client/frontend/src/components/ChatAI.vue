@@ -1,245 +1,390 @@
 <template>
   <div class="courtmate-container">
-    <!-- Floating Trigger Button -->
-    <Transition name="bubble">
+    <!-- Floating Trigger -->
+    <Transition name="pop">
       <button
         v-if="!isOpen"
         @click="toggleChat"
         class="trigger-btn"
-        title="CourtMate AI"
+        aria-label="Mở CourtMate AI"
       >
-        <div class="trigger-inner">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-            <path d="M8 12h.01M12 12h.01M16 12h.01"/>
-          </svg>
+        <div class="trigger-glow"></div>
+        <div class="trigger-img-wrap">
+          <img src="/chatbot.png" alt="Chat" class="trigger-icon-img" />
         </div>
-        <span class="online-dot"></span>
-        <span class="trigger-label">CourtMate</span>
+        <!-- <span class="trigger-badge">AI</span> -->
       </button>
     </Transition>
 
     <!-- Chat Window -->
-    <Transition name="window">
-      <div v-if="isOpen" class="chat-window">
+    <Transition name="slide-up">
+      <div v-if="isOpen" class="chat-wrapper">
+        <div class="chrome-border"></div>
 
         <!-- Header -->
-        <div class="chat-header">
-          <div class="header-left">
-            <div class="avatar-ring">
-              <div class="avatar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                </svg>
+        <header class="header">
+          <div class="header-main">
+            <div class="avatar-wrap">
+              <div class="avatar-ring">
+                <img src="/chatbot.png" alt="CourtMate AI" class="avatar-img" />
               </div>
-              <span class="status-dot"></span>
+              <span class="live-dot"></span>
             </div>
             <div class="header-text">
-              <span class="bot-name">CourtMate AI</span>
-              <span class="bot-status">
-                <span class="pulse"></span>
-                Đang hoạt động
-              </span>
+              <h5 class="online-status">CourtMate AI - hỗ trợ thông minh</h5>
             </div>
           </div>
           <div class="header-actions">
-            <button @click="clearMessages" class="icon-btn" title="Cuộc trò chuyện mới">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>
+            <button @click="clearMessages" class="icon-btn" title="Làm mới">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
               </svg>
             </button>
-            <button @click="toggleChat" class="icon-btn" title="Đóng">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button @click="toggleChat" class="icon-btn close-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6 6 18M6 6l12 12"/>
               </svg>
             </button>
           </div>
-        </div>
+        </header>
 
-        <!-- Messages -->
+        <!-- Messages Scroll Area -->
         <div class="messages-area" ref="messageContainer">
-
-          <!-- Welcome Card -->
-          <div class="welcome-card">
-            <div class="welcome-emoji">🏆</div>
-            <p class="welcome-text">Xin chào! Tôi là <strong>CourtMate</strong> — trợ lý đặt sân thể thao của bạn. Hãy cho tôi biết bạn muốn chơi môn gì nhé!</p>
-            <div class="quick-chips">
+          <!-- Welcome Block -->
+          <div class="welcome-block" v-if="!displayMessages.length">
+            <div class="welcome-orb">
+              <img src="/chatbot.png" alt="CourtMate AI" />
+            </div>
+            <h2>Chào mừng đến với CourtMate!</h2>
+            <p>Tôi là trợ lý ảo giúp bạn đặt sân thể thao siêu tốc. Bạn muốn chơi môn gì hôm nay?</p>
+            <div class="chip-grid">
               <button
                 v-for="chip in quickStartChips"
                 :key="chip.label"
                 @click="sendQuickMessage(chip.message)"
-                class="chip"
-                :class="`chip--${chip.color}`"
+                class="start-chip"
+                :style="{ '--chip-color': chip.color }"
               >
-                {{ chip.emoji }} {{ chip.label }}
+                <span class="chip-emoji">{{ chip.emoji }}</span>
+                <span>{{ chip.label }}</span>
               </button>
             </div>
           </div>
 
-          <!-- Messages -->
-          <TransitionGroup name="msg" tag="div" class="messages-list">
-            <div
-              v-for="(msg, index) in messages"
-              :key="msg.id || index"
-              class="msg-row"
-              :class="msg.role === 'user' ? 'msg-row--user' : 'msg-row--bot'"
-            >
-              <!-- Bot Avatar -->
-              <div v-if="msg.role !== 'user'" class="bot-bubble-avatar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                </svg>
-              </div>
+          <!-- Messages List -->
+          <div class="chat-list">
+            <TransitionGroup name="msg-in">
+              <div
+                v-for="(msg, index) in displayMessages"
+                :key="msg.id || index"
+                class="msg-row"
+                :class="msg.role === 'user' ? 'row-user' : 'row-bot'"
+              >
+                <div v-if="msg.role === 'assistant'" class="bot-avatar">
+                  <img src="/chatbot.png" alt="AI" />
+                </div>
 
-              <div class="bubble" :class="msg.role === 'user' ? 'bubble--user' : 'bubble--bot'">
-                <div
-                  v-if="msg.role !== 'user'"
-                  class="markdown-content"
-                  v-html="renderMarkdown(msg.content)"
-                ></div>
-                <div v-else class="user-text">{{ msg.content }}</div>
-                <span class="msg-time">{{ formatTime(msg.createdAt) }}</span>
-              </div>
-            </div>
-          </TransitionGroup>
+                <div class="bubble-wrap">
+                  <div class="bubble" :class="msg.role === 'user' ? 'bubble-user' : 'bubble-bot'">
+                    <div
+                      v-if="msg.role === 'assistant' && msg.textContent"
+                      class="md-content"
+                      v-html="renderMarkdown(msg.textContent)"
+                    ></div>
+                    <div v-else-if="msg.role === 'user'" class="plain-content">{{ msg.textContent }}</div>
+                    
+                    <!-- 🧩 STRUCTURED AI COMPONENTS 🧩 -->
+                    <div v-if="msg.structuredData" class="component-area">
+                      
+                      <!-- Component: clubList -->
+                      <div v-if="msg.structuredData.component === 'clubList'" class="club-list-comp">
+                        <div v-if="msg.structuredData.data?.clubs?.length">
+                          <div v-for="club in msg.structuredData.data.clubs" :key="club.id" class="club-card">
+                            <div class="club-card-header">
+                              <div class="club-card-title">🏟️ {{ club.name }}</div>
+                              <div class="club-card-price">{{ club.minPrice?.toLocaleString() }}đ</div>
+                            </div>
+                            <p class="club-card-addr">📍 {{ club.address }}</p>
+                            <div class="club-card-footer">
+                              <span class="card-tag">🕐 {{ club.openTime }}-{{ club.closeTime }}</span>
+                              <button @click="sendQuickMessage('Xem chi tiết sân ' + (club.slug || club.name))" class="card-btn">Chi tiết</button>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="no-results">
+                          <p>Rất tiếc, tôi không tìm thấy sân nào phù hợp với yêu cầu của bạn. 😅</p>
+                        </div>
+                      </div>
 
-          <!-- Typing Indicator -->
-          <Transition name="fade">
-            <div v-if="isLoading" class="msg-row msg-row--bot">
-              <div class="bot-bubble-avatar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                </svg>
+                      <!-- Component: clubDetail -->
+                      <div v-if="msg.structuredData.component === 'clubDetail'" class="club-detail-comp">
+                        <div class="detail-banner">⭐ {{ msg.structuredData.data.name }}</div>
+                        <div class="detail-info-row">
+                          <div class="info-item"><span>Giờ mở cửa:</span> <strong>{{ msg.structuredData.data.openTime }} - {{ msg.structuredData.data.closeTime }}</strong></div>
+                        </div>
+                        <div class="amenities-wrap">
+                          <span v-for="a in msg.structuredData.data.amenities" :key="a.name" class="amenity-chip">{{ a.name }}</span>
+                        </div>
+                        <button @click="sendQuickMessage('Tìm giờ trống sân ' + msg.structuredData.data.name)" class="action-full-btn">Xem giờ trống</button>
+                      </div>
+
+                      <!-- Component: slotPicker -->
+                      <div v-if="msg.structuredData.component === 'slotPicker'" class="slot-picker-comp">
+                        <div v-for="court in msg.structuredData.data.courts" :key="court.courtId" class="court-block">
+                          <div class="court-label">📍 {{ court.name }}</div>
+                          <div class="slots-flex">
+                            <button 
+                              v-for="slot in court.slots" 
+                              :key="slot.id"
+                              @click="sendQuickMessage('Tôi muốn đặt sân ' + court.name + ' khung giờ ' + slot.start)"
+                              class="slot-chip"
+                            >
+                              {{ slot.start }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Component: bookingConfirm -->
+                      <div v-if="msg.structuredData.component === 'bookingConfirm'" class="confirm-comp">
+                        <div class="comp-title">📋 Xác nhận đặt sân</div>
+                        <div class="confirm-details">
+                          <div class="detail-line"><span>Sân:</span> <strong>{{ msg.structuredData.data.clubName }}</strong></div>
+                          <div class="detail-line"><span>Ngày:</span> <strong>{{ msg.structuredData.data.date }}</strong></div>
+                          <div class="detail-line"><span>Khung giờ:</span> 
+                            <span class="slot-text" v-for="s in msg.structuredData.data.slots" :key="s.startTime">{{ s.courtName }} ({{ s.startTime }})</span>
+                          </div>
+                          <div class="total-line"><span>Tổng:</span> <strong>{{ msg.structuredData.data.totalAmount?.toLocaleString() }}đ</strong></div>
+                        </div>
+                        <div class="confirm-footer">
+                          <button @click="sendQuickMessage('Xác nhận đặt sân')" class="btn-confirm">✅ Xác nhận</button>
+                          <button @click="sendQuickMessage('Tôi muốn thay đổi thông tin')" class="btn-cancel">Hủy</button>
+                        </div>
+                      </div>
+
+                      <!-- Component: bookingSuccess -->
+                      <div v-if="msg.structuredData.component === 'bookingSuccess'" class="success-comp">
+                        <div class="success-icon-big">🎉</div>
+                        <h3>Đặt sân thành công!</h3>
+                        <div class="success-info">
+                          <div class="info-val">Mã: <strong>{{ msg.structuredData.data.bookingCode }}</strong></div>
+                          <div class="info-val">Tiền: <strong>{{ msg.structuredData.data.amount?.toLocaleString() }}đ</strong></div>
+                        </div>
+                      </div>
+
+                      <!-- Component: userProfile -->
+                      <div v-if="msg.structuredData.component === 'userProfile'" class="profile-comp">
+                        <div class="profile-item"><span>Họ tên:</span> {{ msg.structuredData.data.fullName }}</div>
+                        <div class="profile-item"><span>Số điện thoại:</span> {{ msg.structuredData.data.phone }}</div>
+                        <div class="profile-item"><span>Email:</span> {{ msg.structuredData.data.email }}</div>
+                      </div>
+
+                      <!-- Component: bookingHistory -->
+                      <div v-if="msg.structuredData.component === 'bookingHistory'" class="history-comp">
+                        <div v-for="b in msg.structuredData.data" :key="b.code" class="history-card">
+                          <div class="history-main">
+                            <div class="h-name">{{ b.club }}</div>
+                            <div class="h-date">{{ b.time }}</div>
+                          </div>
+                          <div class="h-status" :class="b.status.toLowerCase()">{{ b.status }}</div>
+                        </div>
+                      </div>
+
+                      <!-- Component: authRequired -->
+                      <div v-if="msg.structuredData.component === 'authRequired'" class="auth-comp">
+                        <p>{{ msg.structuredData.data.error || 'Bạn cần đăng nhập để thực hiện thao tác này.' }}</p>
+                        <a href="/login" class="auth-btn">Đến trang đăng nhập</a>
+                      </div>
+
+                      <!-- Component: error -->
+                      <div v-if="msg.structuredData.component === 'error'" class="error-comp">
+                        <div class="error-box">⚠️ {{ msg.structuredData.data.error || 'Đã có lỗi xảy ra' }}</div>
+                      </div>
+
+                    </div>
+                  </div>
+                  <time class="msg-time">{{ formatTime(msg.createdAt) }}</time>
+                </div>
               </div>
-              <div class="bubble bubble--bot typing-bubble">
+            </TransitionGroup>
+
+            <!-- Typing Indicator -->
+            <div v-if="isLoading" class="msg-row row-bot">
+              <div class="bot-avatar">
+                <img src="/chatbot.png" alt="AI" />
+              </div>
+              <div class="bubble bubble-bot typing-bubble">
                 <span></span><span></span><span></span>
               </div>
             </div>
-          </Transition>
+          </div>
         </div>
 
-        <!-- Quick Reply Suggestions -->
-        <Transition name="fade">
-          <div v-if="suggestions.length && !isLoading" class="suggestions-bar">
-            <button
-              v-for="s in suggestions"
-              :key="s"
-              @click="sendQuickMessage(s)"
-              class="suggestion-chip"
-            >
-              {{ s }}
-            </button>
+        <!-- Input Footer -->
+        <footer class="input-footer">
+          <div v-if="suggestions.length && !isLoading" class="suggestions-strip">
+            <button v-for="s in suggestions" :key="s" @click="sendQuickMessage(s)" class="sugg-pill">{{ s }}</button>
           </div>
-        </Transition>
-
-        <!-- Input Area -->
-        <div class="input-area">
-          <div class="input-wrapper" :class="{ focused: isFocused }">
+          <div class="input-box" :class="{ 'input-focused': isFocused }">
             <textarea
               v-model="input"
               ref="inputField"
-              placeholder="Nhắn tin với CourtMate..."
+              placeholder="Nhập tin nhắn cho CourtMate..."
               rows="1"
-              :disabled="isLoading"
               @keydown.enter.exact.prevent="submitMessage"
               @focus="isFocused = true"
               @blur="isFocused = false"
               @input="autoResize"
+              :disabled="isLoading"
             ></textarea>
             <button
               @click="submitMessage"
               :disabled="isLoading || !input.trim()"
               class="send-btn"
-              :class="{ 'send-btn--active': input.trim() }"
+              :class="{ 'send-active': input.trim() }"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z"/>
               </svg>
             </button>
           </div>
-          <p class="input-hint">Enter để gửi · Shift+Enter xuống dòng</p>
-        </div>
-
+          <p class="footer-note">Gửi tin nhắn · Shift+Enter xuống dòng</p>
+        </footer>
       </div>
     </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, watch, computed } from 'vue';
-import { useChat } from '@ai-sdk/vue';
+import { ref, nextTick, watch, computed, shallowRef, triggerRef } from 'vue';
+import { Chat } from '@ai-sdk/vue';
+import { DefaultChatTransport } from 'ai';
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// --- State ---
 const isOpen = ref(false);
 const isFocused = ref(false);
 const messageContainer = ref(null);
 const inputField = ref(null);
+const input = ref('');
+const userLocation = ref(null);
 
-// ─── AI Chat Hook ──────────────────────────────────────────────────────────────
-const { messages, input, handleSubmit, isLoading, setMessages } = useChat({
-  api: import.meta.env.VITE_API_URL
-    ? `${import.meta.env.VITE_API_URL}/chat`
-    : '/api/chat',
-  headers: {
+// Store structured data keyed by message id
+const structuredDataMap = ref({});
+
+const apiUrl = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/chat`
+  : '/api/chat';
+
+// Create proper transport for AI SDK v6
+const transport = new DefaultChatTransport({
+  api: apiUrl,
+  headers: () => ({
     Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-  },
-  body: {
-    userId: (() => {
-      try {
-        return JSON.parse(localStorage.getItem('user') || '{}')?.id;
-      } catch {
-        return undefined;
-      }
-    })(),
-  },
-  onError: (error) => {
-    console.error('CourtMate Error:', error);
+  }),
+  body: () => {
+    let userId;
+    try { userId = JSON.parse(localStorage.getItem('user') || '{}')?.id; } catch { userId = undefined; }
+    return { userId, userLocation: userLocation.value };
   },
 });
 
-// ─── Quick Start Chips ────────────────────────────────────────────────────────
-const quickStartChips = [
-  { label: 'Đặt sân bóng đá', emoji: '⚽', message: 'Tôi muốn đặt sân bóng đá', color: 'green' },
-  { label: 'Đặt sân cầu lông', emoji: '🏸', message: 'Tôi muốn đặt sân cầu lông', color: 'blue' },
-  { label: 'Đặt sân tennis', emoji: '🎾', message: 'Tôi muốn đặt sân tennis', color: 'orange' },
-  { label: 'Sân trống hôm nay', emoji: '📅', message: 'Cho tôi xem sân còn trống hôm nay', color: 'purple' },
-];
+// Use shallowRef to avoid Vue proxy issues with class instances
+const chat = shallowRef(new Chat({
+  messages: [],
+  transport,
+  onError: (error) => console.error('CourtMate Error:', error),
+  onFinish: ({ message }) => {
+    // After each assistant message finishes, trigger reactivity
+    triggerRef(chat);
+  },
+}));
 
-// ─── Contextual suggestions ───────────────────────────────────────────────────
+const isLoading = computed(() => {
+  const c = chat.value;
+  return c.status === 'submitted' || c.status === 'streaming';
+});
+
+const displayMessages = computed(() => {
+  const c = chat.value;
+  const rawMessages = c.messages || [];
+  
+  return rawMessages.map(m => {
+    let textContent = '';
+    let structuredData = structuredDataMap.value[m.id] || null;
+
+    // AI SDK v6: messages have 'parts' array, no 'content' property
+    if (m.parts && m.parts.length > 0) {
+      for (const part of m.parts) {
+        if (part.type === 'text') {
+          textContent += part.text;
+        } 
+        // v6 data parts have type 'data-{name}' pattern
+        else if (typeof part.type === 'string' && part.type.startsWith('data-')) {
+          if (part.data && part.data.component) {
+            structuredData = part.data;
+          }
+        }
+      }
+    }
+
+    // Fallback: if text content looks like JSON with component field
+    if (!structuredData && textContent.trim().startsWith('{')) {
+      try {
+        const parsed = JSON.parse(textContent);
+        if (parsed.component) {
+          structuredData = parsed;
+          textContent = parsed.messageResponse || '';
+        }
+      } catch (e) {
+        // Not valid JSON - keep as text
+      }
+    }
+
+    return { ...m, textContent, structuredData };
+  });
+});
+
 const suggestions = computed(() => {
-  if (!messages.value.length) return [];
-  const last = messages.value[messages.value.length - 1];
+  if (!displayMessages.value.length) return [];
+  const last = displayMessages.value[displayMessages.value.length - 1];
   if (last?.role !== 'assistant') return [];
-  const content = last.content?.toLowerCase() || '';
-
-  if (content.includes('xem chi tiết') || content.includes('sân nào')) {
-    return ['Xem sân đầu tiên', 'Xem tất cả', 'Tìm lại'];
-  }
-  if (content.includes('ngày') || content.includes('khung giờ')) {
-    return ['Hôm nay', 'Ngày mai', 'Cuối tuần này'];
-  }
-  if (content.includes('xác nhận') || content.includes('đặt sân này')) {
-    return ['✅ Xác nhận đặt', '❌ Huỷ'];
-  }
-  if (content.includes('thanh toán')) {
-    return ['Xem lịch sử đặt sân', 'Tìm sân khác'];
-  }
+  if (last.structuredData?.component === 'clubList') return ['Tìm sân khác', 'Sân gần tôi nhất'];
   return [];
 });
 
-// ─── Actions ──────────────────────────────────────────────────────────────────
+const quickStartChips = [
+  { label: 'Sân bóng đá', emoji: '⚽', message: 'Tôi muốn tìm sân bóng đá', color: '#008cff' },
+  { label: 'Sân cầu lông', emoji: '🏸', message: 'Tìm sân cầu lông trống', color: '#0073cc' },
+  { label: 'Xem lịch sử', emoji: '📅', message: 'Xem lịch sử đặt sân của tôi', color: '#2563eb' },
+  { label: 'Tài khoản', emoji: '👤', message: 'Thông tin cá nhân của tôi', color: '#1e40af' },
+];
+
+// --- Actions ---
 const toggleChat = () => {
   isOpen.value = !isOpen.value;
   if (isOpen.value) {
-    nextTick(() => {
-      inputField.value?.focus();
-      scrollToBottom();
-    });
+    if (!userLocation.value && navigator?.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLocation.value = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          };
+        },
+        () => {
+          userLocation.value = null;
+        },
+        { enableHighAccuracy: false, timeout: 5000, maximumAge: 5 * 60 * 1000 }
+      );
+    }
+    nextTick(() => { inputField.value?.focus(); scrollToBottom(); });
   }
 };
 
 const clearMessages = () => {
-  setMessages([]);
+  chat.value.messages = [];
+  structuredDataMap.value = {};
+  triggerRef(chat);
 };
 
 const sendQuickMessage = (text) => {
@@ -247,14 +392,19 @@ const sendQuickMessage = (text) => {
   nextTick(submitMessage);
 };
 
-const submitMessage = () => {
+const submitMessage = async () => {
   if (!input.value.trim() || isLoading.value) return;
-  handleSubmit();
-  nextTick(() => {
-    if (inputField.value) {
-      inputField.value.style.height = 'auto';
-    }
-  });
+  const text = input.value;
+  input.value = '';
+  nextTick(() => { if (inputField.value) inputField.value.style.height = 'auto'; });
+  
+  try {
+    await chat.value.sendMessage({ text });
+    triggerRef(chat);
+  } catch (err) {
+    console.error('Send message error:', err);
+    triggerRef(chat);
+  }
 };
 
 const autoResize = () => {
@@ -267,586 +417,278 @@ const autoResize = () => {
 const scrollToBottom = () => {
   nextTick(() => {
     if (messageContainer.value) {
-      messageContainer.value.scrollTo({
-        top: messageContainer.value.scrollHeight,
-        behavior: 'smooth',
-      });
+      messageContainer.value.scrollTop = messageContainer.value.scrollHeight;
     }
   });
 };
 
-watch(messages, scrollToBottom, { deep: true });
-watch(isLoading, scrollToBottom);
+const formatTime = (date) => {
+  const d = date ? new Date(date) : new Date();
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+};
 
-// ─── Markdown Renderer ────────────────────────────────────────────────────────
+// Watch for message changes to scroll and trigger reactivity
+watch(
+  () => chat.value?.messages?.length,
+  () => {
+    triggerRef(chat);
+    scrollToBottom();
+  },
+);
+
+// Also poll during streaming to update UI
+let pollTimer = null;
+watch(isLoading, (loading) => {
+  if (loading) {
+    pollTimer = setInterval(() => {
+      triggerRef(chat);
+      scrollToBottom();
+    }, 200);
+  } else {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    triggerRef(chat);
+    scrollToBottom();
+  }
+});
+
 const renderMarkdown = (text) => {
   if (!text) return '';
   return text
-    // Code blocks
-    .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre class="code-block"><code>$1</code></pre>')
-    // Bold
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Italic
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Inline code
-    .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-    // HR / Divider
-    .replace(/^---$/gm, '<hr class="md-hr"/>')
-    // Headings
-    .replace(/^### (.*$)/gm, '<h4 class="md-h4">$1</h4>')
-    .replace(/^## (.*$)/gm, '<h3 class="md-h3">$1</h3>')
-    // Unordered list items
-    .replace(/^[-•] (.*)/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, (m) => `<ul class="md-ul">${m}</ul>`)
-    // Ordered list
-    .replace(/^\d+\. (.*)/gm, '<li>$1</li>')
-    // Newlines
-    .replace(/\n\n/g, '</p><p class="md-p">')
+    .replace(/\n\n/g, '<br/><br/>')
     .replace(/\n/g, '<br/>');
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const formatTime = (date) => {
-  if (!date) return new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  return new Date(date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 };
 </script>
 
 <style scoped>
-/* ── Tokens ────────────────────────────────────────────────────────────────── */
-:root {
-  --cm-primary: #16a34a;
-  --cm-primary-dark: #15803d;
-  --cm-primary-light: #dcfce7;
-  --cm-accent: #f59e0b;
-  --cm-bg: #ffffff;
-  --cm-surface: #f9fafb;
-  --cm-border: #e5e7eb;
-  --cm-text: #111827;
-  --cm-muted: #6b7280;
-  --cm-radius: 1.25rem;
-  --cm-font: 'Be Vietnam Pro', 'Segoe UI', system-ui, sans-serif;
-}
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
-/* ── Layout ────────────────────────────────────────────────────────────────── */
 .courtmate-container {
-  position: fixed;
-  bottom: 1.75rem;
-  right: 1.75rem;
-  z-index: 9999;
-  font-family: var(--cm-font);
+  /* Sync exact colors with Bootstrap / Rocker Admin if available, else fallback */
+  --primary: var(--bs-primary, #008cff);
+  --primary-dark: #0073cc;
+  --primary-light: rgba(0, 140, 255, 0.1);
+  --bg-base: #ffffff;
+  --bg-card: #f8f9fa;
+  --bg-chat: #f4f6f9;
+  --border: var(--bs-border-color, #e9ecef);
+  --text-hi: var(--bs-body-color, #1e293b);
+  --text-mid: #6c757d;
+  --shadow: 0 10px 40px rgba(0,0,0,0.12);
+  position: fixed; bottom: 2rem; right: 2rem; z-index: 10000;
+  font-family: 'Roboto', sans-serif;
+  box-sizing: border-box;
 }
 
-/* ── Trigger Button ────────────────────────────────────────────────────────── */
+.courtmate-container * {
+  box-sizing: inherit;
+}
+
+/* ── Trigger ── */
 .trigger-btn {
+  width: 60px; height: 60px; background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: 50%; border: none; color: white;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  position: relative; box-shadow: 0 8px 25px rgba(0, 140, 255, 0.4);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0; margin: 0; outline: none;
+}
+.trigger-btn:hover { transform: scale(1.08); box-shadow: 0 10px 30px rgba(0, 140, 255, 0.5); }
+.trigger-img-wrap { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; z-index: 1; }
+.trigger-icon-img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.25); display: block; }
+.trigger-badge { position: absolute; top: 0px; right: 0px; background: #fd3550; color: white; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 12px; border: 2px solid white; line-height: 1; z-index: 2; }
+
+/* ── Window ── */
+.chat-wrapper {
+  width: 400px; height: 680px; max-height: 85vh; background: var(--bg-base); border-radius: 20px;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: var(--shadow); border: 1px solid var(--border);
   position: relative;
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #16a34a, #15803d);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  box-shadow: 0 4px 24px rgba(22, 163, 74, 0.4), 0 0 0 0 rgba(22, 163, 74, 0.3);
-  animation: ripple-pulse 2.5s ease-in-out infinite;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.trigger-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 28px rgba(22, 163, 74, 0.5);
+/* ── Header ── */
+.header { 
+  padding: 1rem 1.25rem; 
+  background: var(--bg-base); 
+  border-bottom: 1px solid var(--border); 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02); 
+  z-index: 10; 
+  margin: 0;
 }
+.header-main { display: flex; align-items: center; gap: 0.8rem; }
+.avatar-wrap { position: relative; display: inline-flex; }
+.avatar-ring { width: 44px; height: 44px; background: var(--primary-light); border-radius: 14px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(0,140,255,0.15); overflow: hidden; }
+.avatar-img { width: 100%; height: 100%; object-fit: cover; }
+.live-dot { position: absolute; bottom: -2px; right: -2px; width: 12px; height: 12px; background: #15ca20; border-radius: 50%; border: 2px solid var(--bg-base); box-sizing: content-box; }
 
-.trigger-inner {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.header-text { display: flex; flex-direction: column; justify-content: center; }
+.header-text h1 { 
+  font-family: 'Roboto', sans-serif; 
+  font-size: 1.15rem; 
+  font-weight: 700; 
+  color: var(--text-hi); 
+  margin: 0 0 2px 0; 
+  padding: 0; 
+  display: flex; 
+  align-items: center; 
+  line-height: 1.2;
 }
+.ai-label { background: var(--primary-light); color: var(--primary); font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; margin-left: 6px; line-height: 1;}
+.online-status { font-size: 0.75rem; color: #15ca20; margin: 0; padding: 0; font-weight: 500; line-height: 1.2;}
 
-.online-dot {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 13px;
-  height: 13px;
-  background: #4ade80;
-  border: 2.5px solid white;
-  border-radius: 50%;
-}
+.header-actions { display: flex; gap: 4px; }
+.icon-btn { width: 34px; height: 34px; border-radius: 8px; border: none; background: transparent; color: var(--text-mid); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; padding: 0; outline: none; }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover { background: var(--bg-chat); color: var(--primary); }
 
-.trigger-label {
-  position: absolute;
-  bottom: -22px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--cm-primary-dark);
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
+/* ── Messages Area ── */
+.messages-area { flex: 1; overflow-y: auto; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; background: var(--bg-chat); }
+.welcome-block { text-align: center; padding: 2rem 1.5rem; background: var(--bg-base); border-radius: 16px; border: 1px solid var(--border); margin-bottom: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.02); }
+.welcome-orb { margin-bottom: 1rem; display: flex; justify-content: center; }
+.welcome-orb img { width: 64px; height: 64px; object-fit: contain; }
+.welcome-block h2 { font-size: 1.15rem; font-weight: 700; color: var(--text-hi); margin: 0 0 0.5rem 0; }
+.welcome-block p { font-size: 0.9rem; color: var(--text-mid); line-height: 1.5; margin: 0; }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; margin-top: 1.5rem; }
+.start-chip { padding: 0.6rem 1rem; background: var(--bg-base); border: 1px solid var(--border); border-radius: 12px; color: var(--text-mid); font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none; }
+.start-chip:hover { border-color: var(--chip-color); color: var(--chip-color); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
 
-@keyframes ripple-pulse {
-  0%, 100% { box-shadow: 0 4px 24px rgba(22,163,74,0.4), 0 0 0 0 rgba(22,163,74,0.25); }
-  50% { box-shadow: 0 4px 24px rgba(22,163,74,0.4), 0 0 0 10px rgba(22,163,74,0); }
-}
+/* ── Chat Bubbles ── */
+.msg-row { display: flex; gap: 0.75rem; max-width: 92%; }
+.row-user { align-self: flex-end; flex-direction: row-reverse; }
+.row-bot { align-self: flex-start; }
+.bot-avatar { width: 28px; height: 28px; border-radius: 50%; margin-top: 10px; flex-shrink: 0; overflow: hidden; border: 1px solid var(--border); background: var(--bg-base); display: flex; align-items: center; justify-content: center; }
+.bot-avatar img { width: 100%; height: 100%; object-fit: contain; }
+.bubble { padding: 0.85rem 1.15rem; border-radius: 16px; font-size: 0.95rem; line-height: 1.5; position: relative; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.bubble-user { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-bottom-right-radius: 4px; box-shadow: 0 4px 15px rgba(0, 140, 255, 0.2); }
+.bubble-bot { background: var(--bg-base); color: var(--text-hi); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg-time { font-size: 0.7rem; color: #94a3b8; margin-top: 6px; display: block; font-weight: 500; }
+.row-user .msg-time { text-align: right; }
 
-/* ── Chat Window ───────────────────────────────────────────────────────────── */
-.chat-window {
-  width: 390px;
-  height: 600px;
-  background: var(--cm-bg);
-  border-radius: var(--cm-radius);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow:
-    0 24px 64px rgba(0, 0, 0, 0.12),
-    0 4px 16px rgba(0, 0, 0, 0.06),
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  transform-origin: bottom right;
-}
-
-/* ── Header ────────────────────────────────────────────────────────────────── */
-.chat-header {
-  padding: 1rem 1.1rem;
-  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
-.avatar-ring {
-  position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  border: 2px solid rgba(255,255,255,0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.status-dot {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 11px;
-  height: 11px;
-  background: #4ade80;
-  border: 2px solid white;
-  border-radius: 50%;
-}
-
-.header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.bot-name {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: white;
-  letter-spacing: 0.01em;
-}
-
-.bot-status {
-  font-size: 0.72rem;
-  color: rgba(255,255,255,0.8);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #86efac;
-  animation: blink 1.5s ease-in-out infinite;
-}
-
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.icon-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.15);
-  border: none;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
-}
-
-.icon-btn:hover { background: rgba(255,255,255,0.25); }
-
-/* ── Messages Area ─────────────────────────────────────────────────────────── */
-.messages-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-  background: var(--cm-surface);
-  scroll-behavior: smooth;
-}
-
-.messages-area::-webkit-scrollbar { width: 4px; }
-.messages-area::-webkit-scrollbar-track { background: transparent; }
-.messages-area::-webkit-scrollbar-thumb { background: var(--cm-border); border-radius: 2px; }
-
-/* Welcome Card */
-.welcome-card {
-  background: white;
-  border: 1px solid var(--cm-border);
-  border-radius: 1rem;
-  padding: 1.1rem;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-
-.welcome-emoji {
-  font-size: 2rem;
-  margin-bottom: 0.4rem;
-}
-
-.welcome-text {
-  font-size: 0.85rem;
-  color: var(--cm-muted);
-  line-height: 1.5;
-  margin-bottom: 0.8rem;
-}
-
-.welcome-text strong { color: var(--cm-text); }
-
-.quick-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  justify-content: center;
-}
-
-.chip {
-  padding: 0.35rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  border: 1.5px solid transparent;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.chip--green { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
-.chip--green:hover { background: #bbf7d0; }
-.chip--blue { background: #dbeafe; color: #1d4ed8; border-color: #bfdbfe; }
-.chip--blue:hover { background: #bfdbfe; }
-.chip--orange { background: #fef3c7; color: #b45309; border-color: #fde68a; }
-.chip--orange:hover { background: #fde68a; }
-.chip--purple { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
-.chip--purple:hover { background: #ddd6fe; }
-
-/* Messages List */
-.messages-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.msg-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-}
-
-.msg-row--user { justify-content: flex-end; }
-.msg-row--bot { justify-content: flex-start; }
-
-.bot-bubble-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #16a34a, #15803d);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-bottom: 2px;
-}
-
-.bubble {
-  max-width: 78%;
-  padding: 0.65rem 0.9rem;
-  border-radius: 1.1rem;
-  font-size: 0.86rem;
-  line-height: 1.5;
-  position: relative;
-  word-break: break-word;
-}
-
-.bubble--user {
-  background: linear-gradient(145deg, #16a34a, #15803d);
-  color: white;
-  border-bottom-right-radius: 4px;
-}
-
-.bubble--bot {
-  background: white;
-  color: var(--cm-text);
-  border: 1px solid var(--cm-border);
-  border-bottom-left-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-}
-
-.msg-time {
-  display: block;
-  font-size: 0.67rem;
-  margin-top: 0.3rem;
-  opacity: 0.55;
-  text-align: right;
-}
-
-.bubble--user .msg-time { color: rgba(255,255,255,0.8); }
-.bubble--bot .msg-time { color: var(--cm-muted); }
-
-/* Typing */
-.typing-bubble {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0.7rem 0.9rem;
-  min-width: 60px;
-}
-
-.typing-bubble span {
-  width: 7px;
-  height: 7px;
-  background: var(--cm-border);
-  border-radius: 50%;
-  animation: dot-bounce 1.2s ease-in-out infinite;
-}
-
+/* ── Typing Indicator ── */
+.typing-bubble { display: flex; gap: 5px; align-items: center; padding: 1rem 1.2rem; }
+.typing-bubble span { width: 6px; height: 6px; background: var(--primary); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
 .typing-bubble span:nth-child(2) { animation-delay: 0.2s; }
 .typing-bubble span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes dot-bounce {
-  0%, 100% { transform: translateY(0); background: #d1d5db; }
-  50% { transform: translateY(-5px); background: #16a34a; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
-/* ── Markdown Styles ─────────────────────────────────────────────────────────── */
-.markdown-content :deep(strong) { font-weight: 700; color: #111827; }
-.markdown-content :deep(em) { font-style: italic; }
-.markdown-content :deep(.md-ul) {
-  margin: 0.4rem 0;
-  padding-left: 1.25rem;
-  list-style: disc;
-}
-.markdown-content :deep(li) { margin-bottom: 0.2rem; }
-.markdown-content :deep(.md-p) { margin: 0.4rem 0; }
-.markdown-content :deep(.md-hr) {
-  border: none;
-  border-top: 1px solid var(--cm-border);
-  margin: 0.6rem 0;
-}
-.markdown-content :deep(.md-h3) {
-  font-size: 0.95rem;
-  font-weight: 700;
-  margin: 0.5rem 0 0.25rem;
-}
-.markdown-content :deep(.md-h4) {
-  font-size: 0.88rem;
-  font-weight: 700;
-  margin: 0.4rem 0 0.2rem;
-}
-.markdown-content :deep(.code-block) {
-  background: #f3f4f6;
-  border: 1px solid var(--cm-border);
-  border-radius: 6px;
-  padding: 0.6rem;
-  font-size: 0.8rem;
-  overflow-x: auto;
-  margin: 0.4rem 0;
-  font-family: 'JetBrains Mono', monospace;
-}
-.markdown-content :deep(.inline-code) {
-  background: #f3f4f6;
-  padding: 0.1rem 0.35rem;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-family: monospace;
-}
+/* ── COMPONENT STYLING ── */
+.component-area { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; width: 330px; }
 
-/* ── Suggestions ───────────────────────────────────────────────────────────── */
-.suggestions-bar {
-  padding: 0.6rem 0.9rem;
-  display: flex;
-  gap: 0.4rem;
-  overflow-x: auto;
-  flex-shrink: 0;
-  background: var(--cm-surface);
-  border-top: 1px solid var(--cm-border);
-}
+/* Club Card */
+.club-card { background: var(--bg-card); border-radius: 12px; border: 1px solid var(--border); padding: 1.15rem; transition: 0.2s; }
+.club-card:hover { border-color: var(--primary-light); box-shadow: 0 4px 12px var(--primary-light); }
+.club-card-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; align-items: flex-start; }
+.club-card-title { font-weight: 700; color: var(--text-hi); font-size: 0.95rem; }
+.club-card-price { color: var(--primary); font-weight: 700; font-size: 0.85rem; background: var(--primary-light); padding: 4px 8px; border-radius: 6px; }
+.club-card-addr { font-size: 0.8rem; color: var(--text-mid); margin: 6px 0 12px; line-height: 1.4; }
+.club-card-footer { display: flex; justify-content: space-between; align-items: center; }
+.card-tag { font-size: 0.75rem; color: var(--text-mid); font-weight: 500; background: #e2e8f0; padding: 4px 8px; border-radius: 6px; }
+.card-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--primary); background: transparent; color: var(--primary); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; outline: none; }
+.card-btn:hover { background: var(--primary); color: white; }
 
-.suggestions-bar::-webkit-scrollbar { display: none; }
+/* Slot Picker */
+.court-block { margin-bottom: 1rem; background: #ffffff; border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+.court-label { font-size: 0.9rem; font-weight: 700; color: var(--text-hi); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px; }
+.slots-flex { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.slot-chip { padding: 6px 12px; border-radius: 8px; background: var(--primary-light); border: 1px solid transparent; color: var(--primary-dark); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; outline: none;}
+.slot-chip:hover { background: var(--primary); color: white; transform: translateY(-1px); box-shadow: 0 4px 10px var(--primary-light); }
 
-.suggestion-chip {
-  padding: 0.3rem 0.7rem;
-  border: 1.5px solid #d1fae5;
-  border-radius: 999px;
-  background: white;
-  color: #15803d;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-}
+/* Confirm Card */
+.confirm-comp { background: #ffffff; border: 2px solid var(--primary); border-radius: 16px; padding: 1.5rem; box-shadow: 0 8px 24px var(--primary-light); }
+.comp-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 6px; }
+.confirm-details { font-size: 0.95rem; display: flex; flex-direction: column; gap: 0.75rem; color: var(--text-mid); }
+.detail-line { display: flex; justify-content: space-between; align-items: flex-start; }
+.detail-line strong { color: var(--text-hi); text-align: right; max-width: 60%; }
+.slot-text { display: block; text-align: right; margin-bottom: 2px; }
+.total-line { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--border); display: flex; justify-content: space-between; color: var(--text-hi); font-size: 1.15rem; font-weight: 700;}
+.confirm-footer { margin-top: 1.5rem; display: flex; gap: 0.75rem; }
+.btn-confirm { flex: 1; padding: 10px; border-radius: 10px; border: none; background: var(--primary); color: white; font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: 0.2s; outline: none;}
+.btn-confirm:hover { background: var(--primary-dark); box-shadow: 0 4px 12px var(--primary-light); }
+.btn-cancel { padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-mid); font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.2s; outline: none; }
+.btn-cancel:hover { background: #e2e8f0; color: var(--text-hi); }
 
-.suggestion-chip:hover {
-  background: #f0fdf4;
-  border-color: #16a34a;
-}
+/* Success Card */
+.success-comp { text-align: center; padding: 2rem 1.5rem; background: #ecfdf5; border: 1px solid #10b981; border-radius: 16px; }
+.success-icon-big { font-size: 3.5rem; margin-bottom: 1rem; line-height: 1;}
+.success-comp h3 { font-size: 1.25rem; color: #059669; font-weight: 700; margin: 0 0 1rem 0; }
+.success-info { display: flex; flex-direction: column; gap: 8px; font-size: 0.95rem; color: #064e3b; }
+.info-val { background: rgba(255,255,255,0.6); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; }
 
-/* ── Input Area ────────────────────────────────────────────────────────────── */
-.input-area {
-  padding: 0.75rem 0.9rem 0.6rem;
-  background: var(--cm-bg);
-  border-top: 1px solid var(--cm-border);
-  flex-shrink: 0;
-}
+/* History Card */
+.history-card { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-base); border-radius: 12px; margin-bottom: 0.75rem; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+.h-name { font-weight: 700; color: var(--text-hi); font-size: 0.95rem; margin-bottom: 4px; }
+.h-date { font-size: 0.8rem; color: var(--text-mid); font-weight: 500; }
+.h-status { font-size: 0.7rem; font-weight: 700; padding: 4px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.h-status.confirmed { background: #d1fae5; color: #059669; }
+.h-status.pending { background: #fef3c7; color: #d97706; }
 
-.input-wrapper {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.5rem;
-  background: var(--cm-surface);
-  border: 1.5px solid var(--cm-border);
-  border-radius: 1rem;
-  padding: 0.5rem 0.5rem 0.5rem 0.9rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+/* Profile */
+.profile-comp { display: flex; flex-direction: column; gap: 0.75rem; background: var(--bg-base); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border); }
+.profile-item { font-size: 0.95rem; color: var(--text-hi); display: flex; flex-direction: column; gap: 4px; }
+.profile-item span { font-size: 0.75rem; font-weight: 600; color: var(--text-mid); text-transform: uppercase; letter-spacing: 0.5px; }
 
-.input-wrapper.focused {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
-}
+/* Auth Required */
+.auth-comp { text-align: center; padding: 1.5rem; background: #fffbeb; border: 1px solid #fbbf24; border-radius: 12px; }
+.auth-comp p { font-size: 0.95rem; color: #92400e; margin: 0 0 1rem 0; font-weight: 500; line-height: 1.5; }
+.auth-btn { display: inline-block; padding: 10px 24px; border-radius: 10px; background: var(--primary); color: white; font-weight: 700; text-decoration: none; font-size: 0.95rem; transition: 0.2s; }
+.auth-btn:hover { background: var(--primary-dark); box-shadow: 0 4px 12px var(--primary-light); color: white; }
 
-.input-wrapper textarea {
-  flex: 1;
-  border: none;
-  background: transparent;
-  outline: none;
-  resize: none;
-  font-size: 0.87rem;
-  line-height: 1.45;
-  color: var(--cm-text);
-  font-family: var(--cm-font);
-  max-height: 120px;
-  overflow-y: auto;
-}
+/* Error */
+.error-comp { padding: 0.5rem 0; }
+.error-box { padding: 1rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; color: #b91c1c; font-size: 0.95rem; font-weight: 500; display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; margin:0;}
 
-.input-wrapper textarea::placeholder {
-  color: #9ca3af;
-}
+/* Detail */
+.club-detail-comp { background: var(--bg-base); padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border); }
+.detail-banner { font-size: 1.15rem; font-weight: 700; color: var(--text-hi); margin: 0 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+.detail-info-row { margin-bottom: 1rem; }
+.info-item { font-size: 0.95rem; color: var(--text-mid); display: flex; justify-content: space-between; }
+.info-item strong { color: var(--text-hi); }
+.amenities-wrap { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; }
+.amenity-chip { padding: 4px 10px; border-radius: 8px; background: var(--bg-chat); border: 1px solid var(--border); color: var(--text-hi); font-size: 0.8rem; font-weight: 500; }
+.action-full-btn { width: 100%; padding: 12px; border-radius: 10px; background: var(--primary); color: white; font-weight: 700; border: none; cursor: pointer; font-size: 0.95rem; transition: 0.2s; outline: none;}
+.action-full-btn:hover { background: var(--primary-dark); box-shadow: 0 4px 15px var(--primary-light); }
 
-.send-btn {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: none;
-  background: var(--cm-border);
-  color: #9ca3af;
-  cursor: not-allowed;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
+/* No results */
+.no-results { text-align: center; padding: 1.5rem; background: var(--bg-base); border-radius: 12px; border: 1px dashed var(--border); }
+.no-results p { font-size: 0.95rem; color: var(--text-mid); font-weight: 500; margin:0;}
 
-.send-btn--active {
-  background: linear-gradient(145deg, #16a34a, #15803d);
-  color: white;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
-}
+/* ── Footer ── */
+.input-footer { padding: 1rem 1.25rem 1.25rem; background: var(--bg-base); border-top: 1px solid var(--border); border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; z-index: 10; }
+.suggestions-strip { display: flex; gap: 0.6rem; overflow-x: auto; padding-bottom: 0.85rem; scrollbar-width: none; }
+.suggestions-strip::-webkit-scrollbar { display: none; }
+.sugg-pill { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--primary-light); background: var(--bg-base); color: var(--primary); font-size: 0.85rem; font-weight: 500; white-space: nowrap; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.02); outline: none;}
+.sugg-pill:hover { border-color: var(--primary); background: var(--primary-light); transform: translateY(-1px); }
 
-.send-btn--active:hover {
-  transform: scale(1.08);
-}
+.input-box { display: flex; align-items: flex-end; gap: 0.75rem; padding: 0.6rem 0.6rem 0.6rem 1.1rem; background: var(--bg-chat); border-radius: 16px; border: 1px solid var(--border); transition: 0.3s; }
+.input-focused { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-light); background: #ffffff; }
+textarea { flex: 1; border: none; background: transparent; color: var(--text-hi); outline: none; font-size: 0.95rem; resize: none; max-height: 120px; padding: 6px 0; font-family: inherit; line-height: 1.5; margin: 0; }
+textarea::placeholder { color: #94a3b8; }
+.send-btn { width: 38px; height: 38px; border-radius: 12px; border: none; background: #e2e8f0; color: #94a3b8; cursor: not-allowed; display: flex; align-items: center; justify-content: center; transition: 0.3s; padding: 0; outline: none;}
+.send-btn svg { width: 20px; height: 20px; }
+.send-active { background: var(--primary); color: white; cursor: pointer; box-shadow: 0 4px 10px var(--primary-light); }
+.send-active:hover { background: var(--primary-dark); transform: scale(1.05); }
+.footer-note { font-size: 0.7rem; color: #94a3b8; text-align: center; margin: 0.75rem 0 0;  font-weight: 500; }
 
-.input-hint {
-  font-size: 0.68rem;
-  color: #9ca3af;
-  margin: 0.3rem 0 0 0.2rem;
-}
+/* md-content tweaks for better contrast on dark bg if any */
+.md-content :deep(strong) { font-weight: 700; color: inherit; }
+.md-content :deep(p) { margin: 0 0 0.5rem 0; }
+.md-content :deep(p:last-child) { margin-bottom: 0; }
 
-/* ── Transitions ───────────────────────────────────────────────────────────── */
-.bubble-enter-active { transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
-.bubble-leave-active { transition: all 0.2s ease-in; }
-.bubble-enter-from { opacity: 0; transform: scale(0.5); }
-.bubble-leave-to { opacity: 0; transform: scale(0.5); }
-
-.window-enter-active { transition: all 0.3s cubic-bezier(0.34, 1.4, 0.64, 1); }
-.window-leave-active { transition: all 0.2s ease-in; }
-.window-enter-from { opacity: 0; transform: scale(0.8) translateY(20px); }
-.window-leave-to { opacity: 0; transform: scale(0.8) translateY(20px); }
-
-.msg-enter-active { transition: all 0.25s ease-out; }
-.msg-enter-from { opacity: 0; transform: translateY(10px); }
-
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-
-/* ── Responsive ────────────────────────────────────────────────────────────── */
-@media (max-width: 480px) {
-  .courtmate-container {
-    bottom: 0;
-    right: 0;
-  }
-
-  .chat-window {
-    width: 100vw;
-    height: 100dvh;
-    border-radius: 0;
-  }
-
-  .trigger-btn {
-    bottom: 1rem;
-    right: 1rem;
-  }
-}
+/* Animations */
+.pop-enter-active { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pop-enter-from { transform: scale(0); opacity: 0; }
+.slide-up-enter-active { transition: all 0.4s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.slide-up-enter-from { transform: translateY(40px) scale(0.96); opacity: 0; }
+.msg-in-enter-active { transition: all 0.3s cubic-bezier(0.34, 1.4, 0.64, 1); }
+.msg-in-enter-from { transform: translateY(15px); opacity: 0; }
 </style>
