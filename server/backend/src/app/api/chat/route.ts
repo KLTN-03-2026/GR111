@@ -255,7 +255,7 @@ export async function POST(req: NextRequest) {
                 });
               }
 
-              let availabilityMap = new Map<string, number>();
+              const availabilityMap = new Map<string, number>();
               if (date) {
                 const { gte, lte } = vnDayToUTC(date);
                 const availabilityRows = await prisma.timeSlot.groupBy({
