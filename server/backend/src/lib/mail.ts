@@ -262,3 +262,96 @@ export async function sendBookingWaitingPaymentEmail(data: BookingEmailData) {
     return false;
   }
 }
+
+/**
+ * Gửi email thông báo hủy đặt sân
+ */
+export async function sendBookingCancelledEmail(data: Pick<BookingEmailData, 'bookerName' | 'bookerEmail' | 'bookingCode' | 'clubName' | 'courtName' | 'slots' | 'finalAmount'>) {
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+
+  const slotRows = data.slots
+    .map(
+      (s) => `
+      <tr>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${s.date}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${s.time}</td>
+      </tr>`
+    )
+    .join('');
+
+  const mailOptions = {
+    from: `"Playfinder" <${process.env.EMAIL_USER}>`,
+    to: data.bookerEmail,
+    subject: `❌ Đặt sân đã bị hủy - ${data.bookingCode}`,
+    html: `
+      <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+        <div style="background: linear-gradient(135deg, #dc2626, #b91c1c); padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">❌ Đơn đặt sân đã hủy</h1>
+          <p style="color: #fecaca; margin: 8px 0 0; font-size: 14px;">Mã đơn: <strong style="color: white;">${data.bookingCode}</strong></p>
+        </div>
+
+        <div style="padding: 24px 20px; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="font-size: 16px;">Xin chào <strong>${data.bookerName}</strong>,</p>
+          <p style="color: #4b5563;">Đơn đặt sân của bạn tại <strong>${data.clubName}</strong> đã được hủy thành công. Dưới đây là thông tin chi tiết:</p>
+
+          <div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin: 20px 0; border: 1px solid #fecaca;">
+            <h3 style="margin: 0 0 12px; color: #dc2626; font-size: 16px;">📋 Thông tin đơn đã hủy</h3>
+            <table style="width: 100%; font-size: 14px; color: #374151;">
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">Sân:</td>
+                <td style="padding: 4px 0; font-weight: 600;">${data.courtName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">Số tiền:</td>
+                <td style="padding: 4px 0; font-weight: 600;">${formatCurrency(data.finalAmount)}</td>
+              </tr>
+            </table>
+          </div>
+
+          <div style="margin: 20px 0;">
+            <h3 style="margin: 0 0 12px; color: #dc2626; font-size: 16px;">⏰ Khung giờ đã hủy</h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+              <thead>
+                <tr style="background: #f3f4f6;">
+                  <th style="padding: 10px 12px; text-align: left; color: #6b7280;">Ngày</th>
+                  <th style="padding: 10px 12px; text-align: left; color: #6b7280;">Giờ</th>
+                </tr>
+              </thead>
+              <tbody>${slotRows}</tbody>
+            </table>
+          </div>
+
+          <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #6b7280;">Nếu bạn muốn đặt sân lại, hãy truy cập Playfinder để tìm khung giờ phù hợp.</p>
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5173'}/booking"
+               style="background-color: #16a34a; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+               Đặt sân mới
+            </a>
+          </div>
+
+          <p style="font-size: 13px; color: #9ca3af; text-align: center; margin-top: 24px;">
+            Cần hỗ trợ? Liên hệ <a href="mailto:support@sportsfield.vn" style="color: #16a34a;">support@sportsfield.vn</a>
+          </p>
+        </div>
+
+        <div style="background: #f9fafb; padding: 16px 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
+          <p style="font-size: 12px; color: #9ca3af; margin: 0;">© 2026 Playfinder. Đây là email tự động, vui lòng không phản hồi.</p>
+        </div>
+      </div>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`📧 Cancellation email sent to ${data.bookerEmail}: ${info.response}`);
+    return true;
+  } catch (error) {
+    console.error("⚠️ Failed to send cancellation email:", error);
+    return false;
+  }
+}
+

@@ -40,6 +40,29 @@
         <span class="fw-bold small" :class="d.isClosed?'text-danger':'text-success'">{{ d.isClosed?'Đóng cửa':`${d.open} – ${d.close}` }}</span>
       </div>
 
+      <h5 class="fw-bold mt-4 mb-3">Danh sách sân</h5>
+      <div class="row g-3">
+        <div v-for="court in venue.courts" :key="court.id" class="col-12 col-md-6">
+          <div class="border rounded-3 overflow-hidden d-flex flex-column h-100 shadow-sm" style="border-color: #e2e8f0;">
+            <div class="position-relative" style="height: 140px; background: #cbd5e1;">
+              <img v-if="court.images && court.images.length" :src="court.images[0]" :alt="court.name" class="w-100 h-100" style="object-fit: cover;"/>
+              <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </div>
+              <div class="position-absolute bottom-0 start-0 w-100 p-2" style="background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);">
+                <div class="text-white fw-bold d-flex justify-content-between align-items-end">
+                  <span class="small">{{ court.name }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-3 bg-white d-flex justify-content-between align-items-center flex-grow-1">
+               <span class="badge bg-secondary bg-opacity-10 text-muted" style="font-size:11px">{{ translateSportType(court.sportType) }}</span>
+               <span class="fw-bold text-success small">{{ formatPrice(court.basePrice) }} đ/h</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <h5 class="fw-bold mt-4 mb-3">Tiện ích sân</h5>
       <div class="row g-2">
         <div v-for="a in venue.amenities" :key="a.id" class="col-6 d-flex align-items-center gap-2">
@@ -99,7 +122,11 @@ export default {
   methods: {
     formatPrice(v) { return new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0}).format(v); },
     prevImage() { this.galleryIndex=(this.galleryIndex-1+this.venueImages.length)%this.venueImages.length; },
-    nextImage() { this.galleryIndex=(this.galleryIndex+1)%this.venueImages.length; }
+    nextImage() { this.galleryIndex=(this.galleryIndex+1)%this.venueImages.length; },
+    translateSportType(type) {
+      const types = { 'FOOTBALL': 'Bóng đá', 'BADMINTON': 'Cầu lông', 'TENNIS': 'Tennis', 'PICKLEBALL': 'Pickleball', 'BASKETBALL': 'Bóng rổ', 'VOLLEYBALL': 'Bóng chuyền', 'OTHER': 'Khác' };
+      return types[type] || 'Khác';
+    }
   }
 }
 </script>

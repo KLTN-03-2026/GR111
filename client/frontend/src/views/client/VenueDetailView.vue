@@ -275,7 +275,7 @@
         <!-- ═══ SIDEBAR ═══ -->
         <div class="col-lg-4">
           <div class="vdp-sidebar card border-0 sticky-top" style="top:90px; background: #ffffff;">
-            <div class="card-header d-flex justify-content-between align-items-center py-3 px-4">
+            <div class="card-header d-flex justify-content-between align-items-center py-3 px-4" style="background: rgb(33, 37, 41); border: none;">
               <span class="fw-black text-white fs-5" style="letter-spacing: 0.5px">Chi tiết đặt sân</span>
               <span v-if="totalSelectedSlotsCount" class="badge rounded-pill" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(4px); font-size: 13px; font-weight: 700;">{{ selectedCourtIds.length }} sân</span>
             </div>
@@ -663,7 +663,8 @@ export default {
               id: c.id, 
               name: c.name, 
               sportType: c.sportType,
-              basePrice: c.pricings?.[0]?.pricePerHour ? Number(c.pricings[0].pricePerHour) : 0
+              basePrice: c.pricings?.[0]?.pricePerHour ? Number(c.pricings[0].pricePerHour) : 0,
+              images: c.images?.map(i => i.url) || []
             })) || [],
             openingHours: apiClub.openingHours?.map(h => {
               const days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
@@ -675,7 +676,9 @@ export default {
                 close,
                 isClosed: h.isClosed
               }
-            }) || []
+            }) || [],
+            rating: apiClub.rating || 5.0,
+            reviewCount: apiClub.reviewCount || 0
           };
 
           // Sử dụng chính danh sách amenities làm các dịch vụ/tiện ích có thể chọn ở Step 4

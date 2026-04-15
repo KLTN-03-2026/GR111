@@ -223,6 +223,12 @@
                     </td>
                     <td class="text-end">
                       <div class="action-cell-p">
+                        <a v-if="booking.phone && booking.phone !== 'N/A'" :href="`tel:${booking.phone}`" class="btn-action-p btn-call-p" title="Gọi điện" @click.stop>
+                          <span class="material-icons">phone</span>
+                        </a>
+                        <a v-if="booking.email" :href="`mailto:${booking.email}`" class="btn-action-p btn-email-p" title="Gửi mail" @click.stop>
+                          <span class="material-icons">email</span>
+                        </a>
                         <button class="btn-action-p view" @click="openDetailById(booking.id)" title="Chi tiết">
                           <span class="material-icons">visibility</span>
                         </button>
@@ -503,43 +509,69 @@ export default {
           this.fullBookingData = rawData;
           
           const formatTime = (date) => {
-            const h = date.getHours().toString().padStart(2, '0');
-            const m = date.getMinutes().toString().padStart(2, '0');
+            const h = date.getUTCHours().toString().padStart(2, '0');
+            const m = date.getUTCMinutes().toString().padStart(2, '0');
             return `${h}:${m}`;
           };
 
-          const formatted = [];
+          // ── BUILD CALENDAR MAP: 1 entry per (courtId, startTime) for slot lookup ──
+          const calendarEntries = [];
           for (const booking of rawData) {
-            if (!booking.items || !Array.isArray(booking.items)) {
-              console.warn("Booking has no items:", booking.id);
-              continue;
-            }
+            if (!booking.items || !Array.isArray(booking.items)) continue;
             for (const item of booking.items) {
-              if (!item.timeSlot || !item.timeSlot.court) {
-                console.warn("Item missing timeSlot or court:", item.id);
-                continue;
-              }
-
+              if (!item.timeSlot || !item.timeSlot.court) continue;
               const start = new Date(item.timeSlot.startTime);
-              const end = new Date(item.timeSlot.endTime);
-              
-              formatted.push({
+              const end   = new Date(item.timeSlot.endTime);
+              calendarEntries.push({
                 id: booking.id,
                 clubId: booking.clubId,
-                courtId: item.timeSlot.courtId,
+                courtId: item.timeSlot.court.id || item.timeSlot.courtId,
                 courtName: item.timeSlot.court.name,
                 customerName: booking.bookerName || booking.user?.fullName || 'Khách vãng lai',
                 phone: booking.bookerPhone || booking.user?.phone || 'N/A',
+                email: booking.bookerEmail || booking.user?.email || null,
                 startTime: formatTime(start),
                 endTime: formatTime(end),
                 date: start.toLocaleDateString('vi-VN'),
-                amount: Number(item.price),
+                amount: Number(booking.finalAmount),
                 status: booking.status,
                 originalBooking: booking
               });
             }
           }
+
+          // ── BUILD LIST VIEW: 1 row per booking (aggregate items) ──
+          const formatted = rawData
+            .filter(b => b.items && b.items.length > 0)
+            .map(booking => {
+              const validItems = booking.items.filter(i => i.timeSlot?.court);
+              // Distinct court names
+              const courtNames = [...new Set(validItems.map(i => i.timeSlot.court.name))].join(', ');
+              // Earliest slot start → latest slot end
+              const starts = validItems.map(i => new Date(i.timeSlot.startTime));
+              const ends   = validItems.map(i => new Date(i.timeSlot.endTime));
+              const minStart = starts.length ? new Date(Math.min(...starts)) : null;
+              const maxEnd   = ends.length   ? new Date(Math.max(...ends))   : null;
+              return {
+                id: booking.id,
+                clubId: booking.clubId,
+                courtId: validItems[0]?.timeSlot?.court?.id || validItems[0]?.timeSlot?.courtId,
+                courtName: courtNames || 'N/A',
+                customerName: booking.bookerName || booking.user?.fullName || 'Khách vãng lai',
+                phone: booking.bookerPhone || booking.user?.phone || 'N/A',
+                email: booking.bookerEmail || booking.user?.email || null,
+                startTime: minStart ? formatTime(minStart) : '--:--',
+                endTime:   maxEnd   ? formatTime(maxEnd)   : '--:--',
+                date: minStart ? minStart.toLocaleDateString('vi-VN') : '--',
+                amount: Number(booking.finalAmount),
+                status: booking.status,
+                originalBooking: booking
+              };
+            });
+
           this.rawBookings = formatted;
+          // calendarEntries used separately for slot lookup in calendar view
+          this._calendarEntries = calendarEntries;
           console.log("Mapped rawBookings:", this.rawBookings);
         }
       } catch (error) {
@@ -550,7 +582,9 @@ export default {
       }
     },
     getBookingForSlot(courtId, startTime) {
-      return this.rawBookings.find(b => b.courtId === courtId && b.startTime === startTime);
+      // Use _calendarEntries (per-slot map) for calendar view, not rawBookings (per-booking)
+      const entries = this._calendarEntries || this.rawBookings;
+      return entries.find(b => b.courtId === courtId && b.startTime === startTime);
     },
     getStatusLabel(status) {
       const labels = {
@@ -835,11 +869,21 @@ export default {
 
 .action-cell-p { display: flex; gap: 8px; justify-content: flex-end; }
 .btn-action-p {
-  width: 32px; height: 32px; border-radius: 8px; border: none; background: #f1f5f9; color: #475569;
-  display: flex; align-items: center; justify-content: center; transition: .2s;
+  width: 34px; height: 34px; border-radius: 10px; border: none; background: #f1f5f9; color: #64748b;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-decoration: none; cursor: pointer;
 }
-.btn-action-p:hover { background: #e2e8f0; color: #0f172a; }
-.btn-action-p.confirm:hover { background: #10b981; color: white; }
+.btn-action-p .material-icons { font-size: 18px; }
+.btn-action-p:hover { background: #e2e8f0; color: #0f172a; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+.btn-call-p { background: #eff6ff; color: #3b82f6; }
+.btn-call-p:hover { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
+
+.btn-email-p { background: #ecfdf5; color: #10b981; }
+.btn-email-p:hover { background: #10b981; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25); }
+
+.btn-action-p.confirm { background: #fffbeb; color: #d97706; }
+.btn-action-p.confirm:hover { background: #f59e0b; color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25); }
 
 /* ── MODALS ── */
 .modal-overlay-p {

@@ -215,9 +215,17 @@
                     </div>
                   </td>
                   <td>
-                    <button class="pc-icon-btn">
-                      <span class="material-icons">chevron_right</span>
-                    </button>
+                    <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                      <a v-if="customer.phone && customer.phone !== 'N/A'" :href="`tel:${customer.phone}`" class="pc-icon-btn call" title="Gọi điện" style="text-decoration: none;" @click.stop>
+                        <span class="material-icons" style="font-size: 18px;">phone</span>
+                      </a>
+                      <a v-if="customer.email" :href="`mailto:${customer.email}`" class="pc-icon-btn email" title="Gửi mail" style="text-decoration: none;" @click.stop>
+                        <span class="material-icons" style="font-size: 18px;">email</span>
+                      </a>
+                      <button class="pc-icon-btn" title="Chi tiết">
+                        <span class="material-icons">chevron_right</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
 
@@ -1759,6 +1767,11 @@ export default {
   color: #1e293b;
   transform: translateX(2px);
 }
+.pc-icon-btn.call { color: #3b82f6; background: #eff6ff; border-color: #bfdbfe; }
+.pc-icon-btn.call:hover { background: #3b82f6 !important; color: white !important; transform: translateY(-2px) !important; box-shadow: 0 4px 12px rgba(59,130,246,0.3) !important; border-color:#3b82f6 !important; }
+
+.pc-icon-btn.email { color: #10b981; background: #ecfdf5; border-color: #a7f3d0; }
+.pc-icon-btn.email:hover { background: #10b981 !important; color: white !important; transform: translateY(-2px) !important; box-shadow: 0 4px 12px rgba(16,185,129,0.3) !important; border-color:#10b981 !important; }
 
 /* --- Detail Sidebar --- */
 .pc-detail-sidebar {
