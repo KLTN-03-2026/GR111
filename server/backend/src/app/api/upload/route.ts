@@ -21,6 +21,7 @@ const FOLDER_CONFIG: Record<string, {
   "court-image":      { folder: "courts/images",       roles: ["OWNER", "ADMIN"],         description: "Ảnh sân bóng" },
   "business-license": { folder: "documents/licenses",  roles: ["OWNER", "ADMIN"],         description: "Giấy phép kinh doanh" },
   "payment-proof":    { folder: "payments/proofs",     roles: ["USER", "OWNER", "ADMIN"], description: "Bằng chứng thanh toán" },
+  "review-image":     { folder: "reviews/images",      roles: ["USER", "OWNER", "ADMIN"], description: "Ảnh đánh giá" },
 };
 
 /**
