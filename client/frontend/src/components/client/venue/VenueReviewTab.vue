@@ -1,0 +1,405 @@
+<template>
+  <div class="bg-white shadow-sm vdp-panel-container">
+    <div v-if="reviews.length > 0" class="vdp-rv-summary px-4 pt-4 pb-3 border-bottom">
+      <div class="row align-items-center g-4">
+        <div class="col-auto">
+          <div class="text-center" style="min-width:90px">
+            <div class="vdp-rv-score__num">{{ avgRating.toFixed(1) }}</div>
+            <div class="d-flex justify-content-center gap-1 my-1">
+              <span v-for="s in 5" :key="s" style="font-size:17px;" :style="{color:s<=Math.round(avgRating)?'#f59e0b':'#e2e8f0'}">★</span>
+            </div>
+            <div class="text-muted small">{{ reviews.length }} đánh giá</div>
+          </div>
+        </div>
+        <div class="col">
+          <div v-for="star in [5,4,3,2,1]" :key="star" class="d-flex align-items-center gap-2 mb-1">
+            <span class="text-muted small fw-semibold" style="width:14px;text-align:right;flex-shrink:0">{{ star }}</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" style="flex-shrink:0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <div class="vdp-rv-bar flex-grow-1"><div class="vdp-rv-bar__fill" :style="{width:ratingPercent(star)+'%'}"></div></div>
+            <span class="text-muted small" style="width:22px;flex-shrink:0;text-align:right">{{ ratingCount(star) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-4 pt-4 pb-4 border-bottom">
+      <div v-if="reviewAuthState === 'idle'">
+        <h6 class="fw-black mb-1" style="font-size:15px">Viết đánh giá của bạn</h6>
+        <p class="text-muted small mb-3">Chỉ khách hàng đã đặt sân tại đây mới có thể đánh giá.</p>
+        <div v-if="isVerifying" class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+          <span class="ms-2 small text-muted">Đang kiểm tra lịch sử đặt sân...</span>
+        </div>
+        <div v-else class="vdp-rv-auth-box p-4 rounded-3 text-center">
+          <div class="vdp-rv-auth-icon mx-auto mb-3">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <h6 class="fw-bold mb-1">Xác thực lịch sử đánh giá</h6>
+          <p class="text-muted small mb-3">Chỉ khách hàng đã hoàn thành lượt đặt sân tại đây mới có thể để lại đánh giá.</p>
+          <button class="btn btn-success btn-sm fw-bold px-4" @click="checkBookingHistory">Kiểm tra ngay</button>
+        </div>
+      </div>
+
+      <div v-else-if="reviewAuthState === 'verified'">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <h6 class="fw-black mb-0" style="font-size:15px">Viết đánh giá của bạn</h6>
+          <div class="vdp-rv-verified-badge d-flex align-items-center gap-2">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Sẵn sàng đánh giá
+            <select v-model="selectedBookingId" class="form-select form-select-sm ms-2" style="width: auto; font-size: 11px; padding: 2px 24px 2px 8px;">
+               <option v-for="b in userBookings" :key="b.id" :value="b.id">Mã đơn: {{ b.bookingCode }}</option>
+            </select>
+            <button class="vdp-rv-verified-reset" @click="resetAuth" title="Làm mới">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold mb-2">Chất lượng sân <span class="text-danger">*</span></label>
+          <div class="d-flex align-items-center gap-1">
+            <button v-for="s in 5" :key="s" class="vdp-star-btn" :class="{'vdp-star-btn--filled':s<=(reviewHover||reviewForm.rating)}" @mouseenter="reviewHover=s" @mouseleave="reviewHover=0" @click="reviewForm.rating=s">★</button>
+            <span class="ms-2 small fw-bold" :style="{color:reviewForm.rating?'#f59e0b':'#94a3b8'}">{{ ['','Tệ','Không tốt','Bình thường','Tốt','Xuất sắc 🎉'][reviewForm.rating||0]||'Chọn số sao' }}</span>
+          </div>
+        </div>
+        <div class="row g-2 mb-2">
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1">Họ tên <span class="text-danger">*</span></label>
+            <input v-model="reviewForm.author" type="text" class="form-control form-control-sm" placeholder="Nguyễn Văn A"/>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-bold mb-1">Tiêu đề <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+            <input v-model="reviewForm.title" type="text" class="form-control form-control-sm" placeholder="Sân đẹp, dịch vụ tốt..."/>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-bold mb-1">Nội dung <span class="text-danger">*</span></label>
+            <textarea v-model="reviewForm.content" class="form-control form-control-sm" rows="3" placeholder="Chia sẻ trải nghiệm về chất lượng sân, dịch vụ, mặt cỏ..."></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="form-label small fw-bold mb-2">Đính kèm hình ảnh <span class="text-muted fw-normal">(tối đa 5 ảnh)</span></label>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <div v-for="(img,i) in reviewForm.images" :key="i" class="vdp-rv-imgprev position-relative rounded-3 overflow-hidden flex-shrink-0" style="width:76px;height:76px;">
+              <img :src="img" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+              <button class="vdp-rv-imgprev__rm" @click="removeReviewImage(i)">×</button>
+            </div>
+            <label v-if="reviewForm.images.length<5" class="vdp-rv-addimg d-flex flex-column align-items-center justify-content-center rounded-3 flex-shrink-0" style="width:76px;height:76px;cursor:pointer;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/><line x1="14" y1="8" x2="14" y2="14"/><line x1="11" y1="11" x2="17" y2="11"/></svg>
+              <span style="font-size:10px;color:#94a3b8;margin-top:4px;font-weight:600">Thêm ảnh</span>
+              <input type="file" accept="image/*" multiple class="d-none" @change="handleReviewImages"/>
+            </label>
+          </div>
+        </div>
+        <div class="d-flex justify-content-end">
+          <button class="btn btn-success fw-bold px-5 d-flex align-items-center gap-2" :disabled="!reviewForm.rating||!reviewForm.author||!reviewForm.content || isSubmitting" @click="submitReview">
+            <span v-if="isSubmitting" class="spinner-border spinner-border-sm" role="status"></span>
+            <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            {{ isSubmitting ? 'Đang gửi...' : 'Gửi đánh giá' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-else-if="reviewAuthState === 'denied'">
+        <div class="vdp-rv-locked-box p-4 rounded-3 text-center">
+          <div class="vdp-rv-locked-icon mx-auto mb-3">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
+          </div>
+          <h6 class="fw-black mb-1">Cần hoàn thành đơn đặt sân</h6>
+          <p class="text-muted small mb-3">Hệ thống không tìm thấy đơn đặt sân nào của bạn tại câu lạc bộ này.<br>Chỉ khách hàng đã sử dụng dịch vụ mới có thể đánh giá.</p>
+          <div class="d-flex gap-2 justify-content-center flex-wrap">
+            <button class="btn btn-success btn-sm fw-bold px-4" @click="$emit('switch-to-booking')">Đặt sân ngay →</button>
+            <button class="btn btn-outline-secondary btn-sm" @click="resetAuth">Kiểm tra lại</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else-if="reviewAuthState === 'reviewed'">
+        <div class="vdp-rv-locked-box p-4 rounded-3 text-center" style="border-color: #10b981; background: #f0fdf4;">
+          <div class="vdp-rv-locked-icon mx-auto mb-3" style="background: #10b981; color: white;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <h6 class="fw-black mb-1" style="color: #065f46;">Bạn đã đánh giá sân này</h6>
+          <p class="text-muted small mb-3">Cảm ơn bạn! Bạn đã gửi đánh giá cho tất cả các lượt đặt sân đã hoàn thành tại đây.<br>Chúng tôi ghi nhận ý kiến từ bạn.</p>
+          <button class="btn btn-outline-success btn-sm fw-bold px-4" @click="reviewAuthState = 'idle'">Xem lại quy định</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-4 py-4">
+      <div v-if="reviews.length===0" class="text-center py-5 text-muted">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" class="d-block mx-auto mb-3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <p class="mb-0 fw-semibold">Chưa có đánh giá nào.</p>
+        <p class="small mt-1">Hãy là người đầu tiên chia sẻ trải nghiệm!</p>
+      </div>
+      <div v-else>
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="fw-black mb-0">{{ reviews.length }} đánh giá</h6>
+          <select class="form-select form-select-sm w-auto" v-model="reviewSort" style="font-size:12px;border-radius:8px;border-color:#e2e8f0;font-weight:600">
+            <option value="newest">Mới nhất</option>
+            <option value="highest">Điểm cao nhất</option>
+            <option value="lowest">Điểm thấp nhất</option>
+          </select>
+        </div>
+        <div v-for="rv in sortedReviews" :key="rv.id" class="vdp-rv-card mb-3 p-4 rounded-3">
+          <div class="d-flex align-items-start gap-3">
+            <div class="vdp-rv-avatar flex-shrink-0">{{ rv.author.charAt(0).toUpperCase() }}</div>
+            <div class="flex-grow-1" style="min-width:0">
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <span class="fw-bold small">{{ rv.author }}</span>
+                  <span class="vdp-rv-verified-tag">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Đã đặt sân
+                  </span>
+                  <span class="text-muted small">· {{ rv.date }}</span>
+                </div>
+                <div class="d-flex gap-1">
+                  <span v-for="s in 5" :key="s" style="font-size:15px;" :style="{color:s<=rv.rating?'#f59e0b':'#e2e8f0'}">★</span>
+                </div>
+              </div>
+              <div v-if="rv.title" class="fw-semibold mb-1" style="font-size:13.5px;color:#0f172a">{{ rv.title }}</div>
+              <p class="text-muted mb-2" style="font-size:13px;line-height:1.7">{{ rv.content }}</p>
+              <div v-if="rv.images&&rv.images.length" class="d-flex flex-wrap gap-2 mt-2 mb-2">
+                <div v-for="(img,i) in rv.images" :key="i" class="vdp-rv-photo rounded-3 overflow-hidden" @click="openLightbox(rv.images,i)">
+                  <img :src="img" style="width:100%;height:100%;object-fit:cover;display:block;"/>
+                </div>
+              </div>
+              <button class="vdp-rv-like-btn" @click="likeReview(rv)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+                Hữu ích{{ rv.likes>0?` (${rv.likes})`:'' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { reviewService } from '@/services/review.service';
+import { bookingService } from '@/services/booking.service';
+import { authService } from '@/services/auth.service';
+import { toast } from 'vue3-toastify';
+
+export default {
+  name: 'VenueReviewTab',
+  props: {
+    clubId: {
+      type: String,
+      required: true
+    }
+  },
+  data() {
+    return {
+      reviewAuthState: 'idle', // 'idle', 'verifying', 'verified', 'denied'
+      userBookings: [],
+      selectedBookingId: null,
+      reviewHover: 0,
+      reviewSort: 'newest',
+      reviewForm: { rating: 0, author: '', title: '', content: '', images: [], rawFiles: [] },
+      reviews: [],
+      isSubmitting: false,
+      isFetching: false,
+      isVerifying: false
+    }
+  },
+  computed: {
+    avgRating() { 
+      if (!this.reviews.length) return 0;
+      return this.reviews.reduce((s,r) => s + r.rating, 0) / this.reviews.length;
+    },
+    sortedReviews() {
+      const r = [...this.reviews];
+      if (this.reviewSort === 'highest') r.sort((a,b) => b.rating - a.rating);
+      else if (this.reviewSort === 'lowest') r.sort((a,b) => a.rating - b.rating);
+      else r.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+      return r;
+    }
+  },
+  async mounted() {
+    await this.fetchReviews();
+    this.checkIfVerified();
+  },
+  methods: {
+    async fetchReviews() {
+      if (!this.clubId) return;
+      try {
+        this.isFetching = true;
+        const res = await reviewService.getReviewsByClub(this.clubId);
+        if (res && res.data) {
+          this.reviews = res.data.map(rv => ({
+            id: rv.id,
+            author: rv.user?.fullName || 'Người dùng',
+            rating: rv.rating,
+            title: rv.title,
+            content: rv.comment,
+            images: rv.images?.map(img => img.url) || [],
+            date: new Date(rv.createdAt).toLocaleDateString('vi-VN'),
+            createdAt: rv.createdAt,
+            likes: 0 // Backend currently doesn't store likes
+          }));
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải đánh giá:", err);
+      } finally {
+        this.isFetching = false;
+      }
+    },
+
+    async checkIfVerified() {
+      const user = authService.getCurrentUser();
+      if (!user) {
+        this.reviewAuthState = 'idle';
+        return;
+      }
+
+      // Pre-fill author name
+      if (!this.reviewForm.author) {
+        this.reviewForm.author = user.fullName || '';
+      }
+
+      // Try to find bookings for this club
+      await this.checkBookingHistory();
+    },
+
+    async checkBookingHistory() {
+      const user = authService.getCurrentUser();
+      if (!user) {
+        toast.warning("Bạn cần đăng nhập để thực hiện đánh giá", {
+            position: 'top-center'
+        });
+        // Có thể chuyển hướng sang trang login nếu cần
+        // this.$router.push('/login');
+        return;
+      }
+
+      try {
+        this.isVerifying = true;
+        console.log("Checking history for club:", this.clubId);
+        
+        const res = await bookingService.getMyBookings();
+        console.log("All bookings received:", res.data);
+        
+        const allBookings = res.data || [];
+        
+        // Find all bookings for this club
+        const clubBookings = allBookings.filter(b => String(b.clubId) === String(this.clubId));
+        
+        // Filter for those that are eligible (COMPLETED/CONFIRMED) AND haven't been reviewed yet
+        this.userBookings = clubBookings.filter(b => {
+          const isEligibleStatus = b.status === 'COMPLETED' || b.status === 'CONFIRMED';
+          const isNotReviewed = !b.review; // Only allow review if b.review is null/undefined
+          return isEligibleStatus && isNotReviewed;
+        });
+
+        console.log("Eligible unreviewed bookings:", this.userBookings);
+
+        if (this.userBookings.length > 0) {
+          this.reviewAuthState = 'verified';
+          this.selectedBookingId = this.userBookings[0].id;
+        } else if (clubBookings.some(b => b.review)) {
+          // If we found bookings but they all have reviews
+          this.reviewAuthState = 'reviewed';
+        } else {
+          console.warn("No eligible bookings found for this club.");
+          this.reviewAuthState = 'denied';
+        }
+      } catch (err) {
+        console.error("Lỗi khi kiểm tra lịch sử đặt sân:", err);
+        toast.error("Không thể kiểm tra lịch sử đặt sân. Vui lòng thử lại.");
+        this.reviewAuthState = 'denied';
+      } finally {
+        this.isVerifying = false;
+      }
+    },
+
+    resetAuth() { 
+      this.reviewAuthState = 'idle'; 
+      this.userBookings = [];
+      this.selectedBookingId = null;
+    },
+
+    ratingCount(star) { 
+      return this.reviews.filter(r => r.rating === star).length; 
+    },
+
+    ratingPercent(star) { 
+      return this.reviews.length ? Math.round((this.ratingCount(star) / this.reviews.length) * 100) : 0; 
+    },
+
+    handleReviewImages(e) {
+      const files = Array.from(e.target.files).slice(0, 5 - this.reviewForm.images.length);
+      files.forEach(f => {
+        this.reviewForm.rawFiles.push(f);
+        const reader = new FileReader();
+        reader.onload = ev => {
+          if (this.reviewForm.images.length < 5) {
+            this.reviewForm.images.push(ev.target.result);
+          }
+        };
+        reader.readAsDataURL(f);
+      });
+      e.target.value = '';
+    },
+
+    removeReviewImage(i) { 
+      this.reviewForm.images.splice(i, 1);
+      this.reviewForm.rawFiles.splice(i, 1);
+    },
+
+    async submitReview() {
+      if (!this.reviewForm.rating || !this.reviewForm.author || !this.reviewForm.content || !this.selectedBookingId) {
+        toast.error("Vui lòng điền đầy đủ thông tin bắt buộc");
+        return;
+      }
+
+      try {
+        this.isSubmitting = true;
+        
+        // 1. Upload images if any
+        let uploadedUrls = [];
+        if (this.reviewForm.rawFiles.length > 0) {
+          uploadedUrls = await reviewService.uploadImages(this.reviewForm.rawFiles);
+        }
+
+        // 2. Submit review to backend
+        const reviewData = {
+          bookingId: this.selectedBookingId,
+          rating: this.reviewForm.rating,
+          comment: this.reviewForm.content,
+          title: this.reviewForm.title,
+          imageUrls: uploadedUrls
+        };
+
+        const res = await reviewService.submitReview(reviewData);
+        
+        if (res) {
+          toast.success("Cảm ơn bạn đã gửi đánh giá!");
+          // Reset form
+          this.reviewForm = { rating: 0, author: '', title: '', content: '', images: [], rawFiles: [] };
+          // Refresh list
+          await this.fetchReviews();
+          // Reset auth state to check for other bookings
+          await this.checkBookingHistory();
+        }
+      } catch (err) {
+        console.error("Lỗi khi gửi đánh giá:", err);
+        const msg = err.response?.data?.message || "Đã có lỗi xảy ra khi gửi đánh giá";
+        toast.error(msg);
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+
+    likeReview(rv) { 
+      // Current backend doesn't support likes, so we just increment locally for UI feedback
+      rv.likes++; 
+      toast.info("Cảm ơn bạn đã phản hồi!");
+    },
+
+    openLightbox(images, index) { 
+        this.$emit('open-lightbox', { images, index });
+    }
+  }
+}
+</script>

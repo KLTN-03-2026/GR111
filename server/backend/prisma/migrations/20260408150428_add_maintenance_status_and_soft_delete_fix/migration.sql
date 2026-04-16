@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "CourtStatus" ADD VALUE 'MAINTENANCE';
