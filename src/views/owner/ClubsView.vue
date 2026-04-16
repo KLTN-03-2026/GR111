@@ -125,12 +125,20 @@
                   <small v-if="addSub&&!addForm.name" class="err-msg">Bắt buộc</small>
                 </div>
                 <div class="f">
-                  <label>Thành phố <span class="req">*</span></label>
-                  <input v-model="addForm.city" :class="{inv:addSub&&!addForm.city}" placeholder="Đà Nẵng" />
+                  <label>Thành phố / Tỉnh <span class="req">*</span></label>
+                  <select v-model="addForm.city" :class="{inv:addSub&&!addForm.city}" @change="addForm.district=''">
+                    <option value="">-- Chọn tỉnh/thành --</option>
+                    <option v-for="p in provinces" :key="p.name" :value="p.name">{{ p.name }}</option>
+                  </select>
+                  <small v-if="addSub&&!addForm.city" class="err-msg">Bắt buộc</small>
                 </div>
                 <div class="f">
-                  <label>Quận/Huyện <span class="req">*</span></label>
-                  <input v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" placeholder="Hải Châu" />
+                  <label>Quận / Huyện <span class="req">*</span></label>
+                  <select v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" :disabled="!addForm.city">
+                    <option value="">-- Chọn quận/huyện --</option>
+                    <option v-for="d in addDistricts" :key="d" :value="d">{{ d }}</option>
+                  </select>
+                  <small v-if="addSub&&!addForm.district" class="err-msg">Bắt buộc</small>
                 </div>
                 <div class="f span2">
                   <label>Địa chỉ <span class="req">*</span></label>
@@ -210,8 +218,22 @@
               <div class="flabel"><span class="material-icons">info</span>Thông tin cơ bản</div>
               <div class="fgrid">
                 <div class="f span2"><label>Tên CLB <span class="req">*</span></label><input v-model="editForm.name" :class="{inv:editSub&&!editForm.name}" /></div>
-                <div class="f"><label>Thành phố <span class="req">*</span></label><input v-model="editForm.city" /></div>
-                <div class="f"><label>Quận/Huyện <span class="req">*</span></label><input v-model="editForm.district" /></div>
+                <div class="f">
+                  <label>Thành phố / Tỉnh <span class="req">*</span></label>
+                  <select v-model="editForm.city" :class="{inv:editSub&&!editForm.city}" @change="editForm.district=''">
+                    <option value="">-- Chọn tỉnh/thành --</option>
+                    <option v-for="p in provinces" :key="p.name" :value="p.name">{{ p.name }}</option>
+                  </select>
+                  <small v-if="editSub&&!editForm.city" class="err-msg">Bắt buộc</small>
+                </div>
+                <div class="f">
+                  <label>Quận / Huyện <span class="req">*</span></label>
+                  <select v-model="editForm.district" :class="{inv:editSub&&!editForm.district}" :disabled="!editForm.city">
+                    <option value="">-- Chọn quận/huyện --</option>
+                    <option v-for="d in editDistricts" :key="d" :value="d">{{ d }}</option>
+                  </select>
+                  <small v-if="editSub&&!editForm.district" class="err-msg">Bắt buộc</small>
+                </div>
                 <div class="f span2"><label>Địa chỉ <span class="req">*</span></label><input v-model="editForm.address" /></div>
                 <div class="f"><label>Số điện thoại</label><input v-model="editForm.phone" /></div>
                 <div class="f"><label>Email</label><input v-model="editForm.email" type="email" /></div>
@@ -253,6 +275,7 @@
 
 <script>
 import { clubService } from '@/services/club.service';
+import { provinces } from '@/assets/vn-provinces';
 
 const MAX = 5 * 1024 * 1024;
 const TYPES = ['image/jpeg','image/png','image/webp'];
@@ -265,6 +288,7 @@ export default {
       clubs: [], loading: false,
       q: '', statusQ: 'all',
       fallbackImg: 'https://images.unsplash.com/photo-1575446106012-c344f5b75e13?w=600&q=80',
+      provinces,
 
       // ADD
       showAdd: false, addForm: blank(), addSub: false, addLoading: false, addErr: [],
@@ -288,7 +312,15 @@ export default {
         const mt = this.statusQ === 'all' || c.approvalStatus === this.statusQ;
         return ms && mt;
       });
-    }
+    },
+    addDistricts() {
+      const p = this.provinces.find(p => p.name === this.addForm.city);
+      return p ? p.districts : [];
+    },
+    editDistricts() {
+      const p = this.provinces.find(p => p.name === this.editForm.city);
+      return p ? p.districts : [];
+    },
   },
   mounted() { this.load(); },
   methods: {
