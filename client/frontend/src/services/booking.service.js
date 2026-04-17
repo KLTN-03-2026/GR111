@@ -24,7 +24,7 @@ export const bookingService = {
     getBookingsByClub: async (clubId, date) => {
         const response = await api.get(`/owner/clubs/${clubId}/bookings`, {
             params: { date }
-        });``
+        });
         return response.data;
     },
 
