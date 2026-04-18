@@ -116,6 +116,9 @@
 </template>
 
 <script>
+import { slotService } from '@/services/slot.service';
+import { toast } from 'vue3-toastify';
+
 export default {
   name: 'VisualCalendar',
   props: {
