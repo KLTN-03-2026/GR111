@@ -1,3 +1,4 @@
+
 # 🏟️ Sports Field Booking Platform
 
 **Sports Field Booking Platform** là hệ thống quản lý và đặt sân thể thao hiện đại, cho phép người dùng dễ dàng tìm kiếm, xem thông tin và đặt các loại sân như: bóng đá, cầu lông, tennis, pickleball và bóng rổ. Hệ thống cung cấp thông tin về tình trạng sân theo thời gian thực, chi tiết từng sân và tích hợp AI Chatbot để hỗ trợ người dùng tìm kiếm, đặt sân cũng như trả lời các thắc mắc phổ biến.
@@ -84,3 +85,4 @@ Dự án này được phát triển như một phần của đồ án tốt ngh
 ## 📄 Giấy phép
 
 Hệ thống này được bảo mật và thuộc quyền sở hữu của nhóm phát triển.
+
