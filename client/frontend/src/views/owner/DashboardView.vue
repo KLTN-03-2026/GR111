@@ -1,13 +1,28 @@
 <template>
   <div class="dashboard-container">
-    <!-- Header Summary Stats -->
-    <div class="stats-grid">
-      <StatCard 
-        v-for="(stat, i) in summaryStats" 
-        :key="stat.label" 
-        :stat="stat" 
-        :delay="i * 80" 
-      />
+    <!-- Dashboard Header with Filters -->
+    <div class="dashboard-header">
+      <div class="header-left">
+        <h2 class="page-title">Tổng quan Dashboard</h2>
+        <p class="page-subtitle">Quản lý hoạt động sân bãi và doanh thu từ câu lạc bộ của bạn.</p>
+      </div>
+      <div class="header-filters">
+        <!-- Club Selector -->
+        <div class="filter-group">
+          <label><i class="material-icons-outlined">storefront</i> Câu lạc bộ</label>
+          <select v-model="currentClubId" class="filter-select" @change="refreshAllData">
+            <option v-for="club in ownerClubs" :key="club.id" :value="club.id">
+              {{ club.name }}
+            </option>
+          </select>
+        </div>
+        
+        <!-- Date Selector -->
+        <div class="filter-group">
+          <label><i class="material-icons-outlined">event</i> Ngày hiển thị</label>
+          <input type="date" v-model="selectedDate" class="filter-date" @change="refreshAllData"/>
+        </div>
+      </div>
     </div>
 
     <!-- Visual Calendar (Full width) -->
@@ -23,7 +38,11 @@
     <div class="content-row">
       <!-- Recent Bookings Table -->
       <div style="flex:2">
-        <RecentBookings :bookings="recentBookings" />
+        <RecentBookings 
+          :bookings="recentBookings" 
+          @confirm-payment="handleConfirmPayment"
+          @view-booking="handleViewBooking"
+        />
       </div>
 
       <!-- Side Panel -->
@@ -94,6 +113,26 @@ export default {
 
   async mounted() {
     await this.initDashboard();
+    
+    // Connect socket and listen for updates
+    socketService.connect();
+    socketService.onBookingUpdate((data) => {
+      if (data.clubId === this.currentClubId) {
+        toast.info("Có đơn đặt sân mới hoặc cập nhật!");
+        this.refreshAllData();
+      }
+    });
+
+    // If there's a club, join its socket room
+    if (this.currentClubId) {
+      socketService.joinVenue(this.currentClubId);
+    }
+  },
+  beforeUnmount() {
+    if (this.currentClubId) {
+      socketService.leaveVenue(this.currentClubId);
+    }
+    socketService.disconnect();
   },
 
   methods: {
@@ -316,6 +355,7 @@ export default {
   .side-content > * { flex: 1; }
 }
 @media (max-width: 768px) {
+  .header-filters { flex-direction: column; }
   .stats-grid   { grid-template-columns: 1fr 1fr; }
   .side-content { flex-direction: column; }
 }

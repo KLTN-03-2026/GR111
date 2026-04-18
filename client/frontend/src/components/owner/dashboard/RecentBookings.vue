@@ -65,10 +65,10 @@
               </span>
             </td>
             <td class="actions-cell">
-              <button class="btn-icon" title="Xem chi tiết">
+              <button class="btn-icon" title="Xem chi tiết" @click="$emit('view-booking', booking)">
                 <span class="material-icons btn-svg">visibility</span>
               </button>
-              <button v-if="booking.status === 'PENDING'" class="btn-icon confirm" title="Xác nhận">
+              <button v-if="booking.status === 'PENDING'" class="btn-icon confirm" title="Xác nhận thanh toán" @click="$emit('confirm-payment', booking)">
                 <span class="material-icons btn-svg">check_circle</span>
               </button>
             </td>

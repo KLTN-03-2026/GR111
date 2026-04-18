@@ -107,11 +107,17 @@ export async function toggleSlotStatus(
   });
   if (!court) throw new Error("UNAUTHORIZED");
 
-  // 2. Thực hiện cập nhật DB thông qua Repository
+  // 2. Kiểm tra xem slot hiện tại có đang bị BOOKED không
+  const existingSlot = await slotRepository.findByCourtAndStartTime(courtId, new Date(startTime));
+  if (existingSlot && existingSlot.status === "BOOKED") {
+    throw new Error("CANNOT_TOGGLE_BOOKED_SLOT_CANCEL_BOOKING_FIRST");
+  }
+
+  // 3. Thực hiện cập nhật DB thông qua Repository
   const updatedSlot = await slotRepository.upsertSlot({
     courtId,
-    startTime,
-    endTime,
+    startTime: new Date(startTime),
+    endTime: new Date(endTime),
     status: newStatus
   });
 
