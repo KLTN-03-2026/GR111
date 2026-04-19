@@ -1,20 +1,26 @@
 <template>
   <div class="courtmate-container">
     <!-- Floating Trigger -->
-    <Transition name="pop">
-      <button
-        v-if="!isOpen"
-        @click="toggleChat"
-        class="trigger-btn"
-        aria-label="Mở CourtMate AI"
-      >
-        <div class="trigger-glow"></div>
-        <div class="trigger-img-wrap">
-          <img src="/chat-bot.png" alt="Chat" class="trigger-icon-img" />
+    <div v-if="!isOpen" class="trigger-stack">
+      <Transition name="nudge-fade">
+        <div class="chatbot-nudge" @click="toggleChat">
+          {{ activeNudgeMessage }}
         </div>
-        <!-- <span class="trigger-badge">AI</span> -->
-      </button>
-    </Transition>
+      </Transition>
+      <Transition name="pop">
+        <button
+          @click="toggleChat"
+          class="trigger-btn"
+          aria-label="Mở CourtMate AI"
+        >
+          <div class="trigger-glow"></div>
+          <div class="trigger-img-wrap">
+            <img src="/chat-bot.png" alt="Chat" class="trigger-icon-img" />
+          </div>
+          <!-- <span class="trigger-badge">AI</span> -->
+        </button>
+      </Transition>
+    </div>
 
     <!-- Chat Window -->
     <Transition name="slide-up">
@@ -94,7 +100,7 @@
                     <div v-else-if="msg.role === 'user'" class="plain-content">{{ msg.textContent }}</div>
 
                     <ChatStructuredContent
-                      v-if="msg.structuredData"
+                      v-if="hasRenderableStructuredData(msg.structuredData)"
                       :structured-data="msg.structuredData"
                       @quick-message="sendQuickMessage"
                     />
@@ -109,8 +115,14 @@
               <div class="bot-avatar">
                 <img src="/chat-bot.png" alt="AI" />
               </div>
-              <div class="bubble bubble-bot typing-bubble">
-                <span></span><span></span><span></span>
+              <div class="typing-wrap">
+                <div class="bubble bubble-bot typing-bubble">
+                  <span></span><span></span><span></span>
+                </div>
+                <div class="thinking-card">
+                  <div class="thinking-title">CourtMate đang suy nghĩ...</div>
+                  <p class="thinking-hint">{{ activeThinkingHint }}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -127,7 +139,9 @@
               ref="inputField"
               placeholder="Nhập tin nhắn cho CourtMate..."
               rows="1"
-              @keydown.enter.exact.prevent="submitMessage"
+              @keydown="handleInputKeydown"
+              @compositionstart="onCompositionStart"
+              @compositionend="onCompositionEnd"
               @focus="isFocused = true"
               @blur="isFocused = false"
               @input="autoResize"
@@ -152,7 +166,7 @@
 </template>
 
 <script setup>
-import { ref, nextTick, watch, computed, shallowRef, triggerRef } from 'vue';
+import { ref, nextTick, watch, computed, shallowRef, triggerRef, onBeforeUnmount } from 'vue';
 import { Chat } from '@ai-sdk/vue';
 import { DefaultChatTransport } from 'ai';
 import ChatStructuredContent from './ChatStructuredContent.vue';
@@ -164,6 +178,19 @@ const messageContainer = ref(null);
 const inputField = ref(null);
 const input = ref('');
 const userLocation = ref(null);
+const isComposing = ref(false);
+const supportedStructuredComponents = new Set([
+  'clubList',
+  'clubDetail',
+  'slotPicker',
+  'bookingConfirm',
+  'bookingSuccess',
+  'userProfile',
+  'bookingHistory',
+  'userInsights',
+  'authRequired',
+  'error',
+]);
 
 // Store structured data keyed by message id
 const structuredDataMap = ref({});
@@ -201,10 +228,14 @@ const isLoading = computed(() => {
   return c.status === 'submitted' || c.status === 'streaming';
 });
 
+const hasRenderableStructuredData = (structuredData) => {
+  return supportedStructuredComponents.has(structuredData?.component);
+};
+
 const displayMessages = computed(() => {
   const c = chat.value;
   const rawMessages = c.messages || [];
-  
+
   return rawMessages.map(m => {
     let textContent = '';
     let structuredData = structuredDataMap.value[m.id] || null;
@@ -237,7 +268,11 @@ const displayMessages = computed(() => {
       }
     }
 
-    return { ...m, textContent, structuredData };
+    return { ...m, textContent: textContent.trim(), structuredData };
+  }).filter((m) => {
+    const hasText = Boolean(m.textContent);
+    const hasStructured = hasRenderableStructuredData(m.structuredData);
+    return hasText || hasStructured;
   });
 });
 
@@ -255,6 +290,23 @@ const quickStartChips = [
   { label: 'Xem lịch sử', emoji: '📅', message: 'Xem lịch sử đặt sân của tôi', color: '#2563eb' },
   { label: 'Tài khoản', emoji: '👤', message: 'Thông tin cá nhân của tôi', color: '#1e40af' },
 ];
+
+const thinkingHints = [
+  'Đang phân tích yêu cầu của bạn...',
+  'Đang tìm dữ liệu sân và khung giờ phù hợp...',
+  'Đang tổng hợp gợi ý đặt sân tối ưu...',
+  'Đang chuẩn bị câu trả lời dễ hiểu nhất cho bạn...',
+];
+const thinkingHintIndex = ref(0);
+const activeThinkingHint = computed(() => thinkingHints[thinkingHintIndex.value]);
+const nudgeMessages = [
+  'Tôi có thể giúp gì cho bạn?',
+  'Hỗ trợ đặt sân 24/7 nè',
+  'Tìm sân nào đấy người anh em!',
+  'Hú hú, tìm sân nhanh ở đây!',
+];
+const nudgeIndex = ref(0);
+const activeNudgeMessage = computed(() => nudgeMessages[nudgeIndex.value]);
 
 // --- Actions ---
 const toggleChat = () => {
@@ -289,8 +341,26 @@ const sendQuickMessage = (text) => {
   nextTick(submitMessage);
 };
 
+const onCompositionStart = () => {
+  isComposing.value = true;
+};
+
+const onCompositionEnd = () => {
+  isComposing.value = false;
+};
+
+const handleInputKeydown = (event) => {
+  if (event.key !== 'Enter' || event.shiftKey) return;
+
+  // IME composition (Vietnamese/Asian input): avoid submitting partial text.
+  if (event.isComposing || isComposing.value) return;
+
+  event.preventDefault();
+  submitMessage();
+};
+
 const submitMessage = async () => {
-  if (!input.value.trim() || isLoading.value) return;
+  if (isComposing.value || !input.value.trim() || isLoading.value) return;
   const text = input.value;
   input.value = '';
   nextTick(() => { if (inputField.value) inputField.value.style.height = 'auto'; });
@@ -335,20 +405,51 @@ watch(
 
 // Also poll during streaming to update UI
 let pollTimer = null;
+let thinkingHintTimer = null;
+let nudgeTimer = null;
 watch(isLoading, (loading) => {
   if (loading) {
+    thinkingHintIndex.value = 0;
     pollTimer = setInterval(() => {
       triggerRef(chat);
       scrollToBottom();
     }, 200);
+    thinkingHintTimer = setInterval(() => {
+      thinkingHintIndex.value = (thinkingHintIndex.value + 1) % thinkingHints.length;
+    }, 1700);
   } else {
     if (pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;
     }
+    if (thinkingHintTimer) {
+      clearInterval(thinkingHintTimer);
+      thinkingHintTimer = null;
+    }
     triggerRef(chat);
     scrollToBottom();
   }
+});
+
+watch(isOpen, (open) => {
+  if (!open) {
+    if (nudgeTimer) clearInterval(nudgeTimer);
+    nudgeTimer = setInterval(() => {
+      nudgeIndex.value = (nudgeIndex.value + 1) % nudgeMessages.length;
+    }, 2600);
+    return;
+  }
+
+  if (nudgeTimer) {
+    clearInterval(nudgeTimer);
+    nudgeTimer = null;
+  }
+}, { immediate: true });
+
+onBeforeUnmount(() => {
+  if (pollTimer) clearInterval(pollTimer);
+  if (thinkingHintTimer) clearInterval(thinkingHintTimer);
+  if (nudgeTimer) clearInterval(nudgeTimer);
 });
 
 const renderMarkdown = (text) => {

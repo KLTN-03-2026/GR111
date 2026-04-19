@@ -1,5 +1,5 @@
 <template>
-  <div class="component-area">
+  <div v-if="shouldRender" class="component-area">
     <!-- Component: clubList -->
     <div v-if="structuredData.component === 'clubList'" class="club-list-comp">
       <div v-if="structuredData.data?.clubs?.length">
@@ -207,6 +207,8 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
+
 const props = defineProps({
   structuredData: {
     type: Object,
@@ -215,6 +217,23 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["quick-message"]);
+
+const supportedComponents = new Set([
+  'clubList',
+  'clubDetail',
+  'slotPicker',
+  'bookingConfirm',
+  'bookingSuccess',
+  'userProfile',
+  'bookingHistory',
+  'userInsights',
+  'authRequired',
+  'error',
+]);
+
+const shouldRender = computed(() =>
+  supportedComponents.has(props.structuredData?.component),
+);
 
 const emitQuickMessage = (text) => {
   emit("quick-message", text);

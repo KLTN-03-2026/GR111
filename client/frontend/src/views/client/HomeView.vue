@@ -340,16 +340,20 @@ export default {
       }
 
       // 2. Venue markers
-      const SPORT_EMOJI = {
-        FOOTBALL: '⚽', BADMINTON: '🏸', TENNIS: '🎾',
-        PICKLEBALL: '🏓', BASKETBALL: '🏀', VOLLEYBALL: '🏐',
+      const SPORT_ICON_CLASS = {
+        FOOTBALL: 'bx bx-football',
+        BADMINTON: 'bx bx-tennis-ball',
+        TENNIS: 'bx bx-tennis-ball',
+        PICKLEBALL: 'bx bx-tennis-ball',
+        BASKETBALL: 'bx bx-basketball',
+        VOLLEYBALL: 'bx bx-basketball',
       };
 
       this.danhSachSan.forEach(v => {
         if (!v.latitude || !v.longitude) return;
         const el = document.createElement('div');
         el.className = 'home-venue-marker';
-        el.innerHTML = `<span>${SPORT_EMOJI[v.sportType?.toUpperCase()] || '📍'}</span>`;
+        el.innerHTML = `<i class="${SPORT_ICON_CLASS[v.sportType?.toUpperCase()] || 'bx bx-map-pin'} home-venue-marker__icon" aria-hidden="true"></i>`;
         
         const popup = new mapboxgl.Popup({ offset: 10, closeButton: false })
           .setHTML(`<div class="map-p-name">${v.name}</div><div class="map-p-addr">${v.address}</div>`);
@@ -598,10 +602,20 @@ export default {
   transition: all 0.2s ease;
 }
 
+:deep(.home-venue-marker__icon) {
+  font-size: 19px;
+  line-height: 1;
+  color: var(--green);
+}
+
 :deep(.home-venue-marker:hover) {
   transform: scale(1.15);
   z-index: 10;
   border-color: var(--green-dark);
+}
+
+:deep(.home-venue-marker:hover .home-venue-marker__icon) {
+  color: var(--green-dark);
 }
 
 :deep(.map-p-name) { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
