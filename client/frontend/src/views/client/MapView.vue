@@ -57,7 +57,7 @@
             @click="toggleSport(sport.value)"
             :aria-pressed="selectedSport === sport.value"
           >
-            <span class="chip-icon">{{ sport.emoji }}</span>
+            <i :class="sport.iconClass" class="chip-icon" aria-hidden="true"></i>
             {{ sport.label }}
           </button>
         </div>
@@ -292,13 +292,13 @@ const DEFAULT_CENTER = [106.6297, 10.8231]; // HCM
 const DEFAULT_ZOOM = 12;
 
 const SPORT_LABELS = {
-  FOOTBALL:   { label: 'Bóng đá',   emoji: '⚽' },
-  BADMINTON:  { label: 'Cầu lông',  emoji: '🏸' },
-  TENNIS:     { label: 'Tennis',    emoji: '🎾' },
-  PICKLEBALL: { label: 'Pickleball',emoji: '🏓' },
-  BASKETBALL: { label: 'Bóng rổ',   emoji: '🏀' },
-  VOLLEYBALL: { label: 'Bóng chuyền',emoji: '🏐' },
-  OTHER:      { label: 'Khác',       emoji: '🎯' },
+  FOOTBALL:   { label: 'Bóng đá', iconClass: 'bx bx-football' },
+  BADMINTON:  { label: 'Cầu lông', iconClass: 'bx bx-tennis-ball' },
+  TENNIS:     { label: 'Tennis', iconClass: 'bx bx-tennis-ball' },
+  PICKLEBALL: { label: 'Pickleball', iconClass: 'bx bx-tennis-ball' },
+  BASKETBALL: { label: 'Bóng rổ', iconClass: 'bx bx-basketball' },
+  VOLLEYBALL: { label: 'Bóng chuyền', iconClass: 'bx bx-basketball' },
+  OTHER:      { label: 'Khác', iconClass: 'bx bx-map-pin' },
 };
 
 export default {
@@ -468,7 +468,7 @@ export default {
         el.setAttribute('aria-label', `Sân ${club.name}`);
         el.innerHTML = `
           <div class="marker-pin ${this.selectedClub?.id === club.id ? 'marker-pin--active' : ''}">
-            <span class="marker-emoji">${this.getMainSportEmoji(club)}</span>
+            <i class="${this.getMainSportIconClass(club)} marker-icon" aria-hidden="true"></i>
           </div>
           <div class="marker-shadow"></div>
         `;
@@ -666,9 +666,9 @@ export default {
       return types.map(t => SPORT_LABELS[t]?.label || t);
     },
 
-    getMainSportEmoji(club) {
+    getMainSportIconClass(club) {
       const type = club.courts?.[0]?.sportType;
-      return SPORT_LABELS[type]?.emoji || '📍';
+      return SPORT_LABELS[type]?.iconClass || 'bx bx-map-pin';
     },
 
     formatDist(d) {
@@ -1049,9 +1049,10 @@ export default {
   transform: rotate(-45deg) scale(1.15);
 }
 
-.marker-emoji {
+.marker-icon {
   transform: rotate(45deg);
-  font-size: 1rem;
+  font-size: 1.06rem;
+  color: #ffffff;
   line-height: 1;
 }
 
@@ -1274,7 +1275,7 @@ export default {
   border-color: rgb(22, 163, 74);
   box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
 }
-.chip-icon { font-size: 0.85em; }
+.chip-icon { font-size: 0.95em; line-height: 1; }
 
 /* Results area */
 .sidebar-results {

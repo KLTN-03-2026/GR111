@@ -1,5 +1,57 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+const LOADER_EVENT_NAME = "app:navigation-loading";
+const LOADER_SHOW_DELAY_MS = 120;
+const LOADER_MIN_VISIBLE_MS = 260;
+
+let showLoaderTimer = null;
+let hideLoaderTimer = null;
+let loaderVisibleAt = 0;
+let isLoaderVisible = false;
+
+function emitNavigationLoader(loading) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(LOADER_EVENT_NAME, { detail: { loading } })
+    );
+  }
+}
+
+function startNavigationLoader() {
+  if (hideLoaderTimer) {
+    clearTimeout(hideLoaderTimer);
+    hideLoaderTimer = null;
+  }
+  if (isLoaderVisible || showLoaderTimer) return;
+
+  showLoaderTimer = setTimeout(() => {
+    isLoaderVisible = true;
+    loaderVisibleAt = Date.now();
+    emitNavigationLoader(true);
+    showLoaderTimer = null;
+  }, LOADER_SHOW_DELAY_MS);
+}
+
+function stopNavigationLoader() {
+  if (showLoaderTimer) {
+    clearTimeout(showLoaderTimer);
+    showLoaderTimer = null;
+  }
+  if (!isLoaderVisible) {
+    emitNavigationLoader(false);
+    return;
+  }
+
+  const elapsed = Date.now() - loaderVisibleAt;
+  const remainingVisibleTime = Math.max(LOADER_MIN_VISIBLE_MS - elapsed, 0);
+  hideLoaderTimer = setTimeout(() => {
+    isLoaderVisible = false;
+    loaderVisibleAt = 0;
+    emitNavigationLoader(false);
+    hideLoaderTimer = null;
+  }, remainingVisibleTime);
+}
+
 const routes = [
   // Page Client
   {
@@ -223,6 +275,12 @@ const routes = [
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
   // Redirect missing routes to Home to avoid console warnings
+  { path: "/login", redirect: "/auth/login" },
+  { path: "/posts", redirect: "/blog" },
+  { path: "/app", redirect: "/" },
+  { path: "/terms", redirect: "/about" },
+  { path: "/privacy", redirect: "/about" },
+  { path: "/search", redirect: (to) => ({ path: "/map", query: to.query }) },
   { path: "/contact", redirect: "/" },
   { path: "/features", redirect: "/" },
   { path: "/promotions", redirect: "/" },
@@ -237,6 +295,7 @@ const router = createRouter({
 
 // Middleware - Navigation Guard
 router.beforeEach((to, from, next) => {
+  startNavigationLoader();
   const token = localStorage.getItem("token");
   let user = null;
 
@@ -279,6 +338,14 @@ router.beforeEach((to, from, next) => {
 
   // 4. Cho phép tiếp tục đi tới Route yêu cầu
   next();
+});
+
+router.afterEach(() => {
+  stopNavigationLoader();
+});
+
+router.onError(() => {
+  stopNavigationLoader();
 });
 
 export default router;

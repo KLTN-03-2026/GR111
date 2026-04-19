@@ -82,6 +82,7 @@ import OfflineBookingModal from '../../components/owner/dashboard/OfflineBooking
 import { clubService }    from '@/services/club.service';
 import { courtService }   from '@/services/court.service';
 import { bookingService } from '@/services/booking.service';
+import { socketService }  from '@/services/socket.service.js';
 import { toast }          from 'vue3-toastify';
 
 export default {
@@ -92,10 +93,13 @@ export default {
   data() {
     return {
       currentClubId:   null,
+      ownerClubs:      [],
       slotDuration:    60,   // minutes – overwritten after fetchClub
       calendarDate:    (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })(),
+      selectedDate:    (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })(),
       calendarLoading: false,
       newBookingId:    null, // to pulse-highlight after create
+      activeSocketVenueId: null,
 
       summaryStats: [
         { label: 'Doanh thu hôm nay', value: '0đ',    icon: 'payments',       color: 'green',  trend: 'up', change: 0, fill: 0 },
@@ -126,11 +130,12 @@ export default {
     // If there's a club, join its socket room
     if (this.currentClubId) {
       socketService.joinVenue(this.currentClubId);
+      this.activeSocketVenueId = this.currentClubId;
     }
   },
   beforeUnmount() {
-    if (this.currentClubId) {
-      socketService.leaveVenue(this.currentClubId);
+    if (this.activeSocketVenueId) {
+      socketService.leaveVenue(this.activeSocketVenueId);
     }
     socketService.disconnect();
   },
@@ -143,9 +148,11 @@ export default {
       try {
         const clubRes = await clubService.getOwnerClubs();
         if (clubRes.data?.success && clubRes.data.data.length > 0) {
+          this.ownerClubs = clubRes.data.data;
           const club = clubRes.data.data[0];
           this.currentClubId = club.id;
           this.slotDuration  = club.slotDuration || 60;
+          this.selectedDate = this.calendarDate;
 
           await Promise.all([this.fetchCourts(), this.fetchBookings()]);
           this.updateStats();
@@ -253,6 +260,7 @@ export default {
     // ─────────────────────────────────────────────────────
     async onCalendarDateChange(dateStr) {
       this.calendarDate = dateStr;
+      this.selectedDate = dateStr;
       await this.fetchBookings(dateStr);
     },
 
@@ -305,6 +313,48 @@ export default {
     // ─────────────────────────────────────────────────────
     //  HELPERS
     // ─────────────────────────────────────────────────────
+    async refreshAllData() {
+      if (!this.currentClubId) return;
+      if (this.selectedDate) {
+        this.calendarDate = this.selectedDate;
+      }
+
+      this.ensureSocketVenueSubscription();
+      await Promise.all([this.fetchCourts(), this.fetchBookings(this.calendarDate)]);
+      this.updateStats();
+    },
+
+    ensureSocketVenueSubscription() {
+      if (!this.currentClubId || this.currentClubId === this.activeSocketVenueId) return;
+
+      if (this.activeSocketVenueId) {
+        socketService.leaveVenue(this.activeSocketVenueId);
+      }
+      socketService.joinVenue(this.currentClubId);
+      this.activeSocketVenueId = this.currentClubId;
+    },
+
+    async handleConfirmPayment(booking) {
+      if (!booking?.id) return;
+      try {
+        const res = await bookingService.confirmPayment(booking.id);
+        if (res?.success === false) {
+          toast.error(res?.message || 'Xác nhận thanh toán thất bại.');
+          return;
+        }
+        toast.success('Đã xác nhận thanh toán.');
+        await this.refreshAllData();
+      } catch (err) {
+        const msg = err?.response?.data?.message || 'Không thể xác nhận thanh toán.';
+        toast.error(msg);
+      }
+    },
+
+    handleViewBooking(booking) {
+      if (!booking?.id) return;
+      this.$router.push({ path: '/owner/bookings', query: { bookingId: String(booking.id) } });
+    },
+
     handleLockCourt()   { console.log('Lock court – TODO'); },
     handleViewReports() { this.$router.push('/owner/finance'); },
 
