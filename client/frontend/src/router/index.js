@@ -223,6 +223,12 @@ const routes = [
     meta: { layout: "owner", requiresAuth: true, roles: ["OWNER"] },
   },
   // Redirect missing routes to Home to avoid console warnings
+  { path: "/login", redirect: "/auth/login" },
+  { path: "/posts", redirect: "/blog" },
+  { path: "/app", redirect: "/" },
+  { path: "/terms", redirect: "/about" },
+  { path: "/privacy", redirect: "/about" },
+  { path: "/search", redirect: (to) => ({ path: "/map", query: to.query }) },
   { path: "/contact", redirect: "/" },
   { path: "/features", redirect: "/" },
   { path: "/promotions", redirect: "/" },

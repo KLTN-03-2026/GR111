@@ -18,7 +18,7 @@
 <script>
 import ClientFooter from "../components/layout/ClientFooter.vue";
 import ClientHeader from "../components/layout/ClientHeader.vue";
-import ChatAI from "../components/ChatAI.vue";
+import ChatAI from "../components/chatbot/ChatAI.vue";
 
 import "../assets/assets/js/bootstrap.bundle.min.js";
 import "../assets/assets/js/jquery.min.js";

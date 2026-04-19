@@ -287,7 +287,11 @@ export default {
             console.warn("Geolocation refine failed:", e);
           }
         },
-        (err) => console.warn("Geolocation denied:", err.message),
+        (err) => {
+          // User denying location is expected behavior; keep silent to avoid noisy console warnings.
+          if (err?.code === 1) return;
+          console.warn("Geolocation failed:", err?.message || err);
+        },
         { timeout: 8000, maximumAge: 300_000 }
       );
     },
