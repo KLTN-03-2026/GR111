@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type infer as ZodInfer } from "zod";
 
 export const updateProfileSchema = z.object({
   fullName: z.string().min(2, "Họ tên phải có ít nhất 2 ký tự").max(100, "Họ tên không được quá 100 ký tự").optional(),
@@ -10,4 +10,4 @@ export const updateProfileSchema = z.object({
   bio: z.string().max(500).optional(),
 });
 
-export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+export type UpdateProfileInput = ZodInfer<typeof updateProfileSchema>;

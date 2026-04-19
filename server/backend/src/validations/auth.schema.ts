@@ -1,6 +1,10 @@
-import { z } from "zod";
+import { z, type infer as ZodInfer } from "zod";
 
 // Zod v4: dùng .min(1, msg) thay cho required_error
+type PasswordConfirmInput = {
+  newPassword: string;
+  confirmPassword: string;
+};
 
 export const registerSchema = z.object({
   fullName: z
@@ -46,7 +50,7 @@ export const changePasswordSchema = z
     newPassword: z.string().min(6, "Mật khẩu mới phải có ít nhất 6 ký tự"),
     confirmPassword: z.string(),
   })
-  .refine((data) => data.newPassword === data.confirmPassword, {
+  .refine((data: PasswordConfirmInput) => data.newPassword === data.confirmPassword, {
     message: "Xác nhận mật khẩu không khớp",
     path: ["confirmPassword"],
   });
@@ -61,13 +65,13 @@ export const resetPasswordSchema = z
     newPassword: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
     confirmPassword: z.string(),
   })
-  .refine((data) => data.newPassword === data.confirmPassword, {
+  .refine((data: PasswordConfirmInput) => data.newPassword === data.confirmPassword, {
     message: "Xác nhận mật khẩu không khớp",
     path: ["confirmPassword"],
   });
 
-export type RegisterInput = z.infer<typeof registerSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
-export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type RegisterInput = ZodInfer<typeof registerSchema>;
+export type LoginInput = ZodInfer<typeof loginSchema>;
+export type ChangePasswordInput = ZodInfer<typeof changePasswordSchema>;
+export type ForgotPasswordInput = ZodInfer<typeof forgotPasswordSchema>;
+export type ResetPasswordInput = ZodInfer<typeof resetPasswordSchema>;

@@ -5,6 +5,15 @@ import type { ManualBookingInput } from "@/validations/manual-booking.schema";
 import { eventEmitter } from "@/lib/events";
 import { bookingRepository } from "@/modules/booking/booking.repository";
 
+type CreateBookingSlotInput = CreateBookingInput["slots"][number];
+type ManualBookingSlotInput = ManualBookingInput["slots"][number];
+type CreateBookingTimeSlot = Prisma.TimeSlotGetPayload<{
+  include: { court: { include: { club: { select: { slotDuration: true } }; pricings: true } } };
+}>;
+type ManualBookingTimeSlot = Prisma.TimeSlotGetPayload<{
+  include: { court: { include: { pricings: true } } };
+}>;
+
 /**
  * Booking Service (Modular & Scalable version)
  * Handles business logic, calculates prices/vouchers, coordinates transactions.
@@ -23,7 +32,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   if (!club) throw new Error("CLUB_NOT_FOUND");
 
   // 1. "Ensure" slots exist (Upsert) and get details
-  const slotPromises = input.slots.map(async (s) => {
+  const slotPromises = input.slots.map(async (s: CreateBookingSlotInput) => {
     const startTime = new Date(s.startTime);
     const endTime = new Date(startTime.getTime() + club.slotDuration * 60000);
 
@@ -47,7 +56,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
     });
   });
 
-  const slots = await Promise.all(slotPromises);
+  const slots: CreateBookingTimeSlot[] = await Promise.all(slotPromises);
   const timeSlotIds = slots.map(s => s.id);
 
   if (slots.some(s => s.status !== "AVAILABLE")) {
@@ -231,7 +240,7 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
   if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
 
   // Upsert slots logic (Keep standard for now, but Repository could abstract this later)
-  const slotPromises = input.slots.map(async (s) => {
+  const slotPromises = input.slots.map(async (s: ManualBookingSlotInput) => {
     const startTime = new Date(s.startTime);
     const endTime = new Date(startTime.getTime() + club.slotDuration * 60000);
     return prisma.timeSlot.upsert({
@@ -242,7 +251,7 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
     });
   });
 
-  const slots = await Promise.all(slotPromises);
+  const slots: ManualBookingTimeSlot[] = await Promise.all(slotPromises);
   const timeSlotIds = slots.map(s => s.id);
 
   if (slots.some(s => s.status !== "AVAILABLE")) throw new Error("SLOT_NOT_AVAILABLE");

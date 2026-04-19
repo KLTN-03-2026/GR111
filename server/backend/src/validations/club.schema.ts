@@ -4,8 +4,8 @@ import { z } from "zod";
 const optionalUrl = z
   .string()
   .optional()
-  .transform((v) => (v === "" ? undefined : v))
-  .refine((v) => v === undefined || /^https?:\/\/.+/.test(v), {
+  .transform((v: string | undefined) => (v === "" ? undefined : v))
+  .refine((v: string | undefined) => v === undefined || /^https?:\/\/.+/.test(v), {
     message: "URL không hợp lệ",
   });
 
@@ -14,23 +14,23 @@ const optionalMinString = (min: number) =>
   z
     .string()
     .optional()
-    .transform((v) => (v === "" ? undefined : v))
-    .refine((v) => v === undefined || v.length >= min, {
+    .transform((v: string | undefined) => (v === "" ? undefined : v))
+    .refine((v: string | undefined) => v === undefined || v.length >= min, {
       message: `Phải có ít nhất ${min} ký tự`,
     });
 
 export const clubSchema = z.object({
   name:          z.string().min(3, "Tên câu lạc bộ phải có ít nhất 3 ký tự").max(100),
-  description:   z.string().optional().transform((v) => (v === "" ? undefined : v)),
+  description:   z.string().optional().transform((v: string | undefined) => (v === "" ? undefined : v)),
   address:       z.string().min(5, "Địa chỉ phải có ít nhất 5 ký tự"),
-  ward:          z.string().optional().transform((v) => (v === "" ? undefined : v)),
+  ward:          z.string().optional().transform((v: string | undefined) => (v === "" ? undefined : v)),
   district:      z.string().min(2, "Vui lòng chọn quận/huyện"),
   city:          z.string().min(2, "Vui lòng chọn thành phố"),
   latitude:      z.number().optional(),
   longitude:     z.number().optional(),
   phone:         optionalMinString(10),
-  email:         z.string().optional().transform((v) => (v === "" ? undefined : v)).refine(
-    (v) => v === undefined || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
+  email:         z.string().optional().transform((v: string | undefined) => (v === "" ? undefined : v)).refine(
+    (v: string | undefined) => v === undefined || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
     { message: "Email không hợp lệ" }
   ),
   website:       optionalUrl,
