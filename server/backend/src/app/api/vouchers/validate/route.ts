@@ -1,4 +1,4 @@
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { validateVoucher } from "@/modules/marketing/voucher.service";
 import { errorResponse, successResponse, serverErrorResponse } from "@/lib/response";
 import { NextRequest } from "next/server";

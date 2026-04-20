@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getBookingByClubId } from "@/modules/booking/booking.service";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**

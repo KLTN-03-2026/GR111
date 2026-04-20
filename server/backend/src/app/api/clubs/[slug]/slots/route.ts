@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 import { getInferredSlotsForCourt } from "@/modules/slot/slot.service";
 

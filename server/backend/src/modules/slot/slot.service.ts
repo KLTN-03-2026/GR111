@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { eventEmitter } from "@/lib/events";
 import { slotRepository } from "@/modules/slot/slot.repository";
 

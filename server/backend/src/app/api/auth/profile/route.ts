@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { getMyProfile } from "@/modules/user/user.service";
 import { successResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 /**
  * GET /api/auth/profile

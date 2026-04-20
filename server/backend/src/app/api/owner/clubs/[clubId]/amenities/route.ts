@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { successResponse, serverErrorResponse, errorResponse } from "@/lib/response";
 import { getClubById, updateClubAmenities, getAllAmenities } from "@/modules/club/club.service";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 
 /**
  * [GET] /api/owner/clubs/[clubId]/amenities

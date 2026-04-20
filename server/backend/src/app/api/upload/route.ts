@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { uploadImage, UploadFolder } from "@/lib/cloudinary";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 // Giới hạn kích thước file (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;

@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { ApprovalStatus, CourtStatus } from "@/generated/prisma";
-import { notifyNewBooking } from "@/lib/socket";
+import { notifyNewBooking } from "@/infra/realtime/socket";
 
 /**
  * Lấy danh sách tất cả các câu lạc bộ và sân chi tiết (Dành cho Admin)

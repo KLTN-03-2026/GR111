@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcrypt";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 const SALT_ROUNDS = 12;
 
