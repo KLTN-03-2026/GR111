@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { signToken } from "@/lib/jwt";
-import { sendResetPasswordEmail } from "@/lib/mail";
+import { sendResetPasswordEmail } from "@/infra/mail/mailer";
 import axios from "axios";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";

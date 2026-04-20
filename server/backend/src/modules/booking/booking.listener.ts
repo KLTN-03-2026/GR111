@@ -1,7 +1,7 @@
 import { eventEmitter } from "@/lib/events";
-import { notifyNewBooking, notifyBookingStatusChanged } from "@/lib/socket";
-import { sendBookingConfirmationEmail, sendBookingWaitingPaymentEmail } from "@/lib/mail";
-import { prisma } from "@/lib/prisma";
+import { notifyNewBooking, notifyBookingStatusChanged } from "@/infra/realtime/socket";
+import { sendBookingConfirmationEmail, sendBookingWaitingPaymentEmail } from "@/infra/mail/mailer";
+import { prisma } from "@/infra/db/prisma";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   BANK_TRANSFER: 'Chuyển khoản ngân hàng',

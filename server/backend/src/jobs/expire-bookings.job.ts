@@ -1,5 +1,5 @@
-import { prisma } from "../lib/prisma";
-import { notifyNewBooking } from "../lib/socket";
+import { prisma } from "../infra/db/prisma";
+import { notifyNewBooking } from "../infra/realtime/socket";
 import cron from "node-cron";
 
 /**

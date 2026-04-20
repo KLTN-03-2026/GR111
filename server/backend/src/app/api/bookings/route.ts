@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { createBookingSchema } from "@/validations/booking.schema";
 import { createBooking, getMyBookings } from "@/modules/booking/booking.service";
 import { createPaymentUrl } from "@/modules/payment/payment.service";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 // GET /api/bookings — Lấy danh sách booking của user đang đăng nhập

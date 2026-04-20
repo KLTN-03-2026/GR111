@@ -1,16 +1,8 @@
 import { NextRequest } from "next/server";
 import { verifyToken, extractTokenFromHeader, JwtPayload } from "@/lib/jwt";
 import { errorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
-/**
- * Lấy thông tin user đã xác thực từ request.
- * Dùng trong các route cần đăng nhập.
- *
- * @example
- * const { user, error } = await getAuthUser(req);
- * if (error) return error;
- */
 export async function getAuthUser(
   req: NextRequest
 ): Promise<{ user: JwtPayload; error: null } | { user: null; error: ReturnType<typeof errorResponse> }> {
@@ -32,7 +24,6 @@ export async function getAuthUser(
     };
   }
 
-  // 1. Kiểm tra session (Nếu có SID)
   if (payload.sid) {
     const session = await prisma.session.findUnique({
       where: { id: payload.sid },
@@ -46,10 +37,9 @@ export async function getAuthUser(
     }
   }
 
-  // 2. Kiểm tra User tồn tại trong DB (Tránh trường hợp DB vừa bị seed/wipe)
   const userExists = await prisma.user.findUnique({
     where: { id: payload.userId },
-    select: { id: true }
+    select: { id: true },
   });
 
   if (!userExists) {
@@ -62,13 +52,6 @@ export async function getAuthUser(
   return { user: payload, error: null };
 }
 
-/**
- * Kiểm tra user có đúng role yêu cầu không.
- *
- * @example
- * const check = requireRole(user, ["ADMIN", "OWNER"]);
- * if (check) return check;
- */
 export function requireRole(
   user: JwtPayload,
   roles: string[]

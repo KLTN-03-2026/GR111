@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getClubById, updateClub, deleteClub } from "@/modules/club/club.service";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 import { updateClubSchema } from "@/validations/club.schema";
 

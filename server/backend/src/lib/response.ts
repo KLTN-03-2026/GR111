@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { handleApiError } from "@/middleware/error-handler";
 
 // ============================================================
 // CHUẨN HOÁ RESPONSE TRẢ VỀ CHO FRONTEND
@@ -52,9 +53,9 @@ export function badRequestResponse(message: string, errors?: Record<string, stri
  */
 export function serverErrorResponse(error: unknown): NextResponse<ErrorResponse> {
   console.error("[SERVER_ERROR]", error);
-  const message = error instanceof Error ? error.message : String(error);
+  const handled = handleApiError(error);
   return NextResponse.json(
-    { success: false, message: "Server Error: " + message },
-    { status: 500 }
+    { success: false, message: handled.message, errors: handled.details },
+    { status: handled.statusCode }
   );
 }

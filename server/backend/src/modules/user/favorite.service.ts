@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 /**
  * Toggle (thêm hoặc xóa khỏi yêu thích) một Cơ sở (Club) hoặc Sân (Court)

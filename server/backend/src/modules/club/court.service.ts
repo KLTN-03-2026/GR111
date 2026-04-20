@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { CreateCourtInput } from "@/validations/court.schema";
 
 /**

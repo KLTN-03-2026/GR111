@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma";
-import { notifyNewBooking } from "@/lib/socket";
+import { prisma } from "@/infra/db/prisma";
+import { notifyNewBooking } from "@/infra/realtime/socket";
 import { eventEmitter } from "@/lib/events";
 
 const VNP_TMN_CODE = process.env.VNP_TMN_CODE || "";

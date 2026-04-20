@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getMyProfile, updateMyProfile } from "@/modules/user/user.service";
 import { updateProfileSchema } from "@/validations/user.schema";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 // GET /api/users/me → lấy thông tin user đang đăng nhập (Me)

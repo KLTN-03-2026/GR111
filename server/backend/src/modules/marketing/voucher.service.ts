@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 /**
  * Lấy danh sách voucher khả dụng của hệ thống và của CLB cụ thể (nếu có)

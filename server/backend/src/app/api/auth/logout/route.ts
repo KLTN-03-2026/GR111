@@ -1,4 +1,4 @@
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { logoutUser } from "@/modules/user/auth.service";
 import { successResponse, errorResponse } from "@/lib/response";
 import { NextRequest } from "next/server";

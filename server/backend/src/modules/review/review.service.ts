@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 /**
  * Tạo đánh giá mới (Chỉ áp dụng cho đơn đã hoàn thành COMPLETED)

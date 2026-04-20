@@ -1,26 +1,21 @@
 import nodemailer from "nodemailer";
+import { env } from "@/core/config/env";
 
-/**
- * Cấu hình Transporter cho Nodemailer sử dụng Gmail SMTP
- */
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_SECURE === "true", // false cho port 587
+  host: env.SMTP_HOST,
+  port: env.SMTP_PORT,
+  secure: env.SMTP_SECURE,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
   },
 });
 
-/**
- * Gửi email đặt lại mật khẩu bằng Nodemailer
- */
 export async function sendResetPasswordEmail(email: string, token: string) {
-  const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5173'}/auth/reset-password?token=${token}`;
-  
+  const resetLink = `${env.NEXT_PUBLIC_APP_URL || "http://localhost:5173"}/auth/reset-password?token=${token}`;
+
   const mailOptions = {
-    from: `"Playfinder Support" <${process.env.EMAIL_USER}>`,
+    from: `"Playfinder Support" <${env.SMTP_USER ?? "no-reply@playfinder.local"}>`,
     to: email,
     subject: "Đặt lại mật khẩu - Playfinder",
     html: `
@@ -63,41 +58,35 @@ export interface BookingEmailData {
   paymentMethod: string;
 }
 
-/**
- * Gửi email xác nhận đặt sân thành công
- */
 export async function sendBookingConfirmationEmail(data: BookingEmailData) {
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
   const slotRows = data.slots
     .map(
-      (s) => `
+      (slot) => `
       <tr>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${s.date}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${s.time}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${slot.date}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${slot.time}</td>
       </tr>`
     )
-    .join('');
+    .join("");
 
   const mailOptions = {
-    from: `"Playfinder" <${process.env.EMAIL_USER}>`,
+    from: `"Playfinder" <${env.SMTP_USER ?? "no-reply@playfinder.local"}>`,
     to: data.bookerEmail,
     subject: `✅ Đặt sân thành công - ${data.bookingCode}`,
     html: `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-        <!-- Header -->
         <div style="background: linear-gradient(135deg, #16a34a, #15803d); padding: 30px 20px; text-align: center; border-radius: 10px 10px 0 0;">
           <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Đặt sân thành công!</h1>
           <p style="color: #bbf7d0; margin: 8px 0 0; font-size: 14px;">Mã đơn: <strong style="color: white;">${data.bookingCode}</strong></p>
         </div>
 
-        <!-- Body -->
         <div style="padding: 24px 20px; border: 1px solid #e5e7eb; border-top: none;">
           <p style="font-size: 16px;">Xin chào <strong>${data.bookerName}</strong>,</p>
           <p style="color: #4b5563;">Cảm ơn bạn đã đặt sân tại <strong>${data.clubName}</strong>. Dưới đây là chi tiết đơn đặt sân của bạn:</p>
 
-          <!-- Booking Info Card -->
           <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
             <h3 style="margin: 0 0 12px; color: #16a34a; font-size: 16px;">📋 Thông tin đơn đặt sân</h3>
             <table style="width: 100%; font-size: 14px; color: #374151;">
@@ -112,7 +101,6 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
             </table>
           </div>
 
-          <!-- Time Slots Table -->
           <div style="margin: 20px 0;">
             <h3 style="margin: 0 0 12px; color: #16a34a; font-size: 16px;">⏰ Khung giờ đã đặt</h3>
             <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -126,7 +114,6 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
             </table>
           </div>
 
-          <!-- Pricing -->
           <div style="background: #f0fdf4; border-radius: 8px; padding: 16px; margin: 20px 0; border: 1px solid #bbf7d0;">
             <h3 style="margin: 0 0 12px; color: #16a34a; font-size: 16px;">💰 Chi tiết thanh toán</h3>
             <table style="width: 100%; font-size: 14px; color: #374151;">
@@ -138,7 +125,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
               <tr>
                 <td style="padding: 4px 0; color: #16a34a;">Giảm giá:</td>
                 <td style="padding: 4px 0; text-align: right; color: #16a34a;">-${formatCurrency(data.discountAmount)}</td>
-              </tr>` : ''}
+              </tr>` : ""}
               <tr style="border-top: 2px solid #16a34a;">
                 <td style="padding: 8px 0; font-weight: 700; font-size: 16px;">Tổng thanh toán:</td>
                 <td style="padding: 8px 0; text-align: right; font-weight: 700; font-size: 16px; color: #16a34a;">${formatCurrency(data.finalAmount)}</td>
@@ -148,7 +135,7 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
 
           <div style="text-align: center; margin: 30px 0;">
             <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">Bạn muốn thay đổi kế hoạch? Bạn có thể hủy đơn đặt sân trước 24h:</p>
-            <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5173'}/account/bookings?cancel_code=${data.bookingCode}" 
+            <a href="${env.NEXT_PUBLIC_APP_URL || "http://localhost:5173"}/account/bookings?cancel_code=${data.bookingCode}"
                style="background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                Hủy đặt sân
             </a>
@@ -159,7 +146,6 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
           </p>
         </div>
 
-        <!-- Footer -->
         <div style="background: #f9fafb; padding: 16px 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #e5e7eb; border-top: none;">
           <p style="font-size: 12px; color: #9ca3af; margin: 0;">© 2026 Playfinder. Đây là email tự động, vui lòng không phản hồi.</p>
         </div>
@@ -169,34 +155,30 @@ export async function sendBookingConfirmationEmail(data: BookingEmailData) {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`📧 Booking confirmation email sent to ${data.bookerEmail}: ${info.response}`);
+    console.log(`Booking confirmation email sent to ${data.bookerEmail}: ${info.response}`);
     return true;
   } catch (error) {
-    // Không throw lỗi để không ảnh hưởng đến flow đặt sân
-    console.error("⚠️ Failed to send booking confirmation email:", error);
+    console.error("Failed to send booking confirmation email:", error);
     return false;
   }
 }
 
-/**
- * Gửi email thông báo đang chờ thanh toán (cho Chuyển khoản ngân hàng)
- */
 export async function sendBookingWaitingPaymentEmail(data: BookingEmailData) {
   const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+    new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
   const slotRows = data.slots
     .map(
-      (s) => `
+      (slot) => `
       <tr>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${s.date}</td>
-        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${s.time}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${slot.date}</td>
+        <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${slot.time}</td>
       </tr>`
     )
-    .join('');
+    .join("");
 
   const mailOptions = {
-    from: `"Playfinder" <${process.env.EMAIL_USER}>`,
+    from: `"Playfinder" <${env.SMTP_USER ?? "no-reply@playfinder.local"}>`,
     to: data.bookerEmail,
     subject: `🕒 Đang chờ thanh toán - ${data.bookingCode}`,
     html: `
@@ -242,7 +224,7 @@ export async function sendBookingWaitingPaymentEmail(data: BookingEmailData) {
           </div>
 
           <p style="font-size: 12px; color: #9ca3af; text-align: center; margin-top: 24px;">
-            Hệ thống sẽ giữ chỗ cho bạn trong vòng 15 phút. Sau thời gian này nếy chưa nhận được thanh toán, đơn sẽ tự động bị hủy.
+            Hệ thống sẽ giữ chỗ cho bạn trong vòng 15 phút. Sau thời gian này nếu chưa nhận được thanh toán, đơn sẽ tự động bị hủy.
           </p>
         </div>
 
@@ -255,10 +237,10 @@ export async function sendBookingWaitingPaymentEmail(data: BookingEmailData) {
 
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log(`📧 Waiting payment email sent to ${data.bookerEmail}: ${info.response}`);
+    console.log(`Waiting payment email sent to ${data.bookerEmail}: ${info.response}`);
     return true;
   } catch (error) {
-    console.error("⚠️ Failed to send waiting payment email:", error);
+    console.error("Failed to send waiting payment email:", error);
     return false;
   }
 }

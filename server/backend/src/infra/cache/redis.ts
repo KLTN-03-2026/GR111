@@ -1,6 +1,7 @@
 import Redis from "ioredis";
+import { env } from "@/core/config/env";
 
-const redisUrl = process.env.REDIS_URL || "redis://127.0.0.1:6379";
+const redisUrl = env.REDIS_URL;
 
 export const redis = new Redis(redisUrl, {
   maxRetriesPerRequest: null,
@@ -12,10 +13,8 @@ export const pubClient = new Redis(redisUrl, {
 
 export const subClient = pubClient.duplicate();
 
-// --- Error handling ---
-
-const handleRedisError = (clientName: string) => (err: Error) => {
-  console.error(`[Redis] ${clientName} Error:`, err.message || err);
+const handleRedisError = (clientName: string) => (error: Error) => {
+  console.error(`[Redis] ${clientName} Error:`, error.message || error);
 };
 
 redis.on("error", handleRedisError("Main"));

@@ -1,14 +1,15 @@
 import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
-import { initSocket } from "./src/lib/socket";
+import { env } from "./src/core/config/env";
+import { initSocket } from "./src/infra/realtime/socket";
 import { initBookingJobs } from "./src/jobs/expire-bookings.job";
 import { initBookingListeners } from "./src/modules/booking/booking.listener";
 import { initSlotListeners } from "./src/modules/slot/slot.listener";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
-const port = parseInt(process.env.PORT || "3000", 10);
+const port = env.PORT;
 
 // Initialize Next.js app
 const app = next({ dev, hostname, port });
@@ -31,7 +32,7 @@ app.prepare().then(() => {
     }
   });
 
-  // 1. Initialize Socket.io (using the established lib)
+  // 1. Initialize Socket.io
   initSocket(httpServer);
   console.log("✓ Socket.io server ready");
 

@@ -1,17 +1,18 @@
 import { Server as SocketIOServer } from "socket.io";
 import { Server as HTTPServer } from "http";
 import { createAdapter } from "@socket.io/redis-adapter";
-import { pubClient, subClient, redis } from "./redis";
+import { env } from "@/core/config/env";
+import { pubClient, subClient, redis } from "@/infra/cache/redis";
 
 let io: SocketIOServer | null = null;
 
 const NOTIFICATION_LIMIT = 50;
-const NOTIFICATION_EXPIRE = 24 * 60 * 60; // 1 day
+const NOTIFICATION_EXPIRE = 24 * 60 * 60;
 
 export const initSocket = (server: HTTPServer) => {
   io = new SocketIOServer(server, {
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:5173",
+      origin: env.NEXT_PUBLIC_APP_URL || "http://localhost:5173",
       credentials: true,
       methods: ["GET", "POST"],
     },
@@ -25,15 +26,14 @@ export const initSocket = (server: HTTPServer) => {
       socket.join(`venue-${venueId}`);
       console.log(`Socket ${socket.id} joined venue-${venueId}`);
 
-      // Push historical notifications from Redis to client
       try {
         const notifications = await redis.lrange(`notifications:venue:${venueId}`, 0, -1);
         if (notifications.length > 0) {
-          const parsed = notifications.map(n => JSON.parse(n));
+          const parsed = notifications.map((item) => JSON.parse(item));
           socket.emit("recent-notifications", parsed);
         }
-      } catch (err) {
-        console.error("Redis fetch notifications error:", err);
+      } catch (error) {
+        console.error("Redis fetch notifications error:", error);
       }
     });
 
@@ -67,15 +67,10 @@ export const getIO = () => {
   return io;
 };
 
-/**
- * Gửi thông báo booking mới cho chủ sân và lưu vào Redis.
- */
 export const notifyNewBooking = async (venueId: string, bookingData: unknown) => {
   if (io) {
-    // 1. Emit live
     io.to(`venue-${venueId}`).emit("booking-updated", bookingData);
 
-    // 2. Save historical notification to Redis
     try {
       const key = `notifications:venue:${venueId}`;
       const notification = JSON.stringify({
@@ -86,20 +81,15 @@ export const notifyNewBooking = async (venueId: string, bookingData: unknown) =>
       await redis.lpush(key, notification);
       await redis.ltrim(key, 0, NOTIFICATION_LIMIT - 1);
       await redis.expire(key, NOTIFICATION_EXPIRE);
-    } catch (err) {
-      console.error("Failed to cache notification in Redis:", err);
+    } catch (error) {
+      console.error("Failed to cache notification in Redis:", error);
     }
   }
 };
 
-/**
- * Gửi thông báo cập nhật trạng thái đơn đặt sân đến client đang theo dõi booking đó
- * Lưu ý: Có thể lưu vào Redis của User/Booking nếu cần, nhưng booking room
- * thường chỉ là live session. Ở đây ta giữ nguyên live.
- */
 export const notifyBookingStatusChanged = (bookingId: string, data: unknown) => {
   if (io) {
     io.to(`booking-${bookingId}`).emit("booking-status-changed", data);
-    console.log(`📡 Emitted booking-status-changed to booking-${bookingId}`);
+    console.log(`Emitted booking-status-changed to booking-${bookingId}`);
   }
 };

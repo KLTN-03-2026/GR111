@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { updateOwnerBankInfo, updateOwnerProfile } from "@/modules/admin/owner.service";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 // GET /api/owner/profile  → Lấy đầy đủ thông tin Owner (user + ownerProfile + bio)
 export async function GET(req: NextRequest) {

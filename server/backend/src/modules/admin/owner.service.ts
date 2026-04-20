@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 // ============================================================
 // OWNER SERVICE - Quản lý hồ sơ & KYC của chủ sân

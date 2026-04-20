@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 // GET /api/owner/courts  → Lấy danh sách tất cả các sân của tất cả CLB thuộc Owner hiện tại
 export async function GET(req: NextRequest) {
