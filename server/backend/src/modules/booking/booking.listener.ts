@@ -1,7 +1,12 @@
 import { eventEmitter } from "@/lib/events";
 import { notifyNewBooking, notifyBookingStatusChanged } from "@/infra/realtime/socket";
-import { sendBookingConfirmationEmail, sendBookingWaitingPaymentEmail } from "@/infra/mail/mailer";
+import {
+  sendBookingConfirmationEmail,
+  sendBookingWaitingPaymentEmail,
+  sendOwnerNewBookingEmail,
+} from "@/infra/mail/mailer";
 import { prisma } from "@/infra/db/prisma";
+import { generateBookingCancelSupportToken } from "@/modules/booking/booking-cancel-support";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   BANK_TRANSFER: 'Chuyển khoản ngân hàng',
@@ -35,7 +40,19 @@ export const initBookingListeners = () => {
       const fullBooking = await prisma.booking.findUnique({
         where: { id: booking.id },
         include: {
-          club: { select: { name: true } },
+          club: {
+            select: {
+              name: true,
+              email: true,
+              owner: {
+                select: {
+                  fullName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+          },
           items: {
             include: {
               timeSlot: {
@@ -47,40 +64,71 @@ export const initBookingListeners = () => {
         }
       });
 
-      if (fullBooking && fullBooking.bookerEmail) {
+      if (fullBooking) {
         const courtNames = [...new Set(
           fullBooking.items.map(item => item.timeSlot.court.name)
         )].join(', ');
 
-        const slots = fullBooking.items.map(item => {
-          const start = new Date(item.timeSlot.startTime);
-          const end = new Date(item.timeSlot.endTime);
-          return {
-            date: start.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }),
-            time: `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
-          };
+        const slots = formatSlots(fullBooking.items);
+        const cancelSupportToken = generateBookingCancelSupportToken({
+          bookingId: fullBooking.id,
+          bookingCode: fullBooking.bookingCode,
+          bookerEmail: fullBooking.bookerEmail || undefined,
         });
 
-        const emailData = {
-          bookingId: fullBooking.id,
-          bookerName: fullBooking.bookerName,
-          bookerEmail: fullBooking.bookerEmail,
-          bookingCode: fullBooking.bookingCode,
-          clubName: fullBooking.club?.name || 'N/A',
-          courtName: courtNames,
-          slots,
-          totalAmount: Number(fullBooking.totalAmount),
-          discountAmount: Number(fullBooking.discountAmount),
-          finalAmount: Number(fullBooking.finalAmount),
-          paymentMethod: PAYMENT_METHOD_LABELS[fullBooking.payment?.method || ''] || fullBooking.payment?.method || 'N/A',
-        };
+        if (fullBooking.bookerEmail) {
+          const emailData = {
+            bookingId: fullBooking.id,
+            bookerName: fullBooking.bookerName,
+            bookerEmail: fullBooking.bookerEmail,
+            bookerPhone: fullBooking.bookerPhone,
+            bookingCode: fullBooking.bookingCode,
+            clubName: fullBooking.club?.name || 'N/A',
+            courtName: courtNames,
+            slots,
+            totalAmount: Number(fullBooking.totalAmount),
+            discountAmount: Number(fullBooking.discountAmount),
+            finalAmount: Number(fullBooking.finalAmount),
+            paymentMethod: PAYMENT_METHOD_LABELS[fullBooking.payment?.method || ''] || fullBooking.payment?.method || 'N/A',
+            cancelSupportToken,
+          };
 
-        // Nếu là chuyển khoản, gửi hướng dẫn thanh toán. Nếu là tiền mặt, gửi xác nhận đặt chỗ.
-        if (fullBooking.payment?.method === 'BANK_TRANSFER') {
-           await sendBookingWaitingPaymentEmail(emailData);
-        } else if (fullBooking.payment?.method === 'CASH') {
-           // Tiền mặt có thể gửi ngay email đặt chỗ thành công (vì không online)
-           await sendBookingConfirmationEmail(emailData);
+          // Nếu là chuyển khoản hoặc các phương thức online khác, gửi hướng dẫn thanh toán.
+          // Nếu là tiền mặt, gửi xác nhận đặt chỗ.
+          const onlineMethods = ['BANK_TRANSFER', 'VNPAY', 'MOMO', 'CREDIT_CARD'];
+
+          if (onlineMethods.includes(fullBooking.payment?.method || '')) {
+             console.log(`Sending waiting payment email for booking ${fullBooking.bookingCode} via ${fullBooking.payment?.method}`);
+             await sendBookingWaitingPaymentEmail(emailData);
+          } else if (fullBooking.payment?.method === 'CASH') {
+             console.log(`Sending confirmation email for CASH booking ${fullBooking.bookingCode}`);
+             await sendBookingConfirmationEmail(emailData);
+          }
+        }
+
+        const ownerEmailCandidates = [
+          fullBooking.club?.email || null,
+          fullBooking.club?.owner?.email || null,
+        ].filter(Boolean) as string[];
+        const ownerEmail = [...new Set(ownerEmailCandidates)].join(",");
+
+        if (ownerEmail) {
+          await sendOwnerNewBookingEmail({
+            ownerEmail,
+            ownerName: fullBooking.club?.owner?.fullName || "Chủ sân",
+            bookerName: fullBooking.bookerName,
+            bookerEmail: fullBooking.bookerEmail || undefined,
+            bookerPhone: fullBooking.bookerPhone,
+            bookingCode: fullBooking.bookingCode,
+            clubName: fullBooking.club?.name || "N/A",
+            courtName: courtNames,
+            slots,
+            finalAmount: Number(fullBooking.finalAmount),
+            paymentMethod:
+              PAYMENT_METHOD_LABELS[fullBooking.payment?.method || ""] ||
+              fullBooking.payment?.method ||
+              "N/A",
+          });
         }
       }
     } catch (error) {
@@ -111,6 +159,7 @@ export const initBookingListeners = () => {
 
     // 3. Nếu trạng thái là CONFIRMED (thanh toán thành công) → Gửi email hóa đơn
     if (booking?.status === 'CONFIRMED') {
+      console.log(`Booking ${booking.id} confirmed, triggering invoice email...`);
       try {
         await sendInvoice(booking.id);
       } catch (err) {
@@ -156,19 +205,19 @@ async function sendInvoice(bookingId: string) {
       fullBooking.items.map(item => item.timeSlot.court.name)
     )].join(', ');
 
-    const slots = fullBooking.items.map(item => {
-      const start = new Date(item.timeSlot.startTime);
-      const end = new Date(item.timeSlot.endTime);
-      return {
-        date: start.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }),
-        time: `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
-      };
+    const slots = formatSlots(fullBooking.items);
+    const cancelSupportToken = generateBookingCancelSupportToken({
+      bookingId: fullBooking.id,
+      bookingCode: fullBooking.bookingCode,
+      bookerEmail: fullBooking.bookerEmail || undefined,
     });
 
-    await sendBookingConfirmationEmail({
+    console.log(`Sending invoice email for booking ${fullBooking.bookingCode} to ${fullBooking.bookerEmail}`);
+    const success = await sendBookingConfirmationEmail({
       bookingId: fullBooking.id,
       bookerName: fullBooking.bookerName,
       bookerEmail: fullBooking.bookerEmail,
+      bookerPhone: fullBooking.bookerPhone,
       bookingCode: fullBooking.bookingCode,
       clubName: fullBooking.club?.name || 'N/A',
       courtName: courtNames,
@@ -177,6 +226,29 @@ async function sendInvoice(bookingId: string) {
       discountAmount: Number(fullBooking.discountAmount),
       finalAmount: Number(fullBooking.finalAmount),
       paymentMethod: PAYMENT_METHOD_LABELS[fullBooking.payment?.method || ''] || fullBooking.payment?.method || 'N/A',
+      cancelSupportToken,
     });
+    
+    if (success) {
+      console.log(`✅ Invoice email sent successfully to ${fullBooking.bookerEmail}`);
+    } else {
+      console.warn(`❌ Failed to send invoice email to ${fullBooking.bookerEmail}`);
+    }
+  } else {
+    console.warn(`⚠️ Could not send invoice: Missing booking data or email for ID ${bookingId}`);
   }
+}
+
+/**
+ * Hàm format slots cho email
+ */
+function formatSlots(items: any[]) {
+  return items.map(item => {
+    const start = new Date(item.timeSlot.startTime);
+    const end = new Date(item.timeSlot.endTime);
+    return {
+      date: start.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }),
+      time: `${start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`,
+    };
+  });
 }

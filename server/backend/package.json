@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:mail:booking": "tsx src/scripts/test-booking-email-flow.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.63",

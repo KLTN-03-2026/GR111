@@ -156,7 +156,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   const finalAmount = Math.max(0, totalAmount - discountAmount);
 
   // 5. Transaction - DB Update using Repository
-  return await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // Check & Book slots (FOR UPDATE)
     const lockedSlots = await tx.timeSlot.findMany({
       where: { id: { in: timeSlotIds }, status: "AVAILABLE" },
@@ -217,16 +217,18 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
       },
     }, tx as Prisma.TransactionClient);
 
-    // ── DECOUPLED NOTIFICATION ──────────────────────────
-    // Just emit the event, don't care how it's handled (Socket/Mail/Push)
-    eventEmitter.emit('booking.created', {
-      clubId: input.clubId,
-      booking: newBooking,
-      type: 'new-booking'
-    });
-
     return newBooking;
   });
+
+  // ── DECOUPLED NOTIFICATION ──────────────────────────
+  // Emit event after transaction commits
+  eventEmitter.emit('booking.created', {
+    clubId: input.clubId,
+    booking: result,
+    type: 'new-booking'
+  });
+
+  return result;
 }
 
 /**
@@ -274,7 +276,7 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
     slotPrices.push({ slotId: slot.id, price });
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const check = await tx.timeSlot.findMany({ where: { id: { in: timeSlotIds }, status: "AVAILABLE" } });
     if (check.length !== timeSlotIds.length) throw new Error("SLOT_TAKEN");
 
@@ -306,14 +308,16 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
       }
     }, tx as Prisma.TransactionClient);
 
-    eventEmitter.emit('booking.created', {
-      clubId: club.id,
-      booking,
-      type: 'manual-booking-created'
-    });
-
     return booking;
   });
+
+  eventEmitter.emit('booking.created', {
+    clubId: club.id,
+    booking: result,
+    type: 'manual-booking-created'
+  });
+
+  return result;
 }
 
 /**

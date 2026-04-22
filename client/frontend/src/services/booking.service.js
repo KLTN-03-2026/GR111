@@ -73,5 +73,11 @@ export const bookingService = {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
         return response.data;
-    }
+    },
+
+    // 12. Lấy thông tin liên hệ hỗ trợ hủy đơn từ link email
+    getCancelSupportInfo: async (token) => {
+        const response = await api.get(`/bookings/cancel-support/${encodeURIComponent(token)}`);
+        return response.data;
+    },
 }

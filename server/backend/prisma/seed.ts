@@ -90,6 +90,17 @@ async function main() {
     },
   });
 
+  const viAdminPassword = await bcrypt.hash("123456", SALT_ROUNDS);
+  await prisma.user.create({
+    data: {
+      email: "vi123@gmail.com",
+      fullName: "Admin VI",
+      passwordHash: viAdminPassword,
+      role: "ADMIN",
+      profile: { create: { bio: "Quản trị viên" } },
+    },
+  });
+
   // Owners
   const hashedOwnerPassword = await bcrypt.hash("14112004", SALT_ROUNDS);
   const vidinhOwner = await prisma.user.create({

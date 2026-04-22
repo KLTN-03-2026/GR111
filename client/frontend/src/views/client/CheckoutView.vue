@@ -96,7 +96,7 @@
                   class="fw-black text-success">{{ formatPrice(bookingInfo.total) }} đ</span></div>
             </div>
             <div class="d-flex gap-3 mt-4 flex-wrap justify-content-center">
-              <button class="btn btn-success fw-bold px-4" @click="$router.push('/')">Về trang chủ</button>
+              <button class="btn btn-success fw-bold px-4" style="background-color: rgb(25, 135, 84); border-color: rgb(25, 135, 84);" @click="$router.push('/')">Về trang chủ</button>
               <button class="btn btn-outline-secondary fw-bold px-4" @click="printConfirmation">In xác nhận</button>
             </div>
           </div>
@@ -974,7 +974,7 @@ export default {
       try { return JSON.parse(this.bookingInfo.slots); } catch { return []; }
     },
     finalCalculatedTotal() {
-      return this.discount = this.bookingInfo.total;
+      return Math.max(0, Number(this.bookingInfo.total || 0));
     },
 
     parsedServices() {
@@ -1121,7 +1121,7 @@ export default {
       booking_slots: typeof q.booking_slots === 'string' ? q.booking_slots : JSON.stringify(q.booking_slots || []),
       time_slot_ids: typeof q.time_slot_ids === 'string' ? q.time_slot_ids : JSON.stringify(q.time_slot_ids || []),
       services: typeof q.services === 'string' ? q.services : JSON.stringify(q.services || []),
-      total: Number(q.total) || 0,
+        total: Number(q.total) || 0,
       name: q.name || '',
       phone: q.phone || '',
       email: q.email || '',
@@ -1129,13 +1129,20 @@ export default {
       voucher_code: q.voucher_code || '',
     };
 
-    // Lưu lại base_total để tính toán voucher
-    this.bookingInfo.base_total = this.bookingInfo.total;
+    // Lưu subtotal gốc (trước voucher) để tránh áp voucher lặp lại ở checkout
+    this.bookingInfo.base_total = Number(q.base_total) || this.courtSubtotalAll() + this.serviceTotal;
+    this.discount = Number(q.discount) || 0;
+    if (this.discount > 0) {
+      this.bookingInfo.total = Math.max(0, this.bookingInfo.base_total - this.discount);
+    }
 
     // Tự động điền voucher nếu đã chọn ở trang trước
     if (this.bookingInfo.voucher_code) {
       this.voucherInput = this.bookingInfo.voucher_code;
-      this.applyVoucher(); // Tự động áp dụng để tính toán lại discount
+      // Chỉ validate lại khi chưa có discount được tính sẵn từ trang trước
+      if (this.discount <= 0) {
+        this.applyVoucher();
+      }
     }
 
     this.bookingCode = 'TP' + Date.now().toString(36).toUpperCase().slice(-6);
@@ -1306,7 +1313,7 @@ export default {
 
       const code = this.voucherInput.trim().toUpperCase();
       const clubId = this.bookingInfo.club_id;
-      const baseAmount = this.courtSubtotalAll() + this.serviceTotal;
+      const baseAmount = Number(this.bookingInfo.base_total) || (this.courtSubtotalAll() + this.serviceTotal);
 
       try {
         const res = await voucherService.validateVoucher(code, clubId, baseAmount);
@@ -1319,6 +1326,7 @@ export default {
           } else {
             this.discount = v.value;
           }
+          this.bookingInfo.total = Math.max(0, baseAmount - this.discount);
           this.bookingInfo.voucher_code = code;
           this.showVoucherInput = true;
         }
@@ -1327,6 +1335,7 @@ export default {
         this.voucherError = true;
         this.voucherErrorMessage = err.response?.data?.message || "Mã không hợp lệ";
         this.discount = 0;
+        this.bookingInfo.total = Math.max(0, baseAmount);
         this.bookingInfo.voucher_code = '';
       }
     },
@@ -1418,6 +1427,7 @@ export default {
             email: b.bookerEmail || '',
             note: b.note || '',
             voucher_code: '',
+            base_total: Number(b.totalAmount || b.finalAmount),
           };
 
           // Cập nhật lại timer dựa trên thời gian tạo đơn (giả sử hold 5 phút = 300s)

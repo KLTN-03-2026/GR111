@@ -286,7 +286,7 @@ async function handleFailedPayment(bookingId: string) {
 // Upload Payment Proof (Bank Transfer)
 // ─────────────────────────────────────────────────────────
 export async function submitPaymentProof(bookingId: string, proofImageUrl: string) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.findUnique({ where: { bookingId } });
     if (!payment) throw new Error("PAYMENT_NOT_FOUND");
 
@@ -300,15 +300,17 @@ export async function submitPaymentProof(bookingId: string, proofImageUrl: strin
       data: { status: "WAITING_PAYMENT" },
     });
 
-    if (updatedBooking.clubId) {
-      notifyNewBooking(updatedBooking.clubId, {
-        booking: updatedBooking,
-        type: "payment-proof-submitted",
-      });
-    }
-
     return updatedBooking;
   });
+
+  if (result.clubId) {
+    notifyNewBooking(result.clubId, {
+      booking: result,
+      type: "payment-proof-submitted",
+    });
+  }
+
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────

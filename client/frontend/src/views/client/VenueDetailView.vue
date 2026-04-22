@@ -983,6 +983,8 @@ export default {
         booking_slots: JSON.stringify(slots),
         services: JSON.stringify(selectedServicesData),
         total: this.grandTotal,
+        base_total: this.courtTotal + this.serviceTotal,
+        discount: this.discount,
         name: this.form.fullname,
         phone: this.form.phone,
         email: this.form.email,

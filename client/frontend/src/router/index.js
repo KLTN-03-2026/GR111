@@ -83,6 +83,11 @@ const routes = [
   component: () => import("../views/client/OrderManagement.vue"),
   meta: { requiresAuth: true },
   },
+  {
+    path: "/booking-cancel-support",
+    name: "booking-cancel-support",
+    component: () => import("../views/client/BookingCancelSupportView.vue"),
+  },
    {
   path: "/friend",
   name: "friend",
