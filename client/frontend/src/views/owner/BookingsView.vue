@@ -153,11 +153,12 @@
                     
                     <div class="slots-container-p">
                       <div v-for="h in timeSlots" :key="h" class="slot-cell-p">
-                        <!-- Booking Entry -->
+                        <!-- Booking Entry (1 ô = 1 giờ; nhiều slot 30p liên tiếp gộp 1 khối) -->
                         <div 
                           v-if="getBookingForSlot(court.id, h)" 
                           class="booking-item-p" 
                           :class="getBookingForSlot(court.id, h).status"
+                          :style="bookingCalendarBlockStyle(getBookingForSlot(court.id, h))"
                           @click="openDetail(getBookingForSlot(court.id, h).originalBooking)"
                         >
                           <div class="booking-inner-p">
@@ -413,11 +414,11 @@ export default {
       const club = this.clubs.find(c => c.id === this.selectedClubId);
       return club ? club.courts : [];
     },
+    /** Lịch dạng bảng: mỗi hàng = đúng 1 giờ (không chia theo slotDuration 30p). */
     timeSlots() {
       const selectedClub = this.clubs.find(c => c.id === this.selectedClubId);
       if (!selectedClub) return [];
 
-      const slotDuration = selectedClub.slotDuration || 60;
       let startHour = 5, startMin = 0, endHour = 23, endMin = 0;
 
       if (selectedClub.openingHours && selectedClub.openingHours.length > 0) {
@@ -426,30 +427,88 @@ export default {
         if (todayOh && !todayOh.isClosed) {
           const openD = new Date(todayOh.openTime);
           const closeD = new Date(todayOh.closeTime);
-          // Use UTC to match backend and seed
           startHour = openD.getUTCHours();
           startMin = openD.getUTCMinutes();
           endHour = closeD.getUTCHours();
           endMin = closeD.getUTCMinutes();
-          
-          // Handle cases where club closes at midnight or next day early morning
+
           if (endHour < startHour || (endHour === startHour && endMin <= startMin)) {
             endHour += 24;
           }
         }
       }
-      
-      const slots = [];
+
       let currentTotalMin = startHour * 60 + startMin;
       let endTotalMin = endHour * 60 + endMin;
-      
+      currentTotalMin = Math.floor(currentTotalMin / 60) * 60;
+      endTotalMin = Math.ceil(endTotalMin / 60) * 60;
+
+      const slots = [];
       while (currentTotalMin < endTotalMin) {
-        const h = Math.floor(currentTotalMin / 60) % 24;
-        const m = currentTotalMin % 60;
-        slots.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
-        currentTotalMin += slotDuration;
+        const h24 = Math.floor(currentTotalMin / 60);
+        const displayH = ((h24 % 24) + 24) % 24;
+        const displayM = currentTotalMin % 60;
+        slots.push(`${displayH.toString().padStart(2, '0')}:${displayM.toString().padStart(2, '0')}`);
+        currentTotalMin += 60;
       }
       return slots;
+    },
+    /**
+     * Gộp các timeSlot liên tiếp (cùng đơn + cùng sân), map key `courtId|HH:00` của giờ bắt đầu.
+     */
+    calendarSlotMap() {
+      const map = Object.create(null);
+      const TOL_MS = 60_000;
+      const fmt = (d) => {
+        const h = d.getHours().toString().padStart(2, '0');
+        const m = d.getMinutes().toString().padStart(2, '0');
+        return `${h}:${m}`;
+      };
+      const rowLabel = (d) => `${String(d.getHours()).padStart(2, '0')}:00`;
+
+      const pushCell = (booking, courtId, cur) => {
+        const durMin = (cur.end.getTime() - cur.start.getTime()) / 60000;
+        const spanHours = Math.max(1, Math.ceil(durMin / 60));
+        const key = `${courtId}|${rowLabel(cur.start)}`;
+        map[key] = {
+          customerName: booking.bookerName || booking.user?.fullName || 'Khách vãng lai',
+          startTime: fmt(cur.start),
+          endTime: fmt(cur.end),
+          spanHours,
+          status: booking.status,
+          originalBooking: booking,
+        };
+      };
+
+      for (const booking of this.fullBookingData) {
+        if (!booking.items?.length) continue;
+        const byCourt = new Map();
+        for (const item of booking.items) {
+          if (!item.timeSlot?.court) continue;
+          const cid = item.timeSlot.courtId;
+          if (!byCourt.has(cid)) byCourt.set(cid, []);
+          byCourt.get(cid).push({
+            start: new Date(item.timeSlot.startTime),
+            end: new Date(item.timeSlot.endTime),
+          });
+        }
+        for (const [courtId, intervals] of byCourt) {
+          intervals.sort((a, b) => a.start.getTime() - b.start.getTime());
+          let cur = { start: new Date(intervals[0].start), end: new Date(intervals[0].end) };
+          for (let i = 1; i < intervals.length; i++) {
+            const n = intervals[i];
+            const gap = n.start.getTime() - cur.end.getTime();
+            if (Math.abs(gap) <= TOL_MS) {
+              if (n.end.getTime() > cur.end.getTime()) cur.end = new Date(n.end);
+            } else {
+              pushCell(booking, courtId, cur);
+              cur = { start: new Date(n.start), end: new Date(n.end) };
+            }
+          }
+          pushCell(booking, courtId, cur);
+        }
+      }
+      return map;
     },
     stats() {
       const bookings = this.fullBookingData;
@@ -549,8 +608,16 @@ export default {
         this.isLoading = false;
       }
     },
-    getBookingForSlot(courtId, startTime) {
-      return this.rawBookings.find(b => b.courtId === courtId && b.startTime === startTime);
+    getBookingForSlot(courtId, slotLabel) {
+      return this.calendarSlotMap[`${courtId}|${slotLabel}`] || null;
+    },
+    bookingCalendarBlockStyle(cell) {
+      const span = cell?.spanHours || 1;
+      const h = 70;
+      return {
+        minHeight: `${span * h - 8}px`,
+        zIndex: span > 1 ? 2 : 1,
+      };
     },
     getStatusLabel(status) {
       const labels = {
@@ -795,10 +862,26 @@ export default {
 .court-name-p { font-weight: 800; color: #0f172a; font-size: 14px; }
 .court-type-p { font-size: 9px; color: #94a3b8; }
 
-.slot-cell-p { height: 70px; border-bottom: 1px solid #f1f5f9; position: relative; padding: 4px; }
+.slot-cell-p {
+  height: 70px;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+  padding: 4px;
+  overflow: visible;
+}
 .booking-item-p {
-  height: 100%; border-radius: 10px; padding: 6px 10px; cursor: pointer;
-  transition: .2s; overflow: hidden; border-left: 3px solid transparent;
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 4px;
+  min-height: calc(100% - 8px);
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: .2s;
+  overflow: hidden;
+  border-left: 3px solid transparent;
+  box-sizing: border-box;
 }
 .booking-item-p:hover { transform: scale(0.97); }
 .booking-item-p.confirmed, .booking-item-p.CONFIRMED { background: #ecfdf5; color: #059669; border-left-color: #10b981; }

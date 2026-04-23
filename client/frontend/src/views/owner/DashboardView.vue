@@ -37,7 +37,7 @@
 
     <div class="content-row">
       <!-- Recent Bookings Table -->
-      <div style="flex:2">
+      <div class="content-main">
         <RecentBookings 
           :bookings="recentBookings" 
           @confirm-payment="handleConfirmPayment"
@@ -46,7 +46,7 @@
       </div>
 
       <!-- Side Panel -->
-      <div class="side-content" style="flex:1">
+      <aside class="side-content">
         <!-- Quick Actions -->
         <QuickActions 
           @add-offline-booking="showOfflineModal = true"
@@ -56,7 +56,7 @@
 
         <!-- Court Status -->
         <CourtStatus :courts="courts" />
-      </div>
+      </aside>
     </div>
 
     <!-- Offline Booking Modal -->
@@ -68,6 +68,14 @@
       @close="showOfflineModal = false"
       @submit="submitOfflineBooking"
     />
+
+    <PaymentProofNotificationModal
+      :show="showPaymentProofModal"
+      :booking="paymentProofModalBooking"
+      :confirming="paymentProofConfirmLoading"
+      @close="closePaymentProofModal"
+      @confirm="handlePaymentProofModalConfirm"
+    />
   </div>
 </template>
 
@@ -78,6 +86,7 @@ import QuickActions       from '../../components/owner/dashboard/QuickActions.vu
 import CourtStatus        from '../../components/owner/dashboard/CourtStatus.vue';
 import VisualCalendar     from '../../components/owner/dashboard/VisualCalendar.vue';
 import OfflineBookingModal from '../../components/owner/dashboard/OfflineBookingModal.vue';
+import PaymentProofNotificationModal from '../../components/owner/dashboard/PaymentProofNotificationModal.vue';
 
 import { clubService }    from '@/services/club.service';
 import { courtService }   from '@/services/court.service';
@@ -88,7 +97,13 @@ import { toast }          from 'vue3-toastify';
 export default {
   name: 'OwnerDashboardView',
   components: {
-    StatCard, RecentBookings, QuickActions, CourtStatus, VisualCalendar, OfflineBookingModal
+    StatCard,
+    RecentBookings,
+    QuickActions,
+    CourtStatus,
+    VisualCalendar,
+    OfflineBookingModal,
+    PaymentProofNotificationModal,
   },
   data() {
     return {
@@ -112,18 +127,43 @@ export default {
       recentBookings: [],
       courts:         [],
       showOfflineModal: false,
+
+      showPaymentProofModal: false,
+      paymentProofModalBooking: null,
+      paymentProofConfirmLoading: false,
     };
   },
 
   async mounted() {
     await this.initDashboard();
     
-    // Connect socket and listen for updates
+    // Connect socket and listen for updates (callback phải gán trước khi join-venue để nhận recent-notifications)
     socketService.connect();
-    socketService.onBookingUpdate((data) => {
-      if (data.clubId === this.currentClubId) {
-        toast.info("Có đơn đặt sân mới hoặc cập nhật!");
-        this.refreshAllData();
+    socketService.onBookingUpdate(async (data) => {
+      const clubId = data?.booking?.clubId ?? data?.clubId;
+      if (!clubId || String(clubId) !== String(this.currentClubId)) return;
+
+      if (data?.type === 'payment-proof-submitted') {
+        toast.info('Khách đã gửi minh chứng chuyển khoản.');
+        const bid = data?.booking?.id;
+        if (bid) await this.openPaymentProofModalByBookingId(bid);
+        await this.refreshAllData();
+      } else {
+        toast.info('Có đơn đặt sân mới hoặc cập nhật.');
+        await this.refreshAllData();
+      }
+    });
+
+    socketService.onRecentNotifications(async (list) => {
+      if (!Array.isArray(list) || !list.length || !this.currentClubId) return;
+      const cid = String(this.currentClubId);
+      const relevant = list.filter((n) => {
+        const id = n?.booking?.clubId ?? n?.clubId;
+        return id && String(id) === cid;
+      });
+      const proof = [...relevant].reverse().find((n) => n.type === 'payment-proof-submitted');
+      if (proof?.booking?.id && !this.showPaymentProofModal) {
+        await this.openPaymentProofModalByBookingId(proof.booking.id);
       }
     });
 
@@ -201,6 +241,20 @@ export default {
           const endT      = slot?.endTime   ? this.formatTime(slot.endTime)   : '';
           const moreSlots = b.items?.length > 1 ? ` +${b.items.length - 1}` : '';
 
+          const payMethod = b.payment?.method;
+          const methodLabel =
+            payMethod === 'CASH'
+              ? 'Tiền mặt'
+              : payMethod === 'BANK_TRANSFER'
+                ? 'Chuyển khoản'
+                : payMethod || '—';
+
+          const canConfirmPayment =
+            b.status === 'PENDING' ||
+            (b.status === 'WAITING_PAYMENT' &&
+              payMethod === 'BANK_TRANSFER' &&
+              !!b.payment?.proofImageUrl);
+
           return {
             id:          b.id,
             name:        b.bookerName  || b.user?.fullName || 'Khách vãng lai',
@@ -209,10 +263,11 @@ export default {
             time:        startT && endT ? `${startT} – ${endT}` : '—',
             date:        new Date(slot?.startTime || b.createdAt).toLocaleDateString('vi-VN'),
             amount:      `${Number(b.finalAmount || b.totalAmount || 0).toLocaleString('vi-VN')}đ`,
-            method:      b.payment?.method === 'CASH' ? 'Tiền mặt' : (b.payment?.method || '—'),
+            method:      methodLabel,
             status:      b.status,
             statusText:  this.getStatusText(b.status),
             statusClass: this.getStatusClass(b.status),
+            canConfirmPayment,
           };
         }).slice(0, 10);
 
@@ -343,10 +398,53 @@ export default {
           return;
         }
         toast.success('Đã xác nhận thanh toán.');
+        this.closePaymentProofModal();
         await this.refreshAllData();
       } catch (err) {
         const msg = err?.response?.data?.message || 'Không thể xác nhận thanh toán.';
         toast.error(msg);
+      }
+    },
+
+    closePaymentProofModal() {
+      this.showPaymentProofModal = false;
+      this.paymentProofModalBooking = null;
+      this.paymentProofConfirmLoading = false;
+    },
+
+    /** Tải toàn bộ đơn CLB (không lọc ngày) để mở modal khi socket báo có proof — đơn có thể không thuộc ngày đang xem lịch */
+    async openPaymentProofModalByBookingId(bookingId) {
+      if (!this.currentClubId || !bookingId) return;
+      try {
+        const res = await bookingService.getBookingsByClub(this.currentClubId);
+        const rawList = res.data?.data || res.data || [];
+        const b = rawList.find((x) => String(x.id) === String(bookingId));
+        if (b?.payment?.proofImageUrl) {
+          this.paymentProofModalBooking = b;
+          this.showPaymentProofModal = true;
+        }
+      } catch (e) {
+        console.error('openPaymentProofModalByBookingId', e);
+      }
+    },
+
+    async handlePaymentProofModalConfirm(booking) {
+      if (!booking?.id) return;
+      this.paymentProofConfirmLoading = true;
+      try {
+        const res = await bookingService.confirmPayment(booking.id);
+        if (res?.success === false) {
+          toast.error(res?.message || 'Xác nhận thanh toán thất bại.');
+          return;
+        }
+        toast.success('Đã xác nhận thanh toán.');
+        this.closePaymentProofModal();
+        await this.refreshAllData();
+      } catch (err) {
+        const msg = err?.response?.data?.message || 'Không thể xác nhận thanh toán.';
+        toast.error(msg);
+      } finally {
+        this.paymentProofConfirmLoading = false;
       }
     },
 
@@ -384,32 +482,184 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 28px;
+  max-width: 100%;
 }
 
-/* ── Stats Grid ────────────────────── */
+/* ── Header & filters ───────────────── */
+.dashboard-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.header-left {
+  flex: 1;
+  min-width: min(100%, 260px);
+}
+
+.page-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 800;
+  color: #0f1623;
+  margin: 0 0 6px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 42rem;
+}
+
+.header-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.filter-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.filter-group label .material-icons-outlined {
+  font-size: 18px;
+  color: #059669;
+}
+
+.filter-select,
+.filter-date {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #eaecf2;
+  font-size: 15px;
+  font-family: inherit;
+  font-weight: 500;
+  color: #0f1623;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 22, 35, 0.04);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.filter-select:focus,
+.filter-date:focus {
+  outline: none;
+  border-color: #059669;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15);
+}
+
+/* ── Stats Grid (reserved) ───────────── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
 }
 
-/* ── Layout ────────────────────────── */
-.content-row   { display: flex; gap: 20px; align-items: flex-start; }
-.side-content  { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+/* ── Main layout ─────────────────────── */
+.content-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
 
-/* ── Responsive ────────────────────── */
+.content-main {
+  flex: 2;
+  min-width: 0;
+}
+
+.side-content {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Responsive ──────────────────────── */
 @media (max-width: 1280px) {
-  .stats-grid  { grid-template-columns: repeat(2, 1fr); }
-  .content-row { flex-direction: column; }
-  .side-content { flex-direction: row; }
-  .side-content > * { flex: 1; }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .content-row {
+    flex-direction: column;
+  }
+
+  .content-main,
+  .side-content {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .side-content {
+    flex-direction: row;
+    order: -1;
+  }
+
+  .side-content > * {
+    flex: 1;
+    min-width: 0;
+  }
 }
+
 @media (max-width: 768px) {
-  .header-filters { flex-direction: column; }
-  .stats-grid   { grid-template-columns: 1fr 1fr; }
-  .side-content { flex-direction: column; }
+  .dashboard-container {
+    gap: 20px;
+  }
+
+  .header-filters {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .side-content {
+    flex-direction: column;
+    order: -1;
+  }
+
+  .side-content > * {
+    flex: none;
+  }
 }
+
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .page-subtitle {
+    font-size: 0.8125rem;
+  }
 }
 </style>

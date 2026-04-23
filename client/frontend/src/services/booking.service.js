@@ -20,10 +20,10 @@ export const bookingService = {
         return response.data;
     },
 
-    // 4. Lấy danh sách đặt sân của một câu lạc bộ (Dành cho chủ sân)
+    // 4. Lấy danh sách đặt sân của một câu lạc bộ (Dành cho chủ sân). `date` bỏ trống = toàn bộ đơn của CLB.
     getBookingsByClub: async (clubId, date) => {
         const response = await api.get(`/owner/clubs/${clubId}/bookings`, {
-            params: { date }
+            params: date ? { date } : {},
         });
         return response.data;
     },

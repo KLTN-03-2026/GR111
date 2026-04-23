@@ -166,16 +166,39 @@
                   <small v-if="addSub&&!addForm.name" class="err-msg">Bắt buộc</small>
                 </div>
                 <div class="f">
-                  <label>Thành phố <span class="req">*</span></label>
-                  <input v-model="addForm.city" :class="{inv:addSub&&!addForm.city}" placeholder="Đà Nẵng" />
+                  <label>Tỉnh/Thành phố <span class="req">*</span></label>
+                  <select
+                    v-model="addProvinceSlug"
+                    class="addr-sel"
+                    :class="{inv:addSub&&!addForm.city}"
+                    :disabled="vnProvincesLoading"
+                    @change="onAddProvinceChange"
+                  >
+                    <option value="" disabled>{{ vnProvincesLoading ? 'Đang tải...' : '— Chọn tỉnh/thành —' }}</option>
+                    <option v-for="p in vnProvinces" :key="p.slug" :value="p.slug">{{ p.name }}</option>
+                  </select>
+                  <small v-if="vnProvincesErr" class="err-msg">{{ vnProvincesErr }}</small>
+                  <small v-if="vnAddDetailLoading" class="muted-msg">Đang tải quận/huyện…</small>
                 </div>
                 <div class="f">
                   <label>Quận/Huyện <span class="req">*</span></label>
-                  <input v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" placeholder="Hải Châu" />
+                  <select
+                    v-model="addDistrictCode"
+                    class="addr-sel"
+                    :class="{inv:addSub&&!addForm.district}"
+                    :disabled="!vnAddDetail || vnAddDetailLoading"
+                    @change="onAddDistrictChange"
+                  >
+                    <option value="" disabled>— Chọn quận/huyện —</option>
+                    <option v-for="d in (vnAddDetail?.districts || [])" :key="d.code" :value="d.code">{{ d.name }}</option>
+                  </select>
                 </div>
                 <div class="f span2">
                   <label>Phường/Xã</label>
-                  <input v-model="addForm.ward" placeholder="Hòa Cường Bắc" />
+                  <select v-model="addForm.ward" class="addr-sel" :disabled="!addDistrictCode">
+                    <option value="">— Chọn phường/xã (tuỳ chọn) —</option>
+                    <option v-for="w in addWardOptions" :key="w.code" :value="w.name">{{ w.name }}</option>
+                  </select>
                 </div>
                 <div class="f span2">
                   <label>Địa chỉ <span class="req">*</span></label>
@@ -383,9 +406,38 @@
               <div class="flabel"><span class="material-icons">info</span>Thông tin cơ bản</div>
               <div class="fgrid">
                 <div class="f span2"><label>Tên CLB <span class="req">*</span></label><input v-model="editForm.name" :class="{inv:editSub&&!editForm.name}" /></div>
-                <div class="f"><label>Thành phố <span class="req">*</span></label><input v-model="editForm.city" /></div>
-                <div class="f"><label>Quận/Huyện <span class="req">*</span></label><input v-model="editForm.district" /></div>
-                <div class="f span2"><label>Phường/Xã</label><input v-model="editForm.ward" /></div>
+                <div class="f">
+                  <label>Tỉnh/Thành phố <span class="req">*</span></label>
+                  <select
+                    v-model="editProvinceSlug"
+                    class="addr-sel"
+                    :disabled="vnProvincesLoading"
+                    @change="onEditProvinceChange"
+                  >
+                    <option value="" disabled>— Chọn tỉnh/thành —</option>
+                    <option v-for="p in vnProvinces" :key="'e-'+p.slug" :value="p.slug">{{ p.name }}</option>
+                  </select>
+                  <small v-if="vnEditDetailLoading" class="muted-msg">Đang tải quận/huyện…</small>
+                </div>
+                <div class="f">
+                  <label>Quận/Huyện <span class="req">*</span></label>
+                  <select
+                    v-model="editDistrictCode"
+                    class="addr-sel"
+                    :disabled="!vnEditDetail || vnEditDetailLoading"
+                    @change="onEditDistrictChange"
+                  >
+                    <option value="" disabled>— Chọn quận/huyện —</option>
+                    <option v-for="d in (vnEditDetail?.districts || [])" :key="'ed-'+d.code" :value="d.code">{{ d.name }}</option>
+                  </select>
+                </div>
+                <div class="f span2">
+                  <label>Phường/Xã</label>
+                  <select v-model="editForm.ward" class="addr-sel" :disabled="!editDistrictCode">
+                    <option value="">— Chọn phường/xã (tuỳ chọn) —</option>
+                    <option v-for="w in editWardOptions" :key="'ew-'+w.code" :value="w.name">{{ w.name }}</option>
+                  </select>
+                </div>
                 <div class="f span2"><label>Địa chỉ <span class="req">*</span></label><input v-model="editForm.address" /></div>
                 <div class="f"><label>Số điện thoại</label><input v-model="editForm.phone" /></div>
                 <div class="f"><label>Email</label><input v-model="editForm.email" type="email" /></div>
@@ -478,6 +530,7 @@
 
 <script>
 import { clubService } from '@/services/club.service';
+import { addressService } from '@/services/address.service';
 import LocationPicker from '@/components/common/LocationPicker.vue';
 
 const MAX = 5 * 1024 * 1024;
@@ -511,9 +564,34 @@ export default {
 
       // DELETE
       showDel: false, delTarget: {}, delLoading: false,
+
+      // Địa chỉ (63 tỉnh/TP + quận/huyện/xã)
+      vnProvinces: [],
+      vnProvincesLoading: false,
+      vnProvincesErr: '',
+      addProvinceSlug: '',
+      addDistrictCode: '',
+      vnAddDetail: null,
+      vnAddDetailLoading: false,
+      editProvinceSlug: '',
+      editDistrictCode: '',
+      vnEditDetail: null,
+      vnEditDetailLoading: false,
     };
   },
   computed: {
+    addWardOptions() {
+      if (!this.vnAddDetail || this.addDistrictCode === '' || this.addDistrictCode === undefined) return [];
+      const code = Number(this.addDistrictCode);
+      const d = this.vnAddDetail.districts.find((x) => x.code === code);
+      return d?.wards || [];
+    },
+    editWardOptions() {
+      if (!this.vnEditDetail || this.editDistrictCode === '' || this.editDistrictCode === undefined) return [];
+      const code = Number(this.editDistrictCode);
+      const d = this.vnEditDetail.districts.find((x) => x.code === code);
+      return d?.wards || [];
+    },
     list() {
       const q = this.q.toLowerCase();
       return this.clubs.filter(c => {
@@ -523,8 +601,153 @@ export default {
       });
     }
   },
-  mounted() { this.load(); },
+  mounted() {
+    this.load();
+    this.loadVnProvinces();
+  },
   methods: {
+    async loadVnProvinces() {
+      this.vnProvincesLoading = true;
+      this.vnProvincesErr = '';
+      try {
+        const r = await addressService.getProvinces();
+        if (r.data?.success) this.vnProvinces = r.data.data || [];
+        else this.vnProvincesErr = r.data?.message || 'Không tải được danh sách tỉnh thành.';
+      } catch (e) {
+        this.vnProvincesErr = e.response?.data?.message || 'Không tải được danh sách tỉnh thành. Kiểm tra kết nối backend.';
+      } finally {
+        this.vnProvincesLoading = false;
+      }
+    },
+
+    async onAddProvinceChange() {
+      const slug = this.addProvinceSlug;
+      this.addForm.district = '';
+      this.addForm.ward = '';
+      this.addDistrictCode = '';
+      this.vnAddDetail = null;
+      if (!slug) {
+        this.addForm.city = '';
+        return;
+      }
+      const p = this.vnProvinces.find((x) => x.slug === slug);
+      this.addForm.city = p ? p.name : '';
+      this.vnAddDetailLoading = true;
+      try {
+        const r = await addressService.getProvinceDetail(slug);
+        if (r.data?.success) this.vnAddDetail = r.data.data;
+        else this.addErr = [r.data?.message || 'Không tải được đơn vị hành chính.'];
+      } catch (e) {
+        const msg = e.response?.data?.message || 'Không tải được quận/huyện. Thử lại sau.';
+        this.addErr = [msg];
+      } finally {
+        this.vnAddDetailLoading = false;
+      }
+    },
+
+    onAddDistrictChange() {
+      const code = Number(this.addDistrictCode);
+      const d = this.vnAddDetail?.districts?.find((x) => x.code === code);
+      this.addForm.ward = '';
+      this.addForm.district = d ? d.name : '';
+    },
+
+    async onEditProvinceChange() {
+      const slug = this.editProvinceSlug;
+      this.editForm.ward = '';
+      this.editForm.district = '';
+      this.editDistrictCode = '';
+      this.vnEditDetail = null;
+      if (!slug) {
+        this.editForm.city = '';
+        return;
+      }
+      const p = this.vnProvinces.find((x) => x.slug === slug);
+      this.editForm.city = p ? p.name : '';
+      this.vnEditDetailLoading = true;
+      try {
+        const r = await addressService.getProvinceDetail(slug);
+        if (r.data?.success) this.vnEditDetail = r.data.data;
+        else this.editErr = [r.data?.message || 'Không tải được đơn vị hành chính.'];
+      } catch (e) {
+        const msg = e.response?.data?.message || 'Không tải được quận/huyện.';
+        this.editErr = [msg];
+      } finally {
+        this.vnEditDetailLoading = false;
+      }
+    },
+
+    onEditDistrictChange() {
+      const code = Number(this.editDistrictCode);
+      const d = this.vnEditDetail?.districts?.find((x) => x.code === code);
+      this.editForm.ward = '';
+      this.editForm.district = d ? d.name : '';
+    },
+
+    /** Bỏ tiền tố "Thành phố"/"Tỉnh" để khớp tên lưu trong DB với open-api */
+    normalizeVnAdminName(s) {
+      if (!s) return '';
+      return String(s)
+        .trim()
+        .replace(/^thành phố\s+/iu, '')
+        .replace(/^tỉnh\s+/iu, '')
+        .replace(/^tp\.?\s+/iu, '')
+        .trim();
+    },
+
+    findProvinceByStoredCity(city) {
+      const raw = (city || '').trim();
+      if (!raw) return null;
+      const norm = this.normalizeVnAdminName(raw);
+      return (
+        this.vnProvinces.find((x) => x.name === raw) ||
+        this.vnProvinces.find((x) => this.normalizeVnAdminName(x.name) === norm) ||
+        this.vnProvinces.find((x) => raw.includes(x.name) || x.name.includes(raw)) ||
+        (norm &&
+          this.vnProvinces.find(
+            (x) =>
+              norm.includes(this.normalizeVnAdminName(x.name)) ||
+              this.normalizeVnAdminName(x.name).includes(norm)
+          ))
+      );
+    },
+
+    findDistrictByStoredName(districts, district) {
+      const raw = (district || '').trim();
+      if (!raw || !districts?.length) return null;
+      const norm = this.normalizeVnAdminName(raw);
+      return (
+        districts.find((di) => di.name === raw) ||
+        districts.find((di) => this.normalizeVnAdminName(di.name) === norm) ||
+        districts.find((di) => raw.includes(di.name) || di.name.includes(raw))
+      );
+    },
+
+    async hydrateEditAddressSelectors() {
+      if (!this.vnProvinces.length) await this.loadVnProvinces();
+      const city = (this.editForm.city || '').trim();
+      if (!city) return;
+      const p = this.findProvinceByStoredCity(city);
+      if (!p) return;
+      this.editProvinceSlug = p.slug;
+      this.vnEditDetailLoading = true;
+      try {
+        const r = await addressService.getProvinceDetail(p.slug);
+        if (r.data?.success) {
+          this.vnEditDetail = r.data.data;
+          const dist = (this.editForm.district || '').trim();
+          if (dist) {
+            const d = this.findDistrictByStoredName(this.vnEditDetail.districts, dist);
+            if (d) this.editDistrictCode = String(d.code);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.vnEditDetailLoading = false;
+      }
+    },
+
     statusLabel(s) { return {APPROVED:'Hoạt động',PENDING:'Chờ duyệt',REJECTED:'Tạm ngưng'}[s] || s; },
     fmt(t) {
       if (!t) return '--:--';
@@ -600,6 +823,9 @@ export default {
       this.addForm = { ...blank(), openingHours: this.initHours([]) }; 
       this.addSub = false; this.addErr = [];
       this.addPreview = null; this.addUpErr = ''; this.addMode = 'upload';
+      this.addProvinceSlug = '';
+      this.addDistrictCode = '';
+      this.vnAddDetail = null;
       this.showAdd = true; document.body.style.overflow = 'hidden';
     },
     closeAdd() { this.showAdd = false; document.body.style.overflow = ''; },
@@ -649,8 +875,12 @@ export default {
       };
       this.editSub = false; this.editErr = []; this.editOk = false;
       this.editPreview = null; this.editUpErr = ''; this.editMode = 'upload';
+      this.editProvinceSlug = '';
+      this.editDistrictCode = '';
+      this.vnEditDetail = null;
       this.showEdit = true; document.body.style.overflow = 'hidden';
       this.loadAmenities(c.id);
+      this.$nextTick(() => this.hydrateEditAddressSelectors());
     },
     initHours(existing) {
       const days = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ Nhật'];
@@ -847,8 +1077,10 @@ export default {
 /* Form fields */
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .f label{font-size:14px;font-weight:700;color:#475569;margin-bottom:8px;display:block;}
-.f input, .f textarea{width:100%;padding:14px 16px;border:2px solid #f1f5f9;border-radius:16px;font-family:inherit;font-size:14px;transition:all .2s;background:#f8fafc;}
-.f input:focus, .f textarea:focus{border-color:#10b981;background:#fff;outline:none;box-shadow:0 0 0 4px rgba(16,185,129,0.1);}
+.f input, .f textarea, .f select.addr-sel{width:100%;padding:14px 16px;border:2px solid #f1f5f9;border-radius:16px;font-family:inherit;font-size:14px;transition:all .2s;background:#f8fafc;}
+.f input:focus, .f textarea:focus, .f select.addr-sel:focus{border-color:#10b981;background:#fff;outline:none;box-shadow:0 0 0 4px rgba(16,185,129,0.1);}
+.f select.addr-sel{cursor:pointer;appearance:auto;}
+.muted-msg{display:block;margin-top:6px;font-size:12px;color:#64748b;}
 .f.span2{grid-column: span 2;}
 
 .upload-mode-tabs{display:flex;background:#f1f5f9;padding:4px;border-radius:14px;margin-bottom:16px;gap:4px;}

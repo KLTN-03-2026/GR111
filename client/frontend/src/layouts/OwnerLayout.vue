@@ -1,8 +1,19 @@
 <template>
   <div class="owner-layout">
-    <OwnerSidebar :is-collapsed="isSidebarCollapsed" :is-locked="isLocked" :is-kyc-approved="isKycApproved" />
+    <div
+      v-if="mobileNavOpen"
+      class="sidebar-backdrop"
+      aria-hidden="true"
+      @click="closeMobileNav"
+    />
+    <OwnerSidebar
+      :is-collapsed="isSidebarCollapsed"
+      :is-mobile-open="mobileNavOpen"
+      :is-locked="isLocked"
+      :is-kyc-approved="isKycApproved"
+    />
     <div class="main-wrapper" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-      <OwnerHeader @toggle-sidebar="isSidebarCollapsed = !isSidebarCollapsed" />
+      <OwnerHeader :mobile-drawer-open="mobileNavOpen" @toggle-sidebar="toggleSidebar" />
       
       <!-- Banner 1: Trial countdown (chưa nộp hồ sơ) -->
       <transition name="banner-slide">
@@ -84,14 +95,50 @@ export default {
   data() {
     return {
       isSidebarCollapsed: false,
+      mobileNavOpen: false,
+      _mqMobile: null,
     }
+  },
+  watch: {
+    $route() {
+      this.closeMobileNav();
+    },
   },
   mounted() {
     // Khởi động timer ngay khi vào Dashboard
     this.startTrial();
     // Đồng bộ trạng thái mới nhất từ backend
     this.refreshStatus();
-  }
+
+    this._mqMobile = window.matchMedia('(max-width: 1024px)');
+    this._onMqChange = () => {
+      if (!this._mqMobile.matches) {
+        this.mobileNavOpen = false;
+      }
+    };
+    this._mqMobile.addEventListener('change', this._onMqChange);
+  },
+  beforeUnmount() {
+    if (this._mqMobile && this._onMqChange) {
+      this._mqMobile.removeEventListener('change', this._onMqChange);
+    }
+  },
+  methods: {
+    isMobileLayout() {
+      return typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches;
+    },
+    toggleSidebar() {
+      if (this.isMobileLayout()) {
+        this.mobileNavOpen = !this.mobileNavOpen;
+        return;
+      }
+      this.mobileNavOpen = false;
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    },
+    closeMobileNav() {
+      this.mobileNavOpen = false;
+    },
+  },
 }
 </script>
 
@@ -101,6 +148,15 @@ export default {
   min-height: 100vh;
   background-color: #f8fafc;
   font-family: 'Barlow', sans-serif;
+  position: relative;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 998;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .main-wrapper {
@@ -218,5 +274,12 @@ export default {
 @media (max-width: 1024px) {
   .main-wrapper { margin-left: 0 !important; }
   .trial-banner { flex-wrap: wrap; }
+}
+
+@media (max-width: 768px) {
+  .content-area {
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
 }
 </style>

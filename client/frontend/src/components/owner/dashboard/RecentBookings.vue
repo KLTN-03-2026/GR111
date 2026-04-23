@@ -11,7 +11,67 @@
       </router-link>
     </div>
 
-    <div class="table-wrap">
+    <!-- Mobile: thẻ từng đơn -->
+    <div class="bookings-mobile" v-if="bookings.length">
+      <article
+        v-for="booking in bookings"
+        :key="'m-' + booking.id"
+        class="booking-card-mobile"
+      >
+        <div class="bcm-top">
+          <div class="client-cell">
+            <div class="avatar-ring">
+              <img :src="`https://ui-avatars.com/api/?name=${booking.name}&background=0d9488&color=fff&bold=true`" class="client-avatar" alt="" />
+            </div>
+            <div>
+              <p class="client-name">{{ booking.name }}</p>
+              <p class="client-phone">{{ booking.phone }}</p>
+            </div>
+          </div>
+          <div class="bcm-actions">
+            <button type="button" class="btn-icon" title="Xem chi tiết" @click="$emit('view-booking', booking)">
+              <span class="material-icons btn-svg">visibility</span>
+            </button>
+            <button
+              v-if="booking.canConfirmPayment"
+              type="button"
+              class="btn-icon confirm"
+              title="Xác nhận thanh toán"
+              @click="$emit('confirm-payment', booking)"
+            >
+              <span class="material-icons btn-svg">check_circle</span>
+            </button>
+          </div>
+        </div>
+        <div class="bcm-meta">
+          <div class="bcm-chip">
+            <span class="material-icons bcm-chip-icon">layers</span>
+            {{ booking.court }}
+          </div>
+          <span :class="['status-pill', booking.statusClass]">
+            <span class="status-dot"></span>
+            {{ booking.statusText }}
+          </span>
+        </div>
+        <div class="bcm-row">
+          <span class="material-icons bcm-row-icon">schedule</span>
+          <div>
+            <p class="time-main">{{ booking.time }}</p>
+            <p class="time-sub">{{ booking.date }}</p>
+          </div>
+        </div>
+        <div class="bcm-footer">
+          <span class="price-value">{{ booking.amount }}</span>
+          <span class="method-tag">
+            <span class="material-icons method-icon">payments</span>
+            {{ booking.method }}
+          </span>
+        </div>
+      </article>
+    </div>
+    <p v-else class="bookings-mobile-empty">Chưa có đơn đặt sân gần đây.</p>
+
+    <div class="table-wrap table-desktop">
       <table class="data-table">
         <thead>
           <tr>
@@ -68,7 +128,7 @@
               <button class="btn-icon" title="Xem chi tiết" @click="$emit('view-booking', booking)">
                 <span class="material-icons btn-svg">visibility</span>
               </button>
-              <button v-if="booking.status === 'PENDING'" class="btn-icon confirm" title="Xác nhận thanh toán" @click="$emit('confirm-payment', booking)">
+              <button v-if="booking.canConfirmPayment" class="btn-icon confirm" title="Xác nhận thanh toán" @click="$emit('confirm-payment', booking)">
                 <span class="material-icons btn-svg">check_circle</span>
               </button>
             </td>
@@ -193,6 +253,7 @@ export default {
 .status-pill.warning { background: #fffbeb; color: #d97706; }
 .status-pill.success { background: #ecfdf5; color: #059669; }
 .status-pill.info    { background: #eff6ff; color: #2563eb; }
+.status-pill.danger  { background: #fef2f2; color: #dc2626; }
 
 .actions-cell { display: flex; gap: 6px; justify-content: flex-end; }
 .btn-icon {
@@ -206,4 +267,131 @@ export default {
 .btn-icon:hover { border-color: #059669; color: #059669; background: #ecfdf5; }
 .btn-icon.confirm:hover { border-color: #059669; color: #ffffff; background: #059669; }
 .btn-svg { width: 14px; height: 14px; font-size: 14px; }
+
+/* ── Mobile cards ─────────────────────────── */
+.bookings-mobile,
+.bookings-mobile-empty {
+  display: none;
+}
+
+.bookings-mobile {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.booking-card-mobile {
+  background: #f8fafc;
+  border: 1px solid #eaecf2;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bcm-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bcm-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bcm-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bcm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border: 1px solid #eaecf2;
+  color: #475569;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+}
+
+.bcm-chip-icon {
+  font-size: 14px !important;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.bcm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.bcm-row-icon {
+  font-size: 16px !important;
+  color: #9aa3bc;
+  margin-top: 2px;
+}
+
+.bcm-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #eaecf2;
+}
+
+.bookings-mobile-empty {
+  text-align: center;
+  color: #9aa3bc;
+  font-size: 14px;
+  padding: 28px 16px;
+  margin: 0;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px dashed #eaecf2;
+}
+
+@media (max-width: 768px) {
+  .card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .card-header {
+    margin-bottom: 14px;
+  }
+
+  .card-title {
+    font-size: 15px;
+  }
+
+  .table-desktop {
+    display: none;
+  }
+
+  .bookings-mobile {
+    display: flex;
+  }
+
+  .bookings-mobile-empty {
+    display: block;
+  }
+
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+  }
+}
 </style>

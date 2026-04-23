@@ -1,5 +1,8 @@
 <template>
-  <aside class="sidebar-wrapper" :class="{ 'collapsed': isCollapsed }">
+  <aside
+    class="sidebar-wrapper"
+    :class="{ collapsed: isCollapsed, 'mobile-open': isMobileOpen }"
+  >
     <div class="sidebar-header">
       <div class="sidebar-logo">
         <svg fill="none" height="40" viewBox="0 0 24 24" width="40">
@@ -48,6 +51,11 @@ export default {
   name: 'OwnerSidebar',
   props: {
     isCollapsed: Boolean,
+    /** Trên mobile: mở drawer điều hướng (đồng bộ với nút menu header) */
+    isMobileOpen: {
+      type: Boolean,
+      default: false,
+    },
     isLocked: {
       type: Boolean,
       default: false
@@ -220,7 +228,28 @@ export default {
 .sidebar-wrapper.collapsed .logout-btn { padding-left: 14px; }
 
 @media (max-width: 1024px) {
-  .sidebar-wrapper { transform: translateX(-100%); }
-  .sidebar-wrapper.active { transform: translateX(0); }
+  .sidebar-wrapper {
+    top: 80px;
+    bottom: 0;
+    height: auto;
+    transform: translateX(-100%);
+    width: min(300px, 88vw);
+  }
+  .sidebar-wrapper.mobile-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(15, 23, 42, 0.14);
+  }
+  /* Drawer mobile luôn hiển thị đủ nhãn (không dùng chế độ thu 80px) */
+  .sidebar-wrapper.collapsed {
+    width: min(300px, 88vw);
+  }
+  .sidebar-wrapper.collapsed .logo-text,
+  .sidebar-wrapper.collapsed .nav-label,
+  .sidebar-wrapper.collapsed .nav-badge,
+  .sidebar-wrapper.collapsed .lock-badge,
+  .sidebar-wrapper.collapsed .status-text {
+    opacity: 1;
+    visibility: visible;
+  }
 }
 </style>

@@ -138,14 +138,22 @@ export default {
       nowMinute: 0,
       activeBlock: null,
       tooltipStyle: {},
+      viewportWidth: typeof window !== 'undefined' ? window.innerWidth : 1200,
     };
   },
   mounted() {
     this.updateNow();
     this._nowTimer = setInterval(this.updateNow, 60000);
+    this._onResize = () => {
+      this.viewportWidth = window.innerWidth;
+    };
+    window.addEventListener('resize', this._onResize, { passive: true });
   },
   beforeUnmount() {
     clearInterval(this._nowTimer);
+    if (this._onResize) {
+      window.removeEventListener('resize', this._onResize);
+    }
   },
   computed: {
     hours() {
@@ -163,45 +171,95 @@ export default {
       });
     },
     gridTemplateStyle() {
-      const courtCols = this.courts.map(() => 'minmax(120px, 1fr)').join(' ');
-      return { gridTemplateColumns: `60px ${courtCols}` };
+      const narrow = this.viewportWidth < 640;
+      const timeCol = narrow ? '48px' : '60px';
+      const courtMin = narrow ? 'minmax(72px, 1fr)' : 'minmax(120px, 1fr)';
+      const courtCols = this.courts.map(() => courtMin).join(' ');
+      return { gridTemplateColumns: `${timeCol} ${courtCols}` };
     },
     nowLineTop() {
       const now = new Date();
       const minInHour = now.getMinutes();
       return (minInHour / 60) * 56; // 56px per row
     },
-    // Parse all bookings into segments (one per time-slot item)
+    /**
+     * Gộp các timeSlot liên tiếp (cùng đơn + cùng sân) thành một segment —
+     * tránh 2 ô chồng khi CLB dùng slot 30p nhưng mỗi hàng lịch = 1 giờ.
+     */
     segments() {
-      const segs = [];
+      const TOL_MS = 60_000;
+      const groups = new Map();
+
       for (const booking of this.bookings) {
         if (!booking.items?.length) continue;
         for (const item of booking.items) {
           const slot = item.timeSlot;
           if (!slot?.startTime || !slot?.endTime) continue;
+          const courtId = slot.court?.id || slot.courtId;
+          const key = `${booking.id}|${courtId}`;
           const start = new Date(slot.startTime);
-          const end   = new Date(slot.endTime);
-          segs.push({
-            bookingId: booking.id,
-            courtId:   slot.court?.id || slot.courtId,
+          const end = new Date(slot.endTime);
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push({
+            start,
+            end,
+            booking,
+            courtId,
             courtName: slot.court?.name || '',
-            startH: start.getHours(),
-            startMin: start.getMinutes(),
-            endH: end.getHours(),
-            endMin: end.getMinutes(),
-            name: booking.bookerName || 'Khách',
-            phone: booking.bookerPhone || '',
-            status: booking.status,
-            isNew: booking.id === this.newBookingId,
-            timeRange: `${this.fmtTime(start)} – ${this.fmtTime(end)}`,
-            label: `${booking.bookerName} | ${this.fmtTime(start)}–${this.fmtTime(end)}`,
           });
         }
       }
-      return segs;
+
+      const merged = [];
+      for (const arr of groups.values()) {
+        arr.sort((a, b) => a.start.getTime() - b.start.getTime());
+        let cur = {
+          start: new Date(arr[0].start),
+          end: new Date(arr[0].end),
+          booking: arr[0].booking,
+          courtId: arr[0].courtId,
+          courtName: arr[0].courtName,
+        };
+        for (let i = 1; i < arr.length; i++) {
+          const next = arr[i];
+          const gap = next.start.getTime() - cur.end.getTime();
+          if (Math.abs(gap) <= TOL_MS) {
+            if (next.end.getTime() > cur.end.getTime()) cur.end = new Date(next.end);
+          } else {
+            merged.push(this.segmentFromMergedRange(cur));
+            cur = {
+              start: new Date(next.start),
+              end: new Date(next.end),
+              booking: next.booking,
+              courtId: next.courtId,
+              courtName: next.courtName,
+            };
+          }
+        }
+        merged.push(this.segmentFromMergedRange(cur));
+      }
+      return merged;
     },
   },
   methods: {
+    segmentFromMergedRange(cur) {
+      const { start, end, booking, courtId, courtName } = cur;
+      return {
+        bookingId: booking.id,
+        courtId,
+        courtName,
+        startH: start.getHours(),
+        startMin: start.getMinutes(),
+        endH: end.getHours(),
+        endMin: end.getMinutes(),
+        name: booking.bookerName || 'Khách',
+        phone: booking.bookerPhone || '',
+        status: booking.status,
+        isNew: booking.id === this.newBookingId,
+        timeRange: `${this.fmtTime(start)} – ${this.fmtTime(end)}`,
+        label: `${booking.bookerName} | ${this.fmtTime(start)}–${this.fmtTime(end)}`,
+      };
+    },
     fmtTime(d) {
       return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
     },
@@ -383,6 +441,8 @@ export default {
   height: 56px; position: relative;
   border-bottom: 1px solid #f1f5f9; border-right: 1px solid #eaecf2;
   cursor: pointer; transition: background .15s;
+  overflow: visible;
+  z-index: 0;
 }
 .time-slot-cell:hover { background: #f8fafb; }
 .time-slot-cell.current-hour-col { background: rgba(5,150,105,.03); }
@@ -406,10 +466,10 @@ export default {
   border-radius: 6px; padding: 3px 6px;
   border-left: 3px solid transparent;
   font-size: 10px; overflow: hidden;
-  cursor: pointer; z-index: 1;
+  cursor: pointer; z-index: 2;
   transition: all .2s; box-shadow: 0 1px 4px rgba(0,0,0,.08);
 }
-.booking-block:hover { transform: scale(1.02); box-shadow: 0 3px 10px rgba(0,0,0,.12); z-index: 2; }
+.booking-block:hover { transform: scale(1.02); box-shadow: 0 3px 10px rgba(0,0,0,.12); z-index: 4; }
 
 .st-confirmed      { background: #ecfdf5; border-color: #10b981; color: #065f46; }
 .st-pending        { background: #fffbeb; border-color: #f59e0b; color: #78350f; }
@@ -465,4 +525,72 @@ export default {
 /* ── Transition ───────────────────────────────────── */
 .fade-enter-active, .fade-leave-active { transition: opacity .2s; }
 .fade-enter-from, .fade-leave-to       { opacity: 0; }
+
+@media (max-width: 768px) {
+  .card {
+    padding: 16px 12px;
+    border-radius: 16px;
+  }
+  .cal-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .cal-controls {
+    margin-left: 0;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .cal-title {
+    font-size: 15px;
+  }
+  .date-display {
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+  }
+  .date-text {
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.3;
+  }
+  .legend {
+    justify-content: center;
+    gap: 8px 14px;
+  }
+  .legend-item {
+    font-size: 10px;
+  }
+  .calendar-grid {
+    min-width: 320px;
+  }
+  .court-header {
+    padding: 4px 4px;
+  }
+  .court-name {
+    font-size: 11px;
+    text-align: center;
+    word-break: break-word;
+  }
+  .time-label {
+    font-size: 10px;
+    padding-top: 4px;
+  }
+  .booking-block {
+    font-size: 9px;
+    padding: 2px 4px;
+  }
+  .booking-tooltip {
+    min-width: unset;
+    max-width: min(320px, calc(100vw - 32px));
+  }
+}
+
+@media (max-width: 480px) {
+  .today-btn {
+    flex: 1 1 100%;
+    text-align: center;
+  }
+}
 </style>

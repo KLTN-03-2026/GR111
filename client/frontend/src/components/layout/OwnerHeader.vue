@@ -1,8 +1,14 @@
 <template>
   <header class="header-wrapper">
     <div class="header-left">
-      <button class="toggle-btn" @click="$emit('toggle-sidebar')">
-        <span class="material-icons">menu_open</span>
+      <button
+        type="button"
+        class="toggle-btn"
+        :aria-label="mobileDrawerOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
+        :aria-expanded="mobileDrawerOpen ? 'true' : 'false'"
+        @click="$emit('toggle-sidebar')"
+      >
+        <span class="material-icons">{{ mobileDrawerOpen ? 'close' : 'menu' }}</span>
       </button>
       <div class="header-title">
         <h2 class="breadcrumb-item primary">DASHBOARD</h2>
@@ -14,13 +20,21 @@
     <div class="header-right">
       <div class="header-notifications">
       </div>
-      <div class="user-profile">
+      <router-link
+        to="/owner/settings"
+        class="user-profile"
+        aria-label="Mở trang cài đặt tài khoản"
+      >
         <div class="user-info">
-          <p class="user-name">{{ user?.name  }}</p>
-          <p class="user-role">{{ user?.email  }}</p>
+          <p class="user-name">{{ displayName }}</p>
+          <p class="user-role">{{ user?.email || '—' }}</p>
         </div>
-        <img class="user-avatar" :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Owner')}&background=16a34a&color=fff`" alt="User Avatar" />
-      </div>
+        <img
+          class="user-avatar"
+          :src="user?.avatarUrl || avatarUrl"
+          alt=""
+        />
+      </router-link>
     </div>
   </header>
 </template>
@@ -31,11 +45,33 @@ export default {
   name: 'OwnerHeader',
   components: {
   },
+  props: {
+    /** Chỉ dùng để đổi icon/ARIA khi drawer mobile đang mở */
+    mobileDrawerOpen: {
+      type: Boolean,
+      default: false,
+    },
+  },
   emits: ['toggle-sidebar'],
   data() {
     return {
       user: null
     }
+  },
+  computed: {
+    displayName() {
+      if (!this.user) return 'Chủ sân';
+      return (
+        this.user.name ||
+        this.user.fullName ||
+        (this.user.email ? String(this.user.email).split('@')[0] : '') ||
+        'Chủ sân'
+      );
+    },
+    avatarUrl() {
+      const n = encodeURIComponent(this.displayName || 'Owner');
+      return `https://ui-avatars.com/api/?name=${n}&background=16a34a&color=fff`;
+    },
   },
   mounted() {
     const userData = localStorage.getItem('user');
@@ -147,6 +183,21 @@ export default {
   border-radius: 50px;
   background-color: #f8fafc;
   border: 1px solid #f1f5f9;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.user-profile:hover {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.user-profile:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
 }
 
 .user-avatar {

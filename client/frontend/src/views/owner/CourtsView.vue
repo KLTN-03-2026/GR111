@@ -617,7 +617,19 @@ export default {
         // Only auto-fill if the user hasn't added multiple pricing rules yet
         this.suggestPricingFromSimilarCourt(newVal);
       }
-    }
+    },
+    /** Từ ClubsView: `/owner/courts?clubId=...` — cùng component, đổi query cần đổi CLB + tải sân */
+    '$route.query.clubId': {
+      async handler(clubId) {
+        if (!this.clubs.length) return;
+        if (clubId === undefined || clubId === null || clubId === '') return;
+        const found = this.clubs.find((c) => String(c.id) === String(clubId));
+        if (found && String(this.selectedClubId) !== String(found.id)) {
+          this.selectedClubId = found.id;
+          await this.fetchCourts();
+        }
+      },
+    },
   },
 
   async mounted() {
@@ -633,15 +645,24 @@ export default {
     },
 
     // ── Fetch ──────────────────────────────────────────────
+    /** Ưu tiên `?clubId=` (link từ Quản lý CLB), không thì CLB đầu danh sách */
+    pickClubIdFromRouteOrDefault() {
+      const q = this.$route.query.clubId;
+      if (q !== undefined && q !== null && String(q).trim() !== '') {
+        const found = this.clubs.find((c) => String(c.id) === String(q));
+        if (found) return found.id;
+      }
+      return this.clubs[0]?.id ?? '';
+    },
+
     async fetchClubs() {
       try {
         const res = await clubService.Getallthedetails();
         if (res.data.success) {
           this.clubs = res.data.data ?? [];
-          if (this.clubs.length && !this.selectedClubId) {
-            this.selectedClubId = this.clubs[0].id;
-            await this.fetchCourts();
-          }
+          this.selectedClubId = this.pickClubIdFromRouteOrDefault();
+          if (this.selectedClubId) await this.fetchCourts();
+          else this.courts = [];
         }
       } catch (e) { console.error('fetchClubs:', e); }
     },
