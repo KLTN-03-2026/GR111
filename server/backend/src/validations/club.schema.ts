@@ -38,6 +38,28 @@ export const clubSchema = z.object({
   coverImageUrl: optionalUrl,
   slotDuration:  z.number().min(30).max(240).optional(),
   images:        z.array(z.string().url()).optional(),
+
+  transferBankName: z.preprocess(
+    (v: unknown) => (v === "" ? null : v),
+    z.string().max(120).nullish()
+  ),
+  transferAccountNumber: z.preprocess(
+    (v: unknown) => (v === "" ? null : v),
+    z.string().max(32).nullish()
+  ),
+  transferBeneficiaryName: z.preprocess(
+    (v: unknown) => (v === "" ? null : v),
+    z.string().max(120).nullish()
+  ),
+  transferQrImageUrl: z.preprocess(
+    (v: unknown) => (v === "" ? null : v),
+    z
+      .union([z.string().url(), z.null()])
+      .optional()
+      .refine((v: string | null | undefined) => v === undefined || v === null || /^https?:\/\/.+/.test(v), {
+        message: "URL không hợp lệ",
+      })
+  ),
 });
 
 export const updateClubSchema = clubSchema.partial();

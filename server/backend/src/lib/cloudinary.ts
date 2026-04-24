@@ -29,6 +29,7 @@ export type UploadFolder =
   | "clubs/logos"         // Logo câu lạc bộ
   | "clubs/covers"        // Ảnh bìa câu lạc bộ
   | "clubs/gallery"       // Bộ sưu tập ảnh câu lạc bộ
+  | "clubs/transfer-qr"   // Mã QR chuyển khoản CLB
   | "courts/images"       // Ảnh sân bóng
   | "documents/licenses"  // Giấy phép kinh doanh
   | "payments/proofs"     // Ảnh bằng chứng thanh toán

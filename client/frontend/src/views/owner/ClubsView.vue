@@ -210,6 +210,25 @@
               </div>
             </div>
 
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">account_balance</span>Chuyển khoản (hiển thị cho khách khi thanh toán)</div>
+              <p class="flabel-hint" style="margin:-6px 0 12px;font-size:13px;color:#64748b;">Khách sẽ thấy STK / ngân hàng / nội dung CK (mã đơn) trên trang thanh toán.</p>
+              <div class="fgrid">
+                <div class="f"><label>Ngân hàng</label><input v-model="addForm.transferBankName" placeholder="Ví dụ: VietcomBank" /></div>
+                <div class="f"><label>Số tài khoản</label><input v-model="addForm.transferAccountNumber" placeholder="Số TK nhận tiền" /></div>
+                <div class="f span2"><label>Chủ tài khoản</label><input v-model="addForm.transferBeneficiaryName" placeholder="Họ tên chủ TK" /></div>
+                <div class="f span2">
+                  <label>Ảnh mã QR (tuỳ chọn)</label>
+                  <div class="url-input-wrap" style="margin-bottom:8px">
+                    <span class="material-icons">link</span>
+                    <input v-model="addForm.transferQrImageUrl" type="url" placeholder="https://... hoặc tải ảnh bên dưới" />
+                  </div>
+                  <input ref="addTransferQrFile" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="e=>uploadTransferQr(e.target.files[0],'add')" />
+                  <button type="button" class="hap-btn" @click="$refs.addTransferQrFile.click()"><span class="material-icons" style="font-size:18px">qr_code_2</span> Tải ảnh QR</button>
+                </div>
+              </div>
+            </div>
+
             <!-- Opening Hours section -->
             <div class="fsec">
               <div class="flabel"><span class="material-icons">schedule</span>Giờ mở cửa <span class="flabel-hint">— Bắt buộc để khung giờ đặt sân hiển thị</span></div>
@@ -445,6 +464,25 @@
               </div>
             </div>
 
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">account_balance</span>Chuyển khoản (hiển thị cho khách khi thanh toán)</div>
+              <p class="flabel-hint" style="margin:-6px 0 12px;font-size:13px;color:#64748b;">Nội dung chuyển khoản trên đơn hàng luôn là mã đơn (booking code).</p>
+              <div class="fgrid">
+                <div class="f"><label>Ngân hàng</label><input v-model="editForm.transferBankName" placeholder="Ví dụ: VietcomBank" /></div>
+                <div class="f"><label>Số tài khoản</label><input v-model="editForm.transferAccountNumber" placeholder="Số TK nhận tiền" /></div>
+                <div class="f span2"><label>Chủ tài khoản</label><input v-model="editForm.transferBeneficiaryName" placeholder="Họ tên chủ TK" /></div>
+                <div class="f span2">
+                  <label>Ảnh mã QR (tuỳ chọn)</label>
+                  <div class="url-input-wrap" style="margin-bottom:8px">
+                    <span class="material-icons">link</span>
+                    <input v-model="editForm.transferQrImageUrl" type="url" placeholder="https://... hoặc tải ảnh" />
+                  </div>
+                  <input ref="editTransferQrFile" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="e=>uploadTransferQr(e.target.files[0],'edit')" />
+                  <button type="button" class="hap-btn" @click="$refs.editTransferQrFile.click()"><span class="material-icons" style="font-size:18px">qr_code_2</span> Tải ảnh QR</button>
+                </div>
+              </div>
+            </div>
+
             <!-- Opening Hours section -->
             <div class="fsec">
               <div class="flabel"><span class="material-icons">schedule</span>Giờ mở cửa <span class="flabel-hint">— Bắt buộc để khung giờ hiển thị</span></div>
@@ -535,7 +573,10 @@ import LocationPicker from '@/components/common/LocationPicker.vue';
 
 const MAX = 5 * 1024 * 1024;
 const TYPES = ['image/jpeg','image/png','image/webp'];
-const blank = () => ({ name:'', city:'', district:'', ward:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '', latitude: null, longitude: null });
+const blank = () => ({
+  name:'', city:'', district:'', ward:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '', latitude: null, longitude: null,
+  transferBankName:'', transferAccountNumber:'', transferBeneficiaryName:'', transferQrImageUrl:'',
+});
 
 export default {
   name: 'OwnerClubsView',
@@ -871,6 +912,10 @@ export default {
         latitude: c.latitude || null, longitude: c.longitude || null,
         images: c.images?.map(i => i.url) || [],
         newUrl: '',
+        transferBankName: c.transferBankName || '',
+        transferAccountNumber: c.transferAccountNumber || '',
+        transferBeneficiaryName: c.transferBeneficiaryName || '',
+        transferQrImageUrl: c.transferQrImageUrl || '',
         openingHours: this.initHours(c.openingHours)
       };
       this.editSub = false; this.editErr = []; this.editOk = false;
@@ -964,7 +1009,32 @@ export default {
       const p = {};
       ['name','city','district','ward','address','phone','email','description','coverImageUrl','images','latitude','longitude']
         .forEach(k => { if (f[k] !== undefined && f[k] !== '') p[k] = f[k]; });
+      ['transferBankName','transferAccountNumber','transferBeneficiaryName','transferQrImageUrl'].forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(f, k)) p[k] = f[k] ? f[k] : null;
+      });
       return p;
+    },
+
+    async uploadTransferQr(file, mode) {
+      if (!file) return;
+      if (!TYPES.includes(file.type)) { alert('Chỉ chấp nhận JPG, PNG, WEBP.'); return; }
+      if (file.size > MAX) { alert('File vượt quá 5MB.'); return; }
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('type', 'club-transfer-qr');
+      if (mode === 'edit' && this.editForm.id) fd.append('entityId', this.editForm.id);
+      try {
+        const res = await clubService.uploadImage(fd);
+        if (res.data.success) {
+          const url = res.data.data.url;
+          if (mode === 'add') this.addForm.transferQrImageUrl = url;
+          else this.editForm.transferQrImageUrl = url;
+        } else {
+          alert(res.data.message || 'Upload thất bại.');
+        }
+      } catch (e) {
+        alert(e.response?.data?.message || e.message || 'Upload thất bại.');
+      }
     },
     addPreviewFromUrl() { /* preview handled by v-if */ },
   }

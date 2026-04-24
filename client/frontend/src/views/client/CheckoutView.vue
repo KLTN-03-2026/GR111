@@ -95,6 +95,27 @@
               <div class="d-flex justify-content-between py-2"><span class="text-muted small">Tổng tiền</span><span
                   class="fw-black text-success">{{ formatPrice(bookingInfo.total) }} đ</span></div>
             </div>
+
+            <div v-if="payMethod === 'bank' && !paymentConfirmed" class="chk-success__bank mt-4 text-start w-100" style="max-width:420px;margin-left:auto;margin-right:auto">
+              <div class="fw-bold mb-2 small text-dark">Thông tin chuyển khoản</div>
+              <div v-if="!bankTransferDisplay.hasCore" class="alert alert-warning border-0 small mb-0" style="background:#fffbeb;color:#92400e">
+                Chủ sân chưa cấu hình đủ STK. Vui lòng liên hệ sân hoặc xem email (nếu có).
+              </div>
+              <template v-else>
+                <div class="small border rounded p-3 bg-light">
+                  <div class="d-flex justify-content-between py-1"><span class="text-muted">Ngân hàng</span><span class="fw-bold">{{ bankTransferDisplay.bankName }}</span></div>
+                  <div class="d-flex justify-content-between py-1"><span class="text-muted">Chủ TK</span><span class="fw-bold">{{ bankTransferDisplay.beneficiaryName }}</span></div>
+                  <div class="d-flex justify-content-between py-1 align-items-center"><span class="text-muted">Số TK</span>
+                    <span class="fw-black">{{ bankAccountFormatted }}</span></div>
+                  <div class="d-flex justify-content-between py-1 align-items-center"><span class="text-muted">Nội dung CK</span>
+                    <span class="fw-black text-success">{{ displayTransferContent || '—' }}</span></div>
+                </div>
+                <div v-if="bankTransferDisplay.qrUrl" class="text-center mt-3">
+                  <img :src="bankTransferDisplay.qrUrl" alt="QR chuyển khoản" class="img-fluid rounded border" style="max-width:200px" />
+                </div>
+              </template>
+            </div>
+
             <div class="d-flex gap-3 mt-4 flex-wrap justify-content-center">
               <button class="btn btn-success fw-bold px-4" @click="$router.push('/')">Về trang chủ</button>
               <button class="btn btn-outline-secondary fw-bold px-4" @click="printConfirmation">In xác nhận</button>
@@ -305,9 +326,15 @@
                 </div>
                 <transition name="slide-down">
                   <div v-if="payMethod === 'bank'" class="chk-pay-detail">
+                    <div v-if="!bookingSuccess && !bankTransferDisplay.hasCore" class="chk-note chk-note--amber mb-3">
+                      Chủ sân chưa cấu hình đủ thông tin chuyển khoản. Bạn vẫn có thể đặt sân — vui lòng liên hệ sân để nhận STK hoặc đợi cập nhật.
+                    </div>
                     <div class="chk-bank-qr-wrap">
                       <div class="chk-bank-qr">
-                        <svg viewBox="0 0 200 200" width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+                        <template v-if="bankTransferDisplay.qrUrl">
+                          <img :src="bankTransferDisplay.qrUrl" alt="QR chuyển khoản" width="128" height="128" class="rounded border bg-white" style="object-fit:contain" />
+                        </template>
+                        <svg v-else viewBox="0 0 200 200" width="128" height="128" xmlns="http://www.w3.org/2000/svg">
                           <rect width="200" height="200" fill="white" />
                           <rect x="10" y="10" width="60" height="60" rx="4" fill="none" stroke="#0f172a"
                             stroke-width="7" />
@@ -347,22 +374,22 @@
                           <rect x="90" y="180" width="10" height="10" fill="#0f172a" />
                           <rect x="150" y="180" width="10" height="10" fill="#0f172a" />
                         </svg>
-                        <div class="chk-bank-qr__label">Quét để chuyển khoản nhanh</div>
+                        <div class="chk-bank-qr__label">{{ bankTransferDisplay.qrUrl ? 'Quét mã QR' : 'Quét để chuyển khoản nhanh (hoặc nhập tay)' }}</div>
                       </div>
                       <div class="chk-bank-info">
                         <div class="chk-bank-row">
                           <span class="chk-bank-row__label">Ngân hàng</span>
-                          <span class="chk-bank-row__value fw-bold">VietcomBank</span>
+                          <span class="chk-bank-row__value fw-bold">{{ bankTransferDisplay.bankName || '—' }}</span>
                         </div>
                         <div class="chk-bank-row">
                           <span class="chk-bank-row__label">Tên TK</span>
-                          <span class="chk-bank-row__value fw-bold">CTY TNHH THÀNH PHÁT</span>
+                          <span class="chk-bank-row__value fw-bold">{{ bankTransferDisplay.beneficiaryName || '—' }}</span>
                         </div>
                         <div class="chk-bank-row">
                           <span class="chk-bank-row__label">Số TK</span>
                           <div class="d-flex align-items-center gap-2">
-                            <span class="chk-bank-row__value fw-black" style="letter-spacing:1px">1023 9876 5432</span>
-                            <button class="chk-copy-btn" @click="copyText('102398765432', 'acc')"
+                            <span class="chk-bank-row__value fw-black" style="letter-spacing:1px">{{ bankAccountFormatted || '—' }}</span>
+                            <button v-if="bankTransferDisplay.accountNumber" class="chk-copy-btn" @click="copyText(bankAccountRaw, 'acc')"
                               :class="{ copied: copiedField === 'acc' }">
                               <svg v-if="copiedField !== 'acc'" width="12" height="12" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2">
@@ -378,9 +405,10 @@
                         </div>
                         <div class="chk-bank-row chk-bank-row--highlight">
                           <span class="chk-bank-row__label">Nội dung CK</span>
-                          <div class="d-flex align-items-center gap-2">
-                            <span class="chk-bank-row__value fw-black text-success">{{ transferContent }}</span>
-                            <button class="chk-copy-btn" @click="copyText(transferContent, 'content')"
+                          <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <span v-if="displayTransferContent" class="chk-bank-row__value fw-black text-success">{{ displayTransferContent }}</span>
+                            <span v-else class="chk-bank-row__value text-muted small">Sau khi đặt sân, hệ thống dùng <strong>mã đơn</strong> làm nội dung CK.</span>
+                            <button v-if="displayTransferContent" class="chk-copy-btn" @click="copyText(displayTransferContent, 'content')"
                               :class="{ copied: copiedField === 'content' }">
                               <svg v-if="copiedField !== 'content'" width="12" height="12" viewBox="0 0 24 24" fill="none"
                                 stroke="currentColor" stroke-width="2">
@@ -913,7 +941,9 @@
 </template>
 
 <script>
+import { formatYmdVietnam } from '@/utils/dateInput';
 import { bookingService } from '@/services/booking.service.js';
+import { clubService } from '@/services/club.service.js';
 import { socketService } from '@/services/socket.service.js';
 import { voucherService } from '@/services/voucher.service.js';
 import LoadingView from "@/components/common/LoadingView.vue";
@@ -949,7 +979,7 @@ export default {
         club_slug: '',
         venue_name: '',
         courts: [],
-        date: new Date().toISOString().split('T')[0],
+        date: formatYmdVietnam(new Date()),
         slots: '[]',
         time_slot_ids: '[]',
         services: '[]',
@@ -966,6 +996,10 @@ export default {
       isUploadingProof: false,
       showPolicyModal: false,
       policyTab: 'terms',
+      /** Thông tin CK cấu hình trên CLB (public API) */
+      clubTransferProfile: null,
+      /** Snapshot thanh toán sau khi tạo đơn / từ GET booking */
+      serverPayment: null,
     };
   },
 
@@ -1024,8 +1058,32 @@ export default {
         : `${mins} phút`;
     },
 
-    transferContent() {
-      return `DATSANH ${(this.bookingInfo.phone || '').replace(/\s/g, '') || 'SOPHONE'}`;
+    bankTransferDisplay() {
+      const p = this.serverPayment;
+      const c = this.clubTransferProfile || {};
+      const bankName = p?.bankName || c.transferBankName || '';
+      const accountNumber = p?.accountNumber || c.transferAccountNumber || '';
+      const beneficiaryName = p?.beneficiaryName || c.transferBeneficiaryName || '';
+      const qrUrl = p?.qrImageUrl || c.transferQrImageUrl || '';
+      const hasCore = !!(bankName?.trim() && accountNumber?.trim() && beneficiaryName?.trim());
+      return { bankName, accountNumber, beneficiaryName, qrUrl, hasCore };
+    },
+
+    bankAccountRaw() {
+      return String(this.bankTransferDisplay.accountNumber || '').replace(/\s/g, '');
+    },
+
+    bankAccountFormatted() {
+      const raw = this.bankAccountRaw;
+      if (!raw) return '';
+      return raw.replace(/(\d{4})(?=\d)/g, '$1 ').trim();
+    },
+
+    /** Nội dung CK: mã đơn (ưu tiên snapshot payment; fallback mã trên URL sau khi đặt) */
+    displayTransferContent() {
+      if (this.serverPayment?.transferContent) return this.serverPayment.transferContent;
+      if (this.bookingSuccess && this.bookingCode) return this.bookingCode;
+      return '';
     },
 
     timerDisplay() {
@@ -1116,7 +1174,7 @@ export default {
       club_slug: q.club_slug || '',
       venue_name: q.venue_name || '',
       courts: (() => { try { return typeof q.courts === 'string' ? JSON.parse(q.courts) : (q.courts || []); } catch { return []; } })(),
-      date: q.date || new Date().toISOString().split('T')[0],
+      date: q.date || formatYmdVietnam(new Date()),
       slots: typeof q.slots === 'string' ? q.slots : JSON.stringify(q.slots || []),
       booking_slots: typeof q.booking_slots === 'string' ? q.booking_slots : JSON.stringify(q.booking_slots || []),
       time_slot_ids: typeof q.time_slot_ids === 'string' ? q.time_slot_ids : JSON.stringify(q.time_slot_ids || []),
@@ -1131,6 +1189,8 @@ export default {
 
     // Lưu lại base_total để tính toán voucher
     this.bookingInfo.base_total = this.bookingInfo.total;
+
+    this.fetchClubTransferProfile();
 
     // Tự động điền voucher nếu đã chọn ở trang trước
     if (this.bookingInfo.voucher_code) {
@@ -1158,6 +1218,25 @@ export default {
       if (!token) {
         // Redirect to login if not logged in
         this.$router.push(`/auth/login?redirect=${encodeURIComponent(this.$route.fullPath)}`);
+      }
+    },
+
+    async fetchClubTransferProfile() {
+      const slug = this.bookingInfo.club_slug || this.$route.query.club_slug;
+      if (!slug) return;
+      try {
+        const r = await clubService.getClubBySlug(slug);
+        if (r.data?.success && r.data.data) {
+          const d = r.data.data;
+          this.clubTransferProfile = {
+            transferBankName: d.transferBankName,
+            transferAccountNumber: d.transferAccountNumber,
+            transferBeneficiaryName: d.transferBeneficiaryName,
+            transferQrImageUrl: d.transferQrImageUrl,
+          };
+        }
+      } catch (e) {
+        console.warn('fetchClubTransferProfile', e);
       }
     },
 
@@ -1264,6 +1343,7 @@ export default {
 
         if (res && res.data) {
           this.bookingCode = res.data.booking.bookingCode;
+          this.serverPayment = res.data.booking.payment || null;
 
           // Redirect to payment gateway if applicable
           if (res.data.paymentUrl) {
@@ -1372,6 +1452,7 @@ export default {
         const res = await bookingService.getBookingByCode(bookingCode);
         if (res && res.data) {
           const b = res.data;
+          this.serverPayment = b.payment || null;
 
           // Map payment method cho hiển thị
           const payMap = { BANK_TRANSFER: 'bank', MOMO: 'momo', VNPAY: 'vnpay', CREDIT_CARD: 'card', CASH: 'cash' };
@@ -1401,7 +1482,7 @@ export default {
           });
 
           const firstSlot = b.items[0]?.timeSlot;
-          const bookingDate = firstSlot ? new Date(firstSlot.startTime).toISOString().split('T')[0] : '';
+          const bookingDate = firstSlot ? formatYmdVietnam(firstSlot.startTime) : '';
 
           this.bookingInfo = {
             club_id: b.clubId || '',
@@ -1436,6 +1517,8 @@ export default {
             this.currentBookingId = b.id;
             this.connectBookingSocket(b.id);
           }
+
+          await this.fetchClubTransferProfile();
         }
       } catch (err) {
         console.error('Không thể tải thông tin booking:', err);

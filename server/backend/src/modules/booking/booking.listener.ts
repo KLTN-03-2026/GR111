@@ -43,7 +43,15 @@ export const initBookingListeners = () => {
               }
             }
           },
-          payment: { select: { method: true } }
+          payment: {
+            select: {
+              method: true,
+              bankName: true,
+              accountNumber: true,
+              beneficiaryName: true,
+              transferContent: true,
+            },
+          },
         }
       });
 
@@ -73,6 +81,10 @@ export const initBookingListeners = () => {
           discountAmount: Number(fullBooking.discountAmount),
           finalAmount: Number(fullBooking.finalAmount),
           paymentMethod: PAYMENT_METHOD_LABELS[fullBooking.payment?.method || ''] || fullBooking.payment?.method || 'N/A',
+          transferBankName: fullBooking.payment?.bankName,
+          transferAccountNumber: fullBooking.payment?.accountNumber,
+          transferBeneficiaryName: fullBooking.payment?.beneficiaryName,
+          transferContent: fullBooking.payment?.transferContent || fullBooking.bookingCode,
         };
 
         // Nếu là chuyển khoản, gửi hướng dẫn thanh toán. Nếu là tiền mặt, gửi xác nhận đặt chỗ.

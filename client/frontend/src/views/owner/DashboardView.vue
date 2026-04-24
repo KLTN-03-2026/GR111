@@ -76,6 +76,13 @@
       @close="closePaymentProofModal"
       @confirm="handlePaymentProofModalConfirm"
     />
+
+    <NewBookingNotificationModal
+      :show="showNewBookingModal"
+      :booking="newBookingModalBooking"
+      @close="closeNewBookingModal"
+      @view-detail="handleNewBookingModalViewDetail"
+    />
   </div>
 </template>
 
@@ -87,6 +94,7 @@ import CourtStatus        from '../../components/owner/dashboard/CourtStatus.vue
 import VisualCalendar     from '../../components/owner/dashboard/VisualCalendar.vue';
 import OfflineBookingModal from '../../components/owner/dashboard/OfflineBookingModal.vue';
 import PaymentProofNotificationModal from '../../components/owner/dashboard/PaymentProofNotificationModal.vue';
+import NewBookingNotificationModal from '../../components/owner/dashboard/NewBookingNotificationModal.vue';
 
 import { clubService }    from '@/services/club.service';
 import { courtService }   from '@/services/court.service';
@@ -104,6 +112,7 @@ export default {
     VisualCalendar,
     OfflineBookingModal,
     PaymentProofNotificationModal,
+    NewBookingNotificationModal,
   },
   data() {
     return {
@@ -131,6 +140,9 @@ export default {
       showPaymentProofModal: false,
       paymentProofModalBooking: null,
       paymentProofConfirmLoading: false,
+
+      showNewBookingModal: false,
+      newBookingModalBooking: null,
     };
   },
 
@@ -148,8 +160,21 @@ export default {
         const bid = data?.booking?.id;
         if (bid) await this.openPaymentProofModalByBookingId(bid);
         await this.refreshAllData();
+      } else if (data?.type === 'new-booking' || data?.type === 'manual-booking-created') {
+        toast.success(data?.type === 'manual-booking-created' ? 'Đã tạo đơn tại quầy.' : 'Có đơn đặt sân mới từ khách!');
+        this.newBookingModalBooking = data.booking || null;
+        this.showNewBookingModal = !!this.newBookingModalBooking;
+        const bid = data?.booking?.id;
+        if (bid) {
+          this.newBookingId = bid;
+          setTimeout(() => { this.newBookingId = null; }, 8000);
+        }
+        await this.refreshAllData();
+      } else if (data?.type === 'booking-cancelled') {
+        toast.info('Một đơn đặt sân đã bị hủy.');
+        await this.refreshAllData();
       } else {
-        toast.info('Có đơn đặt sân mới hoặc cập nhật.');
+        toast.info('Có cập nhật đơn đặt sân.');
         await this.refreshAllData();
       }
     });
@@ -410,6 +435,20 @@ export default {
       this.showPaymentProofModal = false;
       this.paymentProofModalBooking = null;
       this.paymentProofConfirmLoading = false;
+    },
+
+    closeNewBookingModal() {
+      this.showNewBookingModal = false;
+      this.newBookingModalBooking = null;
+    },
+
+    handleNewBookingModalViewDetail(booking) {
+      if (!booking?.id) return;
+      this.closeNewBookingModal();
+      try {
+        sessionStorage.setItem('owner_prefill_booking_detail', JSON.stringify(booking));
+      } catch (_) { /* ignore */ }
+      this.$router.push({ path: '/owner/bookings', query: { bookingId: String(booking.id) } });
     },
 
     /** Tải toàn bộ đơn CLB (không lọc ngày) để mở modal khi socket báo có proof — đơn có thể không thuộc ngày đang xem lịch */

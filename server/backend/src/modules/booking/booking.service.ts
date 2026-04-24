@@ -3,6 +3,7 @@ import { PaymentMethod, BookingStatus, PaymentStatus, Prisma } from "@/generated
 import type { CreateBookingInput } from "@/validations/booking.schema";
 import type { ManualBookingInput } from "@/validations/manual-booking.schema";
 import { eventEmitter } from "@/lib/events";
+import { vnDayRange, vnHourAndDayOfWeek } from "@/lib/vnCalendar";
 import { bookingRepository } from "@/modules/booking/booking.repository";
 
 type CreateBookingSlotInput = CreateBookingInput["slots"][number];
@@ -27,7 +28,14 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   // 0. Preliminary checks
   const club = await prisma.club.findUnique({
     where: { id: input.clubId },
-    select: { id: true, slotDuration: true }
+    select: {
+      id: true,
+      slotDuration: true,
+      transferBankName: true,
+      transferAccountNumber: true,
+      transferBeneficiaryName: true,
+      transferQrImageUrl: true,
+    },
   });
   if (!club) throw new Error("CLUB_NOT_FOUND");
 
@@ -68,13 +76,12 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   const slotPrices: { slotId: string; price: number }[] = [];
 
   for (const slot of slots) {
-    const slotHour = slot.startTime.getHours();
-    const slotDow = slot.startTime.getDay();
+    const { hour: slotHour, dayOfWeek: slotDow } = vnHourAndDayOfWeek(slot.startTime);
     const court = slot.court;
 
     const pricing = court.pricings.find((p) => {
-      const pStart = new Date(p.startTime).getHours();
-      const pEnd = new Date(p.endTime).getHours();
+      const pStart = new Date(p.startTime).getUTCHours();
+      const pEnd = new Date(p.endTime).getUTCHours();
       const pDow = p.dayOfWeek;
 
       let isTimeMatch = false;
@@ -155,6 +162,8 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   discountAmount = isNaN(discountAmount) ? 0 : discountAmount;
   const finalAmount = Math.max(0, totalAmount - discountAmount);
 
+  const payMethod = (input.paymentMethod as PaymentMethod) || PaymentMethod.BANK_TRANSFER;
+
   // 5. Transaction - DB Update using Repository
   return await prisma.$transaction(async (tx) => {
     // Check & Book slots (FOR UPDATE)
@@ -210,22 +219,43 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
       },
       payment: {
         create: {
-          method: (input.paymentMethod as PaymentMethod) || PaymentMethod.BANK_TRANSFER,
+          method: payMethod,
           status: PaymentStatus.WAITING_PAYMENT,
           amount: finalAmount,
         },
       },
     }, tx as Prisma.TransactionClient);
 
+    if (payMethod === PaymentMethod.BANK_TRANSFER && newBooking.payment?.id) {
+      await tx.payment.update({
+        where: { id: newBooking.payment.id },
+        data: {
+          bankName: club.transferBankName || null,
+          accountNumber: club.transferAccountNumber || null,
+          beneficiaryName: club.transferBeneficiaryName || null,
+          qrImageUrl: club.transferQrImageUrl || null,
+          transferContent: newBooking.bookingCode,
+        },
+      });
+    }
+
+    const finalBooking = await tx.booking.findUnique({
+      where: { id: newBooking.id },
+      include: {
+        items: { include: { timeSlot: { include: { court: true } } } },
+        payment: true,
+      },
+    });
+    if (!finalBooking) throw new Error("BOOKING_CREATE_FAILED");
+
     // ── DECOUPLED NOTIFICATION ──────────────────────────
-    // Just emit the event, don't care how it's handled (Socket/Mail/Push)
     eventEmitter.emit('booking.created', {
       clubId: input.clubId,
-      booking: newBooking,
+      booking: finalBooking,
       type: 'new-booking'
     });
 
-    return newBooking;
+    return finalBooking;
   });
 }
 
@@ -260,13 +290,16 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
   let totalAmount = 0;
   const slotPrices: { slotId: string; price: number }[] = [];
   for (const slot of slots) {
-    const slotHour = slot.startTime.getHours();
-    const slotDow = slot.startTime.getDay();
+    const { hour: slotHour, dayOfWeek: slotDow } = vnHourAndDayOfWeek(slot.startTime);
     const pricing = slot.court.pricings.find(p => {
-      const pStart = new Date(p.startTime).getHours();
-      const pEnd = new Date(p.endTime).getHours();
+      const pStart = new Date(p.startTime).getUTCHours();
+      const pEnd = new Date(p.endTime).getUTCHours();
       const pDow = p.dayOfWeek;
-      return slotHour >= pStart && slotHour < pEnd && (pDow === null || pDow === slotDow);
+      let isTimeMatch = false;
+      if (pStart === pEnd) isTimeMatch = true;
+      else if (pStart < pEnd) isTimeMatch = slotHour >= pStart && slotHour < pEnd;
+      else isTimeMatch = slotHour >= pStart || slotHour < pEnd;
+      return isTimeMatch && (pDow === null || pDow === slotDow);
     });
     const pricePerHour = Number(pricing?.pricePerHour?.toString() || 0);
     const price = isNaN(pricePerHour) ? 0 : (pricePerHour * (club.slotDuration || 60)) / 60;
@@ -468,18 +501,16 @@ export async function getBookingByClubId(clubId: string, ownerId: string, date?:
   if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
 
   const where: Prisma.BookingWhereInput = { clubId };
-  if (date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+  const ymdOk = date && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  if (ymdOk) {
+    const { start: startOfDay, end: endOfDay } = vnDayRange(date);
 
     where.items = {
       some: {
         timeSlot: {
-          startTime: { gte: startOfDay, lte: endOfDay }
-        }
-      }
+          startTime: { gte: startOfDay, lte: endOfDay },
+        },
+      },
     };
   }
 
@@ -510,7 +541,18 @@ export async function getBookingByCode(bookingCode: string, userId: string) {
           }
         }
       },
-      payment: { select: { method: true, status: true } },
+      payment: {
+        select: {
+          method: true,
+          status: true,
+          bankName: true,
+          accountNumber: true,
+          beneficiaryName: true,
+          transferContent: true,
+          qrImageUrl: true,
+          proofImageUrl: true,
+        },
+      },
     },
   });
 }

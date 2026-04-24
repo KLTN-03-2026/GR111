@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { todayYmdVietnam } from "@/lib/vnCalendar";
 import { getInferredSlotsForCourt } from "@/modules/slot/slot.service";
 import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, serverErrorResponse } from "@/lib/response";
@@ -28,15 +29,14 @@ export async function GET(
 
         // Lấy query params
         const { searchParams } = new URL(req.url);
-        const dateStr = searchParams.get("date") || new Date().toISOString().split('T')[0];
-        const date = new Date(dateStr);
+        const dateStr = searchParams.get("date") || todayYmdVietnam();
 
         const courts = await prisma.court.findMany({
             where: { clubId, status: "ACTIVE" }
         });
 
         const allSlots = await Promise.all(courts.map(async (court) => {
-            const slots = await getInferredSlotsForCourt(court.id, date);
+            const slots = await getInferredSlotsForCourt(court.id, dateStr);
             return {
                 courtId: court.id,
                 courtName: court.name,

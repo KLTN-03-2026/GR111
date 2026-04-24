@@ -286,12 +286,13 @@ import banner6 from "../../../assets/assets/images/banner/banner6.jpg";
 import banner7 from "../../../assets/assets/images/banner/banner7.jpg";
 import banner8 from "../../../assets/assets/images/banner/banner8.jpg";
 import banner9 from "../../../assets/assets/images/banner/banner9.jpg";
+import { formatDateInputLocal } from "@/utils/dateInput";
 
 export default {
   name: "HeroView",
 
   data() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateInputLocal();
     return {
       selectedSport: "football",
       location: "Đà Nẵng",

@@ -120,6 +120,12 @@ model Club {
   posts          Post[]
   vouchers       Voucher[]
 
+  /// Thông tin chuyển khoản hiển thị cho khách (theo từng CLB)
+  transferBankName        String?
+  transferAccountNumber   String?
+  transferBeneficiaryName String?
+  transferQrImageUrl      String?
+
   @@index([name])
   @@index([address])
   @@index([slug])
@@ -333,7 +339,9 @@ model Payment {
   transactionRef  String?       @unique
   bankName        String?
   accountNumber   String?
+  beneficiaryName String?
   transferContent String?
+  qrImageUrl      String?
   proofImageUrl   String?
   paidAt          DateTime?
   confirmedAt     DateTime?

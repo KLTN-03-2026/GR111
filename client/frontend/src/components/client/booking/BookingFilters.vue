@@ -233,6 +233,8 @@
 </template>
 
 <script>
+import { formatDateInputLocal } from "@/utils/dateInput";
+
 export default {
   name: "BookingFilters",
 
@@ -250,7 +252,7 @@ export default {
 
   data() {
     return {
-      today:     new Date().toISOString().split("T")[0],
+      today:     formatDateInputLocal(),
       radiusMin: "1",
       radiusMax: "50",
     };

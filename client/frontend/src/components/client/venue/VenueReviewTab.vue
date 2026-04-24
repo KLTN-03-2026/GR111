@@ -287,8 +287,8 @@ export default {
         
         // Filter for those that are eligible (COMPLETED/CONFIRMED) AND haven't been reviewed yet
         this.userBookings = clubBookings.filter(b => {
-          const isEligibleStatus = b.status === 'COMPLETED' || b.status === 'CONFIRMED';
-          const isNotReviewed = !b.review; // Only allow review if b.review is null/undefined
+          const isEligibleStatus = b.status === 'COMPLETED';
+          const isNotReviewed = !b.review;
           return isEligibleStatus && isNotReviewed;
         });
 

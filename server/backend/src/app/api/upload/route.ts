@@ -18,6 +18,7 @@ const FOLDER_CONFIG: Record<string, {
   "club-logo":        { folder: "clubs/logos",         roles: ["OWNER", "ADMIN"],         description: "Logo câu lạc bộ" },
   "club-cover":       { folder: "clubs/covers",        roles: ["OWNER", "ADMIN"],         description: "Ảnh bìa câu lạc bộ" },
   "club-gallery":     { folder: "clubs/gallery",       roles: ["OWNER", "ADMIN"],         description: "Bộ sưu tập ảnh CLB" },
+  "club-transfer-qr": { folder: "clubs/transfer-qr",   roles: ["OWNER", "ADMIN"],         description: "Ảnh QR chuyển khoản CLB" },
   "court-image":      { folder: "courts/images",       roles: ["OWNER", "ADMIN"],         description: "Ảnh sân bóng" },
   "business-license": { folder: "documents/licenses",  roles: ["OWNER", "ADMIN"],         description: "Giấy phép kinh doanh" },
   "payment-proof":    { folder: "payments/proofs",     roles: ["USER", "OWNER", "ADMIN"], description: "Bằng chứng thanh toán" },
@@ -151,6 +152,13 @@ async function updateEntityInDB(type: string, entityId: string, userId: string, 
       case "club-gallery":
         await prisma.clubImage.create({
           data: { clubId: entityId, url },
+        });
+        break;
+
+      case "club-transfer-qr":
+        await prisma.club.update({
+          where: { id: entityId },
+          data: { transferQrImageUrl: url },
         });
         break;
 

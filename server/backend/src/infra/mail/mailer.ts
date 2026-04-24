@@ -56,6 +56,11 @@ export interface BookingEmailData {
   discountAmount: number;
   finalAmount: number;
   paymentMethod: string;
+  /** Snapshot chuyển khoản (nếu có) */
+  transferBankName?: string | null;
+  transferAccountNumber?: string | null;
+  transferBeneficiaryName?: string | null;
+  transferContent?: string | null;
 }
 
 export async function sendBookingConfirmationEmail(data: BookingEmailData) {
@@ -167,6 +172,14 @@ export async function sendBookingWaitingPaymentEmail(data: BookingEmailData) {
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
 
+  const bankLine = (label: string, value: string) =>
+    `<p style="margin: 4px 0; font-size: 14px;"><strong>${label}:</strong> ${value}</p>`;
+
+  const bankName = data.transferBankName?.trim() || "— (chủ sân chưa cấu hình)";
+  const accountNumber = data.transferAccountNumber?.trim() || "—";
+  const beneficiary = data.transferBeneficiaryName?.trim() || "—";
+  const transferContent = data.transferContent?.trim() || data.bookingCode;
+
   const slotRows = data.slots
     .map(
       (slot) => `
@@ -194,10 +207,10 @@ export async function sendBookingWaitingPaymentEmail(data: BookingEmailData) {
 
           <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 20px 0;">
             <h3 style="margin: 0 0 12px; color: #92400e; font-size: 16px;">🏦 Thông tin chuyển khoản</h3>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Ngân hàng:</strong> VietcomBank</p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Số tài khoản:</strong> 1234567890</p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Chủ tài khoản:</strong> NGUYEN DINH VI</p>
-            <p style="margin: 4px 0; font-size: 14px;"><strong>Nội dung:</strong> <span style="color: #ef4444; font-weight: 800;">${data.bookingCode}</span></p>
+            ${bankLine("Ngân hàng", bankName)}
+            ${bankLine("Số tài khoản", accountNumber)}
+            ${bankLine("Chủ tài khoản", beneficiary)}
+            <p style="margin: 4px 0; font-size: 14px;"><strong>Nội dung:</strong> <span style="color: #ef4444; font-weight: 800;">${transferContent}</span></p>
             <p style="margin: 12px 0 0; font-size: 13px; color: #d97706;">* Vui lòng chuyển đúng nội dung để hệ thống tự động xác nhận nhanh nhất.</p>
           </div>
 
