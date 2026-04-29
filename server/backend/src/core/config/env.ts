@@ -34,6 +34,22 @@ const envSchema = z.object({
 
   GOOGLE_CLOUD_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+
+  EMAIL_USER: z.string().optional(),
+  BOOKING_EXPIRE_MINUTES: z.coerce.number().int().positive().default(5),
+
+  // --- MOMO Payment ---
+  MOMO_V2_PARTNER_CODE: z.string().optional(),
+  MOMO_V2_ACCESS_KEY: z.string().optional(),
+  MOMO_V2_SECRET_KEY: z.string().optional(),
+  MOMO_V2_ENDPOINT: z.string().optional(),
+  MOMO_V2_REDIRECT_URL: z.string().optional(),
+  MOMO_V2_IPN_URL: z.string().optional(),
+
+  // --- Stripe ---
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

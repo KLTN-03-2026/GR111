@@ -1,0 +1,76 @@
+# ================================================================
+# Render Blueprint — Auto-provision all services
+# Docs: https://docs.render.com/blueprint-spec
+# ================================================================
+
+databases:
+  - name: sports-booking-db
+    plan: free
+    databaseName: sports_booking
+    user: sports_user
+    region: singapore
+
+services:
+  # ─────────────────────────────────────────
+  # Backend (Next.js + Socket.io Custom Server)
+  # ─────────────────────────────────────────
+  - type: web
+    name: sports-booking-backend
+    runtime: node
+    region: singapore
+    plan: free
+    rootDir: server/backend
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npx tsx server.ts
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sports-booking-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false   # Set this after frontend is deployed
+      - key: REDIS_URL
+        sync: false   # Set Upstash URL here
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_SECURE
+        value: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: NEXT_PUBLIC_MAPBOX_TOKEN
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FACEBOOK_APP_ID
+        sync: false
+      - key: FACEBOOK_APP_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: BOOKING_EXPIRE_MINUTES
+        value: 5
