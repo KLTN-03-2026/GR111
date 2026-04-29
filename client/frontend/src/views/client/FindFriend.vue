@@ -106,7 +106,7 @@
 
           <!-- Feed Grid -->
           <div v-else class="feed-grid">
-            <div v-for="post in filteredFeed" :key="post.id">
+            <div v-for="post in filteredFeed" :key="post.id" class="feed-item-root" :data-post-id="post.id">
               <!-- MATCH CARD -->
               <div v-if="post.type === 'TEAM_MATCHING'" class="match-card">
                 <div class="card-header">
@@ -243,7 +243,7 @@
 </template>
 
 <script>
-import { postService } from '@/services/post.service';
+import { postService, unwrapPostListPayload } from '@/services/post.service';
 import { clubService } from '@/services/club.service';
 import { toast } from 'vue3-toastify';
 
@@ -285,7 +285,8 @@ export default {
       stats: {
         activeMatch: 0,
         totalPlayers: 1580
-      }
+      },
+      _feedIo: null
     };
   },
   computed: {
@@ -321,17 +322,30 @@ export default {
       return list;
     }
   },
+  watch: {
+    filteredFeed: {
+      handler() {
+        this.$nextTick(() => this.setupFeedViewTracking());
+      },
+      deep: true
+    },
+    loading(val) {
+      if (!val) this.$nextTick(() => this.setupFeedViewTracking());
+    }
+  },
   async mounted() {
     await this.fetchMatches();
     await this.fetchUserClubs();
+    await this.handleShareQuery();
   },
   methods: {
     async fetchMatches() {
       this.loading = true;
       try {
-        const res = await postService.getPublicFeed();
-        this.allFeed = res.data || [];
-        this.stats.activeMatch = this.allFeed.filter(p => p.type === 'TEAM_MATCHING').length;
+        const res = await postService.getPublicFeed({ limit: 80, page: 1 });
+        const list = unwrapPostListPayload(res.data);
+        this.allFeed = list;
+        this.stats.activeMatch = this.allFeed.filter((p) => p.type === 'TEAM_MATCHING').length;
       } catch (e) {
         toast.error("Không thể tải bảng tin");
       } finally {
@@ -345,6 +359,52 @@ export default {
       } catch (e) { console.error(e); }
     },
 
+    async handleShareQuery() {
+      const q = new URLSearchParams(window.location.search);
+      const cs = q.get('clubSlug');
+      const ps = q.get('postSlug');
+      if (!cs || !ps) return;
+      try {
+        const res = await postService.getSharedPost(cs, ps);
+        if (res.success && res.data) {
+          toast.info(`Bài đăng được chia sẻ: ${res.data.title}`);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+    },
+
+    setupFeedViewTracking() {
+      if (typeof IntersectionObserver === 'undefined') return;
+      if (!this.$el || !this.$el.querySelectorAll) return;
+      if (this._feedIo) this._feedIo.disconnect();
+      this._feedIo = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            const id = entry.target.getAttribute('data-post-id');
+            if (id) this.trackPostViewOnce(id);
+            this._feedIo.unobserve(entry.target);
+          });
+        },
+        { threshold: 0.35 }
+      );
+      this.$el.querySelectorAll('[data-post-id]').forEach((el) => this._feedIo.observe(el));
+    },
+
+    trackPostViewOnce(postId) {
+      try {
+        const key = 'feed_post_views';
+        const raw = sessionStorage.getItem(key);
+        const seen = raw ? JSON.parse(raw) : [];
+        if (seen.includes(postId)) return;
+        seen.push(postId);
+        sessionStorage.setItem(key, JSON.stringify(seen.slice(-500)));
+        postService.recordPostView(postId).catch(() => {});
+      } catch (_) {
+        /* ignore */
+      }
+    },
     async handleCreatePost() {
       if (!this.createForm.title || !this.createForm.content) {
         toast.warning("Vui lòng điền đủ tiêu đề và nội dung");
@@ -384,7 +444,8 @@ export default {
         DISCOUNT: 'Khuyến mãi',
         EVENT: 'Sự kiện',
         TEAM_MATCHING: 'Ghép kèo',
-        PROMOTION: 'Ưu đãi'
+        AVAILABLE_SLOT: 'Khung giờ trống',
+        ANNOUNCEMENT: 'Thông báo',
       };
       return labels[type] || type;
     },
@@ -446,6 +507,9 @@ export default {
     resetFilters() {
       this.filters = { keyword: '', level: '', date: '' };
     }
+  },
+  beforeUnmount() {
+    if (this._feedIo) this._feedIo.disconnect();
   }
 };
 </script>

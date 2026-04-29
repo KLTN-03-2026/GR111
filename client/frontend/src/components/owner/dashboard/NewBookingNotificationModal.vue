@@ -329,20 +329,22 @@ export default {
 }
 
 .nbm-btn.primary {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  background: #059669;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28);
 }
 .nbm-btn.primary:hover {
+  background: #047857;
   transform: translateY(-1px);
 }
 
 .nbm-btn.accent {
-  background: linear-gradient(135deg, #059669, #047857);
+  background: #059669;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28);
 }
 .nbm-btn.accent:hover:not(:disabled) {
+  background: #047857;
   transform: translateY(-1px);
 }
 .nbm-btn.accent:disabled {

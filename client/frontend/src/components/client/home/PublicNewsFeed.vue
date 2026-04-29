@@ -82,7 +82,7 @@
 </template>
 
 <script>
-import { postService } from '@/services/post.service';
+import { postService, unwrapPostListPayload } from '@/services/post.service';
 
 export default {
   name: 'PublicNewsFeed',
@@ -98,9 +98,9 @@ export default {
   methods: {
     async fetchFeed() {
       try {
-        const res = await postService.getPublicFeed();
+        const res = await postService.getPublicFeed({ limit: 30, page: 1 });
         if (res.success) {
-          this.posts = res.data || [];
+          this.posts = unwrapPostListPayload(res.data);
         }
       } catch (e) {
         console.error("News Feed Error:", e);
@@ -115,7 +115,6 @@ export default {
         EVENT: 'Sự kiện',
         TEAM_MATCHING: 'Ghép kèo',
         ANNOUNCEMENT: 'Thông báo',
-        PROMOTION: 'Khuyến mãi'
       };
       return labels[type] || type;
     },

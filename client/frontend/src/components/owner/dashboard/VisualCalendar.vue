@@ -384,6 +384,10 @@ export default {
   padding: 6px 12px; border-radius: 8px;
   background: #059669; color: #fff; border: none;
   font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.2s;
+}
+.today-btn:hover {
+  background: #047857;
 }
 
 /* ── Legend ───────────────────────────────────────── */

@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         avatarUrl: true,
         role: true,
         isVerified: true,
+        createdAt: true,
         profile: { select: { bio: true, address: true, dateOfBirth: true, gender: true } },
         ownerProfile: true,
       },

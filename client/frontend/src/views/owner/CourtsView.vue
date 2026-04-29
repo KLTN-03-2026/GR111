@@ -92,18 +92,23 @@
 
     <!-- Content -->
     <div v-else-if="filteredCourts.length" class="grid">
-      <div v-for="(c, i) in filteredCourts" :key="c.id" class="card premium-card" :style="`--d:${i*70}ms`">
-        <div class="c-header-sport" :class="c.sportType">
-          <span class="s-emoji">{{ getSportEmoji(c.sportType) }}</span>
-          <div class="s-info">
-            <div class="s-label">{{ getSportLabel(c.sportType) }}</div>
-            <div class="s-status" :class="c.status">
-              <span class="dot"></span> {{ getStatusLabel(c.status) }}
+      <div
+        v-for="(c, i) in filteredCourts"
+        :key="c.id"
+        class="card premium-card"
+        :style="{ '--d': `${i * 70}ms`, '--cover-url': `url(${JSON.stringify(courtCoverUrl(c))})` }"
+      >
+        <div class="c-hero">
+          <div class="c-hero-bg" aria-hidden="true"></div>
+          <div class="c-header-sport" :class="c.sportType">
+            <span class="s-emoji">{{ getSportEmoji(c.sportType) }}</span>
+            <div class="s-info">
+              <div class="s-label">{{ getSportLabel(c.sportType) }}</div>
+              <div class="s-status" :class="c.status">
+                <span class="dot"></span> {{ getStatusLabel(c.status) }}
+              </div>
             </div>
           </div>
-        </div>
-        <div class="c-cover">
-          <img :src="(c.images && c.images.length > 0) ? c.images[0].url : 'https://images.unsplash.com/photo-1554062614-6da3d3b7625e?w=800&q=80'" alt="Court cover" />
         </div>
         <div class="cbody">
           <h3 class="c-title">{{ c.name }}</h3>
@@ -643,6 +648,10 @@ export default {
       const labels = { ACTIVE: 'Hoạt động', MAINTENANCE: 'Bảo trì', INACTIVE: 'Tạm dừng' };
       return labels[status] || status;
     },
+    courtCoverUrl(c) {
+      const fallback = 'https://images.unsplash.com/photo-1554062614-6da3d3b7625e?w=800&q=80';
+      return c.images?.length ? c.images[0].url : fallback;
+    },
 
     // ── Fetch ──────────────────────────────────────────────
     /** Ưu tiên `?clubId=` (link từ Quản lý CLB), không thì CLB đầu danh sách */
@@ -929,26 +938,62 @@ export default {
 .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 15px 25px -5px rgba(16,185,129,0.4);}
 .btn-primary:disabled{opacity:0.5;cursor:not-allowed;}
 
-/* Premium Card */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;}
-.premium-card{background:#fff;border-radius:32px;overflow:hidden;border:1px solid #f1f5f9;box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);animation:fadeInUp .6s ease both;animation-delay:var(--d);display:flex;flex-direction:column;}
+/* Premium Card — hero ~40% chiều cao qua aspect-ratio; thân co theo nội dung */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;align-items:stretch;}
+.premium-card{
+  position:relative;
+  isolation:isolate;
+  background:#fff;
+  border-radius:32px;
+  overflow:hidden;
+  border:1px solid #f1f5f9;
+  box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);
+  transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation:fadeInUp .6s ease both;
+  animation-delay:var(--d);
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  min-height:360px;
+  height:auto;
+}
+.c-hero{
+  position:relative;
+  flex:0 0 auto;
+  width:100%;
+  aspect-ratio:5 / 2;
+  min-height:140px;
+  max-height:min(220px,40vh);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-bottom:1px solid rgba(241,245,249,0.85);
+}
+.c-hero-bg{
+  position:absolute;
+  inset:0;
+  background-image:var(--cover-url);
+  background-size:cover;
+  background-position:center;
+  border-radius:32px 32px 0 0;
+}
 .premium-card:hover{transform:translateY(-10px);box-shadow:0 30px 60px -15px rgba(0,0,0,0.15);}
 
-.c-header-sport{padding:24px;display:flex;align-items:center;gap:15px;position:relative;overflow:hidden;}
+.c-header-sport{padding:24px;display:flex;align-items:center;gap:15px;flex:1;position:relative;overflow:hidden;z-index:1;}
 .c-header-sport::before{content:'';position:absolute;inset:0;opacity:0.1;z-index:0;}
 
-.FOOTBALL{background:#ecfdf5;color:#065f46;}
-.FOOTBALL::before{background:radial-gradient(circle at 20% 20%, #10b981 0%, transparent 50%);}
-.BADMINTON{background:#f5f3ff;color:#5b21b6;}
-.BADMINTON::before{background:radial-gradient(circle at 20% 20%, #8b5cf6 0%, transparent 50%);}
-.TENNIS{background:#fefce8;color:#854d0e;}
-.TENNIS::before{background:radial-gradient(circle at 20% 20%, #eab308 0%, transparent 50%);}
-.PICKLEBALL{background:#fff7ed;color:#9a3412;}
-.PICKLEBALL::before{background:radial-gradient(circle at 20% 20%, #f97316 0%, transparent 50%);}
-.BASKETBALL{background:#fff7ed;color:#c2410c;}
-.BASKETBALL::before{background:radial-gradient(circle at 20% 20%, #f97316 0%, transparent 50%);}
-.VOLLEYBALL{background:#f0f9ff;color:#075985;}
-.VOLLEYBALL::before{background:radial-gradient(circle at 20% 20%, #0ea5e9 0%, transparent 50%);}
+.FOOTBALL{background:rgba(236,253,245,0.93);color:#065f46;}
+.FOOTBALL::before{background:radial-gradient(circle at 20% 20%, rgba(16,185,129,0.35) 0%, transparent 55%);}
+.BADMINTON{background:rgba(245,243,255,0.93);color:#5b21b6;}
+.BADMINTON::before{background:radial-gradient(circle at 20% 20%, rgba(139,92,246,0.35) 0%, transparent 55%);}
+.TENNIS{background:rgba(254,252,232,0.93);color:#854d0e;}
+.TENNIS::before{background:radial-gradient(circle at 20% 20%, rgba(234,179,8,0.35) 0%, transparent 55%);}
+.PICKLEBALL{background:rgba(255,247,237,0.93);color:#9a3412;}
+.PICKLEBALL::before{background:radial-gradient(circle at 20% 20%, rgba(249,115,22,0.35) 0%, transparent 55%);}
+.BASKETBALL{background:rgba(255,247,237,0.93);color:#c2410c;}
+.BASKETBALL::before{background:radial-gradient(circle at 20% 20%, rgba(249,115,22,0.35) 0%, transparent 55%);}
+.VOLLEYBALL{background:rgba(240,249,255,0.93);color:#075985;}
+.VOLLEYBALL::before{background:radial-gradient(circle at 20% 20%, rgba(14,165,233,0.35) 0%, transparent 55%);}
 
 .s-emoji{font-size:32px;z-index:1;}
 .s-info{z-index:1;flex:1;}
@@ -961,7 +1006,7 @@ export default {
 .s-status.MAINTENANCE .dot{background:#f59e0b;}
 .s-status.INACTIVE .dot{background:#ef4444;}
 
-.cbody{padding:24px;flex:1;display:flex;flex-direction:column;}
+.cbody{position:relative;z-index:1;padding:24px;flex:1 1 auto;display:flex;flex-direction:column;background:#fff;}
 .c-title{font-size:20px;font-weight:800;margin:0 0 16px;color:#0f172a;}
 .c-meta-row{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
 .cm-item{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:#64748b;}
@@ -974,10 +1019,6 @@ export default {
 .abtn.edit:hover{background:#e2e8f0;}
 .abtn.del{flex:0 0 46px;background:#fef2f2;color:#ef4444;}
 .abtn.del:hover{background:#fee2e2;}
-
-.c-cover{height:180px;overflow:hidden;border-bottom:1px solid #f1f5f9;background:#f8fafc;}
-.c-cover img{width:100%;height:100%;object-fit:cover;transition:transform 0.5s;}
-.premium-card:hover .c-cover img{transform:scale(1.05);}
 
 /* Drawer — khung lớn giữa màn, đủ rộng như vùng nội dung chính */
 .drawer-overlay{

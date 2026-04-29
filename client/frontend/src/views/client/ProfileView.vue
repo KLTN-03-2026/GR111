@@ -376,7 +376,7 @@
 <script>
 import { authService } from '@/services/auth.service';
 import { userService } from '@/services/user.service';
-import { postService } from '@/services/post.service';
+import { postService, unwrapPostListPayload } from '@/services/post.service';
 import { clubService } from '@/services/club.service';
 import { notificationService } from '@/services/notification.service';
 import { toast } from 'vue3-toastify';
@@ -611,8 +611,8 @@ export default {
       this.loadingPosts = true;
       try {
         // Fetch public feed and filter by current user
-        const res = await postService.getPublicFeed();
-        const allPosts = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        const res = await postService.getPublicFeed({ limit: 100, page: 1 });
+        const allPosts = unwrapPostListPayload(res.data);
         
         // Filter articles created by the current user
         this.userPosts = allPosts.filter(post => 

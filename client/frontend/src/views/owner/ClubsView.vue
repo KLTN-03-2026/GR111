@@ -15,7 +15,7 @@
     <!-- Stats Row -->
     <div class="stats-row">
       <div class="stat-card blue">
-        <div class="sc-icon"><span class="material-icons">business</span></div>
+        <div class="sc-icon"><span class="material-icons">domain</span></div>
         <div class="sc-info">
           <span class="sc-label">Tổng cơ sở</span>
           <span class="sc-val">{{ clubs.length }}</span>
@@ -23,21 +23,21 @@
         <div class="sc-chart"></div>
       </div>
       <div class="stat-card green">
-        <div class="sc-icon"><span class="material-icons">check_circle</span></div>
+        <div class="sc-icon"><span class="material-icons">bolt</span></div>
         <div class="sc-info">
           <span class="sc-label">Đang hoạt động</span>
           <span class="sc-val">{{ clubs.filter(c => c.approvalStatus === 'APPROVED').length }}</span>
         </div>
       </div>
       <div class="stat-card yellow">
-        <div class="sc-icon"><span class="material-icons">pending_actions</span></div>
+        <div class="sc-icon"><span class="material-icons">hourglass_top</span></div>
         <div class="sc-info">
           <span class="sc-label">Chờ duyệt</span>
           <span class="sc-val">{{ clubs.filter(c => c.approvalStatus === 'PENDING').length }}</span>
         </div>
       </div>
       <div class="stat-card purple">
-        <div class="sc-icon"><span class="material-icons">sports_soccer</span></div>
+        <div class="sc-icon"><span class="material-icons">fitness_center</span></div>
         <div class="sc-info">
           <span class="sc-label">Tổng số sân</span>
           <span class="sc-val">{{ clubs.reduce((acc, c) => acc + (c.courts?.length || 0), 0) }}</span>
@@ -94,10 +94,14 @@
 
     <!-- Grid -->
     <div v-else-if="list.length" class="grid">
-      <div v-for="(c,i) in list" :key="c.id" class="card premium-card" :style="`--d:${i*70}ms`">
-        <div class="cimg">
-          <img :src="c.coverImageUrl || fallbackImg" :alt="c.name" loading="lazy" />
-          <div class="glass-overlay"></div>
+      <div
+        v-for="(c,i) in list"
+        :key="c.id"
+        class="card premium-card"
+        :style="{ '--d': `${i * 70}ms`, '--cover-url': `url(${JSON.stringify(c.coverImageUrl || fallbackImg)})` }"
+      >
+        <div class="c-hero">
+          <div class="c-hero-bg" aria-hidden="true"></div>
           <span class="badge-new" :class="c.approvalStatus">{{ statusLabel(c.approvalStatus) }}</span>
         </div>
         <div class="cbody">
@@ -122,7 +126,7 @@
 
           <div class="actions">
             <button class="abtn edit" @click="openEdit(c)">
-              <span class="material-icons">edit</span> <span>Chỉnh sửa</span>
+              <span class="material-icons">edit</span> <span>Sửa</span>
             </button>
             <router-link :to="`/owner/courts?clubId=${c.id}`" class="abtn manage">
               <span class="material-icons">dashboard</span> <span>Quản lý sân</span>
@@ -1081,22 +1085,53 @@ export default {
 .btn-primary{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;height:54px;padding:0 28px;border-radius:20px;font-weight:700;font-size:15px;cursor:pointer;transition:all .3s;box-shadow:0 10px 20px -5px rgba(16,185,129,0.3);}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 15px 25px -5px rgba(16,185,129,0.4);}
 
-/* Premium Card */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:28px;}
-.premium-card{background:#fff;border-radius:32px;overflow:hidden;border:1px solid #f1f5f9;box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);animation:fadeInUp .6s ease both;animation-delay:var(--d);}
+/* Premium Card — hero ~40% chiều cao qua aspect-ratio; thân co theo nội dung (không cắt nút) */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:28px;align-items:stretch;}
+.premium-card{
+  position:relative;
+  isolation:isolate;
+  background:#fff;
+  border-radius:32px;
+  overflow:hidden;
+  border:1px solid #f1f5f9;
+  box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);
+  transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation:fadeInUp .6s ease both;
+  animation-delay:var(--d);
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  min-height:360px;
+  height:auto;
+}
+.c-hero{
+  position:relative;
+  flex:0 0 auto;
+  width:100%;
+  aspect-ratio:5 / 2;
+  min-height:140px;
+  max-height:min(220px,40vh);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-bottom:1px solid #f1f5f9;
+}
+.c-hero-bg{
+  position:absolute;
+  inset:0;
+  background-image:var(--cover-url);
+  background-size:cover;
+  background-position:center;
+  border-radius:32px 32px 0 0;
+}
 .premium-card:hover{transform:translateY(-10px) scale(1.02);box-shadow:0 30px 60px -15px rgba(0,0,0,0.15);}
 
-.cimg{position:relative;height:220px;overflow:hidden;}
-.cimg img{width:100%;height:100%;object-fit:cover;transition:all .8s;}
-.premium-card:hover .cimg img{transform:scale(1.1);}
-.glass-overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.6), transparent);}
-
-.badge-new{position:absolute;top:20px;right:20px;padding:6px 14px;border-radius:14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;backdrop-filter:blur(8px);}
+.badge-new{position:absolute;top:16px;right:16px;z-index:2;padding:6px 14px;border-radius:14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;backdrop-filter:blur(8px);}
 .badge-new.APPROVED{background:rgba(34,197,94,0.85);color:#fff;}
 .badge-new.PENDING{background:rgba(234,179,8,0.85);color:#fff;}
 .badge-new.REJECTED{background:rgba(239,68,68,0.85);color:#fff;}
 
-.cbody{padding:24px;}
+.cbody{position:relative;z-index:1;flex:1 1 auto;padding:24px;background:#fff;}
 .c-category{font-size:12px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
 .c-title{font-size:20px;font-weight:800;margin:0 0 10px;color:#0f172a;}
 .c-addr{display:flex;align-items:center;gap:6px;font-size:14px;color:#64748b;font-weight:500;margin-bottom:18px;}

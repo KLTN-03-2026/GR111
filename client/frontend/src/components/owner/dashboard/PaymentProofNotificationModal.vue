@@ -274,7 +274,7 @@ export default {
   left: 0;
   right: 0;
   padding: 10px 12px;
-  background: linear-gradient(transparent, rgba(15, 22, 35, 0.85));
+  background: rgba(15, 22, 35, 0.82);
   color: #fff;
   font-size: 13px;
   font-weight: 600;
@@ -332,11 +332,12 @@ export default {
 }
 
 .ppm-btn.primary {
-  background: linear-gradient(135deg, #059669, #0d9488);
+  background: #059669;
   color: #fff;
-  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.28);
 }
 .ppm-btn.primary:hover:not(:disabled) {
+  background: #047857;
   transform: translateY(-1px);
 }
 

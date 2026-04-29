@@ -487,6 +487,8 @@ model Notification {
 model Post {
   id            String     @id @default(cuid())
   clubId        String
+  /// Đường dẫn ngắn để chia sẻ, duy nhất trong phạm vi CLB
+  slug          String
   type          PostType
   status        PostStatus @default(ACTIVE)
   title         String
@@ -501,6 +503,7 @@ model Post {
   deletedAt     DateTime?
   club          Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
+  @@unique([clubId, slug])
   @@map("posts")
 }
 
@@ -538,6 +541,12 @@ model OwnerProfile {
   kycReviewedAt      DateTime?
   kycReviewedBy      String?
   kycNote            String?
+  /// Đã đóng modal giới thiệu phí duy trì (không chọn gói)
+  billingIntroDismissedAt DateTime?
+  /// Gói Subscription đã chọn: starter | growth | pro (snapshot cho billing sau này)
+  subscriptionPlanKey   String?
+  /// Add-on đã chọn (mảng id), ví dụ: ["advanced_reports","priority_support"]
+  subscriptionAddons      Json?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
