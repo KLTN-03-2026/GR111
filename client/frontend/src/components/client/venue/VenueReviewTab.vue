@@ -35,7 +35,7 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
           <h6 class="fw-bold mb-1">Xác thực lịch sử đánh giá</h6>
-          <p class="text-muted small mb-3">Chỉ khách hàng đã hoàn thành lượt đặt sân tại đây mới có thể để lại đánh giá.</p>
+          <p class="text-muted small mb-3">Chỉ khách đã từng đặt sân thành công tại đây (đơn đã xác nhận) mới có thể để lại đánh giá.</p>
           <button class="btn btn-success btn-sm fw-bold px-4" @click="checkBookingHistory">Kiểm tra ngay</button>
         </div>
       </div>
@@ -104,7 +104,7 @@
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
           </div>
           <h6 class="fw-black mb-1">Cần hoàn thành đơn đặt sân</h6>
-          <p class="text-muted small mb-3">Hệ thống không tìm thấy đơn đặt sân nào của bạn tại câu lạc bộ này.<br>Chỉ khách hàng đã sử dụng dịch vụ mới có thể đánh giá.</p>
+          <p class="text-muted small mb-3">Không có đơn đặt sân đã xác nhận nào còn lại để đánh giá tại CLB này, hoặc bạn chưa từng đặt sân thành công tại đây.</p>
           <div class="d-flex gap-2 justify-content-center flex-wrap">
             <button class="btn btn-success btn-sm fw-bold px-4" @click="$emit('switch-to-booking')">Đặt sân ngay →</button>
             <button class="btn btn-outline-secondary btn-sm" @click="resetAuth">Kiểm tra lại</button>
@@ -285,10 +285,11 @@ export default {
         // Find all bookings for this club
         const clubBookings = allBookings.filter(b => String(b.clubId) === String(this.clubId));
         
-        // Filter for those that are eligible (COMPLETED/CONFIRMED) AND haven't been reviewed yet
+        // Đơn đã xác nhận hoặc đã hoàn thành; chưa có đánh giá cho đơn đó
+        const eligibleStatuses = ['CONFIRMED', 'COMPLETED'];
         this.userBookings = clubBookings.filter(b => {
-          const isEligibleStatus = b.status === 'COMPLETED' || b.status === 'CONFIRMED';
-          const isNotReviewed = !b.review; // Only allow review if b.review is null/undefined
+          const isEligibleStatus = eligibleStatuses.includes(b.status);
+          const isNotReviewed = !b.review;
           return isEligibleStatus && isNotReviewed;
         });
 

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 import { updateClubOpeningHours } from "@/modules/club/club.service";
 import { openingHoursSchema } from "@/validations/club.schema";

@@ -1,12 +1,12 @@
 <template>
-  <aside class="sidebar-wrapper" :class="{ 'collapsed': isCollapsed }">
+  <aside
+    class="sidebar-wrapper"
+    :class="{ collapsed: isCollapsed, 'mobile-open': isMobileOpen }"
+  >
     <div class="sidebar-header">
       <div class="sidebar-logo">
-        <svg fill="none" height="40" viewBox="0 0 24 24" width="40">
-          <circle cx="12" cy="12" r="10" stroke="#16a34a" stroke-width="2.5"/>
-          <path d="M8 12l3 3 5-5" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="logo-text">Dashboard</span>
+        <img src="/logo.png" alt="" class="logo-img" width="40" height="40" />
+        <span class="logo-text">Bảng điều khiển</span>
       </div>
     </div>
 
@@ -16,7 +16,8 @@
           <router-link :to="item.path" class="nav-link" active-class="active">
             <span class="material-icons nav-icon">{{ item.icon }}</span>
             <span class="nav-label">{{ item.label }}</span>
-            <span v-if="item.badge && !isLocked" class="nav-badge">{{ item.badge }}</span>
+            <span v-if="item.name === 'bookings' && pendingBookingsCount > 0 && !isLocked" class="nav-badge">{{ pendingBookingsCount }}</span>
+            <span v-else-if="item.badge && !isLocked" class="nav-badge">{{ item.badge }}</span>
             <!-- Icon khóa hiển thị khi tính năng bị khóa -->
             <span v-if="isLocked && item.lockable" class="lock-badge">
               <span class="material-icons">lock</span>
@@ -48,6 +49,11 @@ export default {
   name: 'OwnerSidebar',
   props: {
     isCollapsed: Boolean,
+    /** Trên mobile: mở drawer điều hướng (đồng bộ với nút menu header) */
+    isMobileOpen: {
+      type: Boolean,
+      default: false,
+    },
     isLocked: {
       type: Boolean,
       default: false
@@ -55,6 +61,11 @@ export default {
     isKycApproved: {
       type: Boolean,
       default: false
+    },
+    /** Số đơn PENDING / WAITING_PAYMENT (đồng bộ với thanh thông báo & Quản lý đặt sân) */
+    pendingBookingsCount: {
+      type: Number,
+      default: 0
     }
   },
   data() {
@@ -64,7 +75,7 @@ export default {
         { name: 'clubs',     label: 'Câu lạc bộ',  path: '/owner/clubs',     icon: 'business',                 lockable: true },
         { name: 'courts',    label: 'Quản lý sân',  path: '/owner/courts',    icon: 'sports_soccer',            lockable: true },
         { name: 'pricing',   label: 'Bảng giá',     path: '/owner/pricing',   icon: 'sell',                     lockable: true },
-        { name: 'bookings',  label: 'Đơn đặt sân',  path: '/owner/bookings',  icon: 'event_available',          lockable: true, badge: '5' },
+        { name: 'bookings',  label: 'Đơn đặt sân',  path: '/owner/bookings',  icon: 'event_available',          lockable: true },
         { name: 'finance',   label: 'Tài chính',    path: '/owner/finance',   icon: 'account_balance_wallet',   lockable: true },
         { name: 'customers', label: 'Khách hàng',   path: '/owner/customers', icon: 'groups',                   lockable: true },
         { name: 'vouchers',  label: 'Khuyến mãi',   path: '/owner/vouchers',  icon: 'local_offer',              lockable: true },
@@ -114,6 +125,13 @@ export default {
 .sidebar-logo {
   display: flex; align-items: center;
   gap: 12px; overflow: hidden;
+}
+
+.logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .logo-text {
@@ -220,7 +238,28 @@ export default {
 .sidebar-wrapper.collapsed .logout-btn { padding-left: 14px; }
 
 @media (max-width: 1024px) {
-  .sidebar-wrapper { transform: translateX(-100%); }
-  .sidebar-wrapper.active { transform: translateX(0); }
+  .sidebar-wrapper {
+    top: 80px;
+    bottom: 0;
+    height: auto;
+    transform: translateX(-100%);
+    width: min(300px, 88vw);
+  }
+  .sidebar-wrapper.mobile-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(15, 23, 42, 0.14);
+  }
+  /* Drawer mobile luôn hiển thị đủ nhãn (không dùng chế độ thu 80px) */
+  .sidebar-wrapper.collapsed {
+    width: min(300px, 88vw);
+  }
+  .sidebar-wrapper.collapsed .logo-text,
+  .sidebar-wrapper.collapsed .nav-label,
+  .sidebar-wrapper.collapsed .nav-badge,
+  .sidebar-wrapper.collapsed .lock-badge,
+  .sidebar-wrapper.collapsed .status-text {
+    opacity: 1;
+    visibility: visible;
+  }
 }
 </style>

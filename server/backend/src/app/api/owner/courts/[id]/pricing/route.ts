@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 import { 
   getCourtPricings, 
   addRegularPricing, 
   upsertSpecialPricing, 
-  deletePricing 
+  deletePricing,
+  updateCourtPricing
 } from "@/modules/club/court.service";
 import { z } from "zod";
 
@@ -83,9 +84,12 @@ export async function POST(
     }
 }
 
+const timeHmRegex = /^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/;
+
 /**
  * PUT /api/owner/courts/[id]/pricing
- * Thêm/Cập nhật bảng giá đặc biệt
+ * - Body là mảng: thay thế toàn bộ bảng giá định kỳ (khung giờ theo thứ) — dùng khi thêm/sửa sân từ CourtsView.
+ * - Body là object có specificDate: thêm/cập nhật một dòng giá ngày đặc biệt (PricingView).
  */
 export async function PUT(
     req: NextRequest,
@@ -100,13 +104,46 @@ export async function PUT(
         if (roleErr) return roleErr;
 
         const body = await req.json();
-        
-        // Validation for single special pricing item
+
+        if (Array.isArray(body)) {
+            const bulkItemSchema = z.object({
+                dayOfWeek: z.number().int().min(0).max(6).optional().nullable(),
+                startTime: z.string().regex(timeHmRegex, "Giờ bắt đầu không hợp lệ"),
+                endTime: z.string().regex(timeHmRegex, "Giờ kết thúc không hợp lệ"),
+                pricePerHour: z.number().positive()
+            });
+
+            const parsedBulk = z.array(bulkItemSchema).safeParse(body);
+            if (!parsedBulk.success) {
+                return errorResponse(
+                    "Dữ liệu không hợp lệ",
+                    422,
+                    parsedBulk.error.flatten().fieldErrors as Record<string, string[]>
+                );
+            }
+
+            const cleaned = parsedBulk.data.map((row: {
+                dayOfWeek?: number | null;
+                startTime: string;
+                endTime: string;
+                pricePerHour: number;
+            }) => ({
+                dayOfWeek: row.dayOfWeek ?? null,
+                startTime: row.startTime.substring(0, 5),
+                endTime: row.endTime.substring(0, 5),
+                pricePerHour: row.pricePerHour
+            }));
+
+            const data = await updateCourtPricing(id, user.userId, cleaned);
+            return successResponse("Cập nhật bảng giá theo khung giờ thành công", data);
+        }
+
+        // Một dòng giá ngày đặc biệt
         const specialSchema = z.object({
             id: z.string().optional().nullable(),
             specificDate: z.string(),
-            startTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ bắt đầu không hợp lệ"),
-            endTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, "Giờ kết thúc không hợp lệ"),
+            startTime: z.string().regex(timeHmRegex, "Giờ bắt đầu không hợp lệ"),
+            endTime: z.string().regex(timeHmRegex, "Giờ kết thúc không hợp lệ"),
             pricePerHour: z.number().positive(),
             note: z.string().optional()
         });

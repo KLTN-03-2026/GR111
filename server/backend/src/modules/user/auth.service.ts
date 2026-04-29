@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { signToken } from "@/lib/jwt";
-import { sendResetPasswordEmail } from "@/lib/mail";
+import { sendResetPasswordEmail } from "@/infra/mail/mailer";
 import axios from "axios";
 import crypto from "crypto";
 import { OAuth2Client } from "google-auth-library";
@@ -10,6 +10,11 @@ import type { RegisterInput, LoginInput, ResetPasswordInput } from "@/validation
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const SALT_ROUNDS = 12;
+type FacebookProfileResponse = {
+  id: string;
+  name: string;
+  email?: string;
+};
 
 // ============================================================
 // AUTH SERVICE
@@ -174,7 +179,7 @@ export async function loginUser(input: LoginInput, ip?: string, userAgent?: stri
 export async function loginWithFacebook(accessToken: string, role: "USER" | "OWNER" = "USER") {
   try {
     // 1. Lấy thông tin từ Facebook API
-    const fbRes = await axios.get(`https://graph.facebook.com/me`, {
+    const fbRes = await axios.get<FacebookProfileResponse>(`https://graph.facebook.com/me`, {
       params: {
         fields: "id,name,email,picture",
         access_token: accessToken,

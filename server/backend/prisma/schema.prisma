@@ -120,6 +120,12 @@ model Club {
   posts          Post[]
   vouchers       Voucher[]
 
+  /// Thông tin chuyển khoản hiển thị cho khách (theo từng CLB)
+  transferBankName        String?
+  transferAccountNumber   String?
+  transferBeneficiaryName String?
+  transferQrImageUrl      String?
+
   @@index([name])
   @@index([address])
   @@index([slug])
@@ -199,6 +205,7 @@ model Court {
   favoredBy       FavoriteCourt[]
   specialPricings SpecialDatePricing[]
   timeSlots       TimeSlot[]
+  voucherCourts   VoucherCourt[]
 
   @@index([name])
   @@map("courts")
@@ -333,7 +340,9 @@ model Payment {
   transactionRef  String?       @unique
   bankName        String?
   accountNumber   String?
+  beneficiaryName String?
   transferContent String?
+  qrImageUrl      String?
   proofImageUrl   String?
   paidAt          DateTime?
   confirmedAt     DateTime?
@@ -406,8 +415,21 @@ model Voucher {
   bookings       Booking[]
   usages         VoucherUsage[]
   club           Club?          @relation(fields: [clubId], references: [id])
+  /// Nếu rỗng: áp dụng mọi sân của CLB. Nếu có bản ghi: chỉ các sân được liệt kê (chỉ dùng cho voucher của CLB).
+  applicableCourts VoucherCourt[]
 
   @@map("vouchers")
+}
+
+model VoucherCourt {
+  id        String  @id @default(cuid())
+  voucherId String
+  courtId   String
+  voucher   Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  court     Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, courtId])
+  @@map("voucher_courts")
 }
 
 model VoucherUsage {
@@ -465,6 +487,8 @@ model Notification {
 model Post {
   id            String     @id @default(cuid())
   clubId        String
+  /// Đường dẫn ngắn để chia sẻ, duy nhất trong phạm vi CLB
+  slug          String
   type          PostType
   status        PostStatus @default(ACTIVE)
   title         String
@@ -479,6 +503,7 @@ model Post {
   deletedAt     DateTime?
   club          Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
+  @@unique([clubId, slug])
   @@map("posts")
 }
 
@@ -516,6 +541,12 @@ model OwnerProfile {
   kycReviewedAt      DateTime?
   kycReviewedBy      String?
   kycNote            String?
+  /// Đã đóng modal giới thiệu phí duy trì (không chọn gói)
+  billingIntroDismissedAt DateTime?
+  /// Gói Subscription đã chọn: starter | growth | pro (snapshot cho billing sau này)
+  subscriptionPlanKey   String?
+  /// Add-on đã chọn (mảng id), ví dụ: ["advanced_reports","priority_support"]
+  subscriptionAddons      Json?
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
   user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)

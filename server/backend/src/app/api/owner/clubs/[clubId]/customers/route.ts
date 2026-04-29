@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { getClubCustomers, addCustomerByPhone } from "@/modules/crm/club-customer.service";
 import { addCustomerByPhoneSchema } from "@/validations/owner.schema";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";

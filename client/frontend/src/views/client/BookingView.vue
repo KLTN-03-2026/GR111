@@ -267,6 +267,8 @@ import LoadingView    from "@/components/common/LoadingView.vue";
 import MapStyleControl from "@/components/common/MapStyleControl.vue";
 import { clubService } from "@/services/club.service.js";
 
+import { formatDateInputLocal } from "@/utils/dateInput";
+
 const SPORT_LABELS = {
   football:    "Sân Bóng Đá",
   badminton:   "Sân Cầu Lông",
@@ -303,7 +305,7 @@ export default {
         city:     this.$route?.query.city     || "",
         booking:  this.$route?.query.booking  ? [].concat(this.$route.query.booking) : [],
         byDate:   this.$route?.query.byDate   === "true" || !!this.$route?.query.date,
-        date:     this.$route?.query.date     || new Date().toISOString().split("T")[0],
+        date:     this.$route?.query.date     || formatDateInputLocal(),
         format:   this.$route?.query.format   ? [].concat(this.$route.query.format)  : [],
         surface:  this.$route?.query.surface  ? [].concat(this.$route.query.surface) : [],
         radius:   this.$route?.query.radius   || "100", // Default to 100km (All)

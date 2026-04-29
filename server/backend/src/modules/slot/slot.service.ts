@@ -1,5 +1,11 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { eventEmitter } from "@/lib/events";
+import {
+  vnDateTimeFromYmdAndDbTime,
+  vnDayRange,
+  vnHourAndDayOfWeek,
+  vnNoonAnchor,
+} from "@/lib/vnCalendar";
 import { slotRepository } from "@/modules/slot/slot.repository";
 
 /**
@@ -11,49 +17,56 @@ import { slotRepository } from "@/modules/slot/slot.repository";
  * Logic lai (Hybrid): Tính toán các khung giờ ảo dựa trên giờ mở cửa,
  * sau đó ghép với các bản ghi thực tế trong DB.
  */
-export async function getInferredSlotsForCourt(courtId: string, date: Date) {
-  // 1. Lấy context sân và câu lạc bộ (Dùng repository)
+/**
+ * @param ymd Chuỗi YYYY-MM-DD — ngày đặt theo lịch Việt Nam (không phụ thuộc TZ server)
+ */
+export async function getInferredSlotsForCourt(courtId: string, ymd: string) {
   const court = await slotRepository.findCourtContext(courtId);
   if (!court) throw new Error("COURT_NOT_FOUND");
 
-  // 2. Xác định giờ mở cửa
-  const dayOfWeek = date.getDay();
-  const oh = court.club.openingHours.find(h => h.dayOfWeek === dayOfWeek);
+  const { dayOfWeek } = vnHourAndDayOfWeek(vnNoonAnchor(ymd));
+  const oh = court.club.openingHours.find((h) => h.dayOfWeek === dayOfWeek);
   if (!oh || oh.isClosed) return [];
 
   const slotDuration = court.club.slotDuration;
-  
-  // 3. Chuẩn bị mốc thời gian lý thuyết
-  const start = new Date(date);
-  start.setHours(oh.openTime.getUTCHours(), oh.openTime.getUTCMinutes(), 0, 0);
 
-  const end = new Date(date);
-  end.setHours(oh.closeTime.getUTCHours(), oh.closeTime.getUTCMinutes(), 0, 0);
+  let open = vnDateTimeFromYmdAndDbTime(ymd, oh.openTime);
+  let close = vnDateTimeFromYmdAndDbTime(ymd, oh.closeTime);
+  const overnight = close <= open;
+  if (overnight) {
+    close = new Date(close.getTime() + 24 * 60 * 60 * 1000);
+  }
 
-  // 4. Lấy các slot thực tế (BOOKED hoặc LOCKED) qua Repository
-  const startRange = new Date(new Date(date).setHours(0, 0, 0, 0));
-  const endRange = new Date(new Date(date).setHours(23, 59, 59, 999));
+  let { start: startRange, end: endRange } = vnDayRange(ymd);
+  if (overnight) {
+    endRange = new Date(endRange.getTime() + 24 * 60 * 60 * 1000);
+  }
   const realSlots = await slotRepository.getBusySlots(courtId, startRange, endRange);
 
-  // 5. Sinh mảng slot ghép
-  const results = [];
-  let currentStart = new Date(start);
+  const results: {
+    id: string;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    bookingStatus: string | null;
+  }[] = [];
+  let currentStart = new Date(open);
 
-  while (currentStart < end) {
+  while (currentStart < close) {
     const nextSlotStart = new Date(currentStart.getTime() + slotDuration * 60000);
-    if (nextSlotStart > end) break;
+    if (nextSlotStart > close) break;
 
     const startTime = new Date(currentStart);
     const endTime = new Date(nextSlotStart);
 
-    const realOne = realSlots.find(s => s.startTime.getTime() === startTime.getTime());
+    const realOne = realSlots.find((s) => s.startTime.getTime() === startTime.getTime());
 
     results.push({
-      id: realOne?.id || `v-${startTime.getTime()}`, 
+      id: realOne?.id || `v-${startTime.getTime()}`,
       startTime,
       endTime,
       status: realOne?.status || "AVAILABLE",
-      bookingStatus: realOne?.bookingItems?.[0]?.booking?.status || null
+      bookingStatus: realOne?.bookingItems?.[0]?.booking?.status || null,
     });
 
     currentStart = nextSlotStart;
@@ -107,11 +120,17 @@ export async function toggleSlotStatus(
   });
   if (!court) throw new Error("UNAUTHORIZED");
 
-  // 2. Thực hiện cập nhật DB thông qua Repository
+  // 2. Kiểm tra xem slot hiện tại có đang bị BOOKED không
+  const existingSlot = await slotRepository.findByCourtAndStartTime(courtId, new Date(startTime));
+  if (existingSlot && existingSlot.status === "BOOKED") {
+    throw new Error("CANNOT_TOGGLE_BOOKED_SLOT_CANCEL_BOOKING_FIRST");
+  }
+
+  // 3. Thực hiện cập nhật DB thông qua Repository
   const updatedSlot = await slotRepository.upsertSlot({
     courtId,
-    startTime,
-    endTime,
+    startTime: new Date(startTime),
+    endTime: new Date(endTime),
     status: newStatus
   });
 

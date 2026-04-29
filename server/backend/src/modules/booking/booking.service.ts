@@ -1,9 +1,20 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { PaymentMethod, BookingStatus, PaymentStatus, Prisma } from "@/generated/prisma";
 import type { CreateBookingInput } from "@/validations/booking.schema";
 import type { ManualBookingInput } from "@/validations/manual-booking.schema";
 import { eventEmitter } from "@/lib/events";
+import { vnDayRange, vnHourAndDayOfWeek } from "@/lib/vnCalendar";
 import { bookingRepository } from "@/modules/booking/booking.repository";
+import { voucherAllowsBookingCourts } from "@/modules/marketing/voucher-court-rules";
+
+type CreateBookingSlotInput = CreateBookingInput["slots"][number];
+type ManualBookingSlotInput = ManualBookingInput["slots"][number];
+type CreateBookingTimeSlot = Prisma.TimeSlotGetPayload<{
+  include: { court: { include: { club: { select: { slotDuration: true } }; pricings: true } } };
+}>;
+type ManualBookingTimeSlot = Prisma.TimeSlotGetPayload<{
+  include: { court: { include: { pricings: true } } };
+}>;
 
 /**
  * Booking Service (Modular & Scalable version)
@@ -18,12 +29,19 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   // 0. Preliminary checks
   const club = await prisma.club.findUnique({
     where: { id: input.clubId },
-    select: { id: true, slotDuration: true }
+    select: {
+      id: true,
+      slotDuration: true,
+      transferBankName: true,
+      transferAccountNumber: true,
+      transferBeneficiaryName: true,
+      transferQrImageUrl: true,
+    },
   });
   if (!club) throw new Error("CLUB_NOT_FOUND");
 
   // 1. "Ensure" slots exist (Upsert) and get details
-  const slotPromises = input.slots.map(async (s) => {
+  const slotPromises = input.slots.map(async (s: CreateBookingSlotInput) => {
     const startTime = new Date(s.startTime);
     const endTime = new Date(startTime.getTime() + club.slotDuration * 60000);
 
@@ -47,7 +65,7 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
     });
   });
 
-  const slots = await Promise.all(slotPromises);
+  const slots: CreateBookingTimeSlot[] = await Promise.all(slotPromises);
   const timeSlotIds = slots.map(s => s.id);
 
   if (slots.some(s => s.status !== "AVAILABLE")) {
@@ -59,13 +77,12 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   const slotPrices: { slotId: string; price: number }[] = [];
 
   for (const slot of slots) {
-    const slotHour = slot.startTime.getHours();
-    const slotDow = slot.startTime.getDay();
+    const { hour: slotHour, dayOfWeek: slotDow } = vnHourAndDayOfWeek(slot.startTime);
     const court = slot.court;
 
     const pricing = court.pricings.find((p) => {
-      const pStart = new Date(p.startTime).getHours();
-      const pEnd = new Date(p.endTime).getHours();
+      const pStart = new Date(p.startTime).getUTCHours();
+      const pEnd = new Date(p.endTime).getUTCHours();
       const pDow = p.dayOfWeek;
 
       let isTimeMatch = false;
@@ -118,11 +135,17 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
         OR: [{ clubId: input.clubId }, { clubId: null }],
       },
       include: {
-        usages: { where: { userId } }
-      }
+        usages: { where: { userId } },
+        applicableCourts: { select: { courtId: true } },
+      },
     });
 
     if (voucher) {
+      const bookingCourtIds = [...new Set(slots.map((s) => s.court.id))];
+      if (!voucherAllowsBookingCourts(voucher.applicableCourts, bookingCourtIds)) {
+        throw new Error("VOUCHER_COURT_NOT_APPLICABLE");
+      }
+
       if (voucher.usageLimit && voucher.usedCount >= voucher.usageLimit) throw new Error("VOUCHER_EXHAUSTED");
       if (voucher.usages.length >= voucher.usagePerUser) throw new Error("VOUCHER_LIMIT_EXCEEDED");
       if (voucher.minOrderAmount && totalAmount < Number(voucher.minOrderAmount?.toString() || 0)) throw new Error("VOUCHER_MIN_ORDER");
@@ -145,6 +168,8 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
   totalAmount = isNaN(totalAmount) ? 0 : totalAmount;
   discountAmount = isNaN(discountAmount) ? 0 : discountAmount;
   const finalAmount = Math.max(0, totalAmount - discountAmount);
+
+  const payMethod = (input.paymentMethod as PaymentMethod) || PaymentMethod.BANK_TRANSFER;
 
   // 5. Transaction - DB Update using Repository
   return await prisma.$transaction(async (tx) => {
@@ -201,22 +226,43 @@ export async function createBooking(userId: string, input: CreateBookingInput) {
       },
       payment: {
         create: {
-          method: (input.paymentMethod as PaymentMethod) || PaymentMethod.BANK_TRANSFER,
+          method: payMethod,
           status: PaymentStatus.WAITING_PAYMENT,
           amount: finalAmount,
         },
       },
     }, tx as Prisma.TransactionClient);
 
+    if (payMethod === PaymentMethod.BANK_TRANSFER && newBooking.payment?.id) {
+      await tx.payment.update({
+        where: { id: newBooking.payment.id },
+        data: {
+          bankName: club.transferBankName || null,
+          accountNumber: club.transferAccountNumber || null,
+          beneficiaryName: club.transferBeneficiaryName || null,
+          qrImageUrl: club.transferQrImageUrl || null,
+          transferContent: newBooking.bookingCode,
+        },
+      });
+    }
+
+    const finalBooking = await tx.booking.findUnique({
+      where: { id: newBooking.id },
+      include: {
+        items: { include: { timeSlot: { include: { court: true } } } },
+        payment: true,
+      },
+    });
+    if (!finalBooking) throw new Error("BOOKING_CREATE_FAILED");
+
     // ── DECOUPLED NOTIFICATION ──────────────────────────
-    // Just emit the event, don't care how it's handled (Socket/Mail/Push)
     eventEmitter.emit('booking.created', {
       clubId: input.clubId,
-      booking: newBooking,
+      booking: finalBooking,
       type: 'new-booking'
     });
 
-    return newBooking;
+    return finalBooking;
   });
 }
 
@@ -231,7 +277,7 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
   if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
 
   // Upsert slots logic (Keep standard for now, but Repository could abstract this later)
-  const slotPromises = input.slots.map(async (s) => {
+  const slotPromises = input.slots.map(async (s: ManualBookingSlotInput) => {
     const startTime = new Date(s.startTime);
     const endTime = new Date(startTime.getTime() + club.slotDuration * 60000);
     return prisma.timeSlot.upsert({
@@ -242,7 +288,7 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
     });
   });
 
-  const slots = await Promise.all(slotPromises);
+  const slots: ManualBookingTimeSlot[] = await Promise.all(slotPromises);
   const timeSlotIds = slots.map(s => s.id);
 
   if (slots.some(s => s.status !== "AVAILABLE")) throw new Error("SLOT_NOT_AVAILABLE");
@@ -251,13 +297,16 @@ export async function createManualBooking(ownerId: string, input: ManualBookingI
   let totalAmount = 0;
   const slotPrices: { slotId: string; price: number }[] = [];
   for (const slot of slots) {
-    const slotHour = slot.startTime.getHours();
-    const slotDow = slot.startTime.getDay();
+    const { hour: slotHour, dayOfWeek: slotDow } = vnHourAndDayOfWeek(slot.startTime);
     const pricing = slot.court.pricings.find(p => {
-      const pStart = new Date(p.startTime).getHours();
-      const pEnd = new Date(p.endTime).getHours();
+      const pStart = new Date(p.startTime).getUTCHours();
+      const pEnd = new Date(p.endTime).getUTCHours();
       const pDow = p.dayOfWeek;
-      return slotHour >= pStart && slotHour < pEnd && (pDow === null || pDow === slotDow);
+      let isTimeMatch = false;
+      if (pStart === pEnd) isTimeMatch = true;
+      else if (pStart < pEnd) isTimeMatch = slotHour >= pStart && slotHour < pEnd;
+      else isTimeMatch = slotHour >= pStart || slotHour < pEnd;
+      return isTimeMatch && (pDow === null || pDow === slotDow);
     });
     const pricePerHour = Number(pricing?.pricePerHour?.toString() || 0);
     const price = isNaN(pricePerHour) ? 0 : (pricePerHour * (club.slotDuration || 60)) / 60;
@@ -399,6 +448,8 @@ export async function updateBookingStatus(
 
 /**
  * Confirm payment manually (Owner confirms user's payment proof)
+ *
+ * Một số đơn cũ / migration thiếu bản ghi `payments`: tự tạoPayment trong transaction rồi xác nhận.
  */
 export async function confirmPaymentManual(bookingId: string, ownerId: string) {
   const booking = await bookingRepository.findById(bookingId);
@@ -407,43 +458,60 @@ export async function confirmPaymentManual(bookingId: string, ownerId: string) {
 
   if (booking.clubId) {
     const club = await prisma.club.findFirst({
-      where: { id: booking.clubId, ownerId }
+      where: { id: booking.clubId, ownerId },
     });
     if (!club) throw new Error("UNAUTHORIZED");
   } else {
-    // If it's a legacy booking without clubId, we might need a different check 
-    // but for this platform it should have clubId.
     throw new Error("UNAUTHORIZED");
   }
 
-  const payment = await prisma.payment.findUnique({
-    where: { bookingId }
-  });
-
-  if (!payment) throw new Error("PAYMENT_NOT_FOUND");
-  if (payment.status === PaymentStatus.CONFIRMED) throw new Error("PAYMENT_ALREADY_CONFIRMED");
-
   const updatedBooking = await prisma.$transaction(async (tx) => {
-    // 1. Update Payment
+    let payment = await tx.payment.findUnique({
+      where: { bookingId },
+    });
+
+    if (!payment) {
+      if (
+        booking.status !== BookingStatus.PENDING &&
+        booking.status !== BookingStatus.WAITING_PAYMENT
+      ) {
+        throw new Error("PAYMENT_NOT_FOUND");
+      }
+
+      const method =
+        booking.status === BookingStatus.PENDING
+          ? PaymentMethod.CASH
+          : PaymentMethod.BANK_TRANSFER;
+
+      payment = await tx.payment.create({
+        data: {
+          bookingId,
+          method,
+          status: PaymentStatus.WAITING_PAYMENT,
+          amount: booking.finalAmount,
+        },
+      });
+    }
+
+    if (payment.status === PaymentStatus.CONFIRMED) throw new Error("PAYMENT_ALREADY_CONFIRMED");
+
     await tx.payment.update({
       where: { id: payment.id },
       data: {
         status: PaymentStatus.CONFIRMED,
         paidAt: new Date(),
         confirmedAt: new Date(),
-        confirmedBy: ownerId
-      }
+        confirmedBy: ownerId,
+      },
     });
 
-    // 2. Update Booking status to CONFIRMED
     return await bookingRepository.updateStatus(bookingId, BookingStatus.CONFIRMED, tx as Prisma.TransactionClient);
   });
 
-  // 3. Emit event for socket/notifications ONLY after successful transaction commit
-  eventEmitter.emit('booking.status_updated', {
+  eventEmitter.emit("booking.status_updated", {
     clubId: booking.clubId,
     booking: updatedBooking,
-    type: 'payment-confirmed-manual'
+    type: "payment-confirmed-manual",
   });
 
   return updatedBooking;
@@ -459,18 +527,16 @@ export async function getBookingByClubId(clubId: string, ownerId: string, date?:
   if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
 
   const where: Prisma.BookingWhereInput = { clubId };
-  if (date) {
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+  const ymdOk = date && /^\d{4}-\d{2}-\d{2}$/.test(date);
+  if (ymdOk) {
+    const { start: startOfDay, end: endOfDay } = vnDayRange(date);
 
     where.items = {
       some: {
         timeSlot: {
-          startTime: { gte: startOfDay, lte: endOfDay }
-        }
-      }
+          startTime: { gte: startOfDay, lte: endOfDay },
+        },
+      },
     };
   }
 
@@ -501,7 +567,18 @@ export async function getBookingByCode(bookingCode: string, userId: string) {
           }
         }
       },
-      payment: { select: { method: true, status: true } },
+      payment: {
+        select: {
+          method: true,
+          status: true,
+          bankName: true,
+          accountNumber: true,
+          beneficiaryName: true,
+          transferContent: true,
+          qrImageUrl: true,
+          proofImageUrl: true,
+        },
+      },
     },
   });
 }

@@ -1,4 +1,4 @@
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { validateVoucher } from "@/modules/marketing/voucher.service";
 import { errorResponse, successResponse, serverErrorResponse } from "@/lib/response";
 import { NextRequest } from "next/server";
@@ -13,13 +13,17 @@ export async function POST(req: NextRequest) {
     if (error) return error;
 
     const body = await req.json();
-    const { code, clubId, orderAmount } = body;
+    const { code, clubId, orderAmount, courtIds } = body;
 
     if (!code || !clubId || orderAmount === undefined) {
       return errorResponse("Thiếu thông tin (code, clubId, orderAmount)", 400);
     }
 
-    const voucher = await validateVoucher(code, user.userId, clubId, orderAmount);
+    const courtIdList = Array.isArray(courtIds)
+      ? [...new Set(courtIds.filter((x: unknown) => typeof x === "string") as string[])]
+      : undefined;
+
+    const voucher = await validateVoucher(code, user.userId, clubId, Number(orderAmount), courtIdList);
 
     return successResponse("Mã giảm giá hợp lệ", {
       code: voucher.code,
@@ -36,6 +40,9 @@ export async function POST(req: NextRequest) {
         VOUCHER_INVALID_FOR_THIS_CLUB: "Mã giảm giá không áp dụng cho sân này",
         VOUCHER_OUT_OF_STOCK: "Mã giảm giá đã hết lượt sử dụng",
         VOUCHER_LIMIT_EXCEEDED: "Bạn đã hết lượt sử dụng mã này",
+        VOUCHER_REQUIRES_COURT_SELECTION: "Vui lòng chọn khung giờ trước khi áp dụng mã này",
+        VOUCHER_COURT_NOT_APPLICABLE: "Mã chỉ áp dụng cho một số sân cụ thể — giỏ đặt của bạn không khớp",
+        VOUCHER_INVALID_COURTS_FOR_CLUB: "Danh sách sân không hợp lệ",
       };
 
       const msg = errorMap[err.message];

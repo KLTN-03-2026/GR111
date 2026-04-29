@@ -92,4 +92,22 @@ export default {
 .action-btn.secondary .action-btn-icon.muted { background: #f1f5f9; color: #4b5672; }
 .abtn-svg { width: 16px; height: 16px; font-size: 16px; }
 .action-arrow { width: 14px; height: 14px; font-size: 14px; color: inherit; opacity: 0.5; margin-left: auto; }
+
+@media (max-width: 768px) {
+  .card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .card-header {
+    margin-bottom: 14px;
+  }
+  .card-title {
+    font-size: 15px;
+  }
+  .action-btn {
+    min-height: 48px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
 </style>

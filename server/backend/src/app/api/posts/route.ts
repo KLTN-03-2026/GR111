@@ -13,10 +13,14 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get("type") as PostType | null;
     const clubId = searchParams.get("clubId") || undefined;
 
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
+    const limitRaw = parseInt(searchParams.get("limit") || "0", 10) || 0;
+
     const posts = await getPosts({
       clubId,
       type: type || undefined,
       isUser: true,
+      ...(limitRaw > 0 ? { page, limit: limitRaw } : {}),
     });
 
     return successResponse("Lấy danh sách bài đăng thành công", posts);

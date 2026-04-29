@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { Prisma, SportType } from "@/generated/prisma";
 
 export interface SearchClubFilters {
@@ -30,6 +30,10 @@ export interface ClubInput {
   description?: string;
   coverImageUrl?: string;
   images?: string[];
+  transferBankName?: string | null;
+  transferAccountNumber?: string | null;
+  transferBeneficiaryName?: string | null;
+  transferQrImageUrl?: string | null;
 }
 
 export type ClubUpdateInput = Partial<ClubInput>;

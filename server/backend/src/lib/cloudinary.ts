@@ -29,10 +29,12 @@ export type UploadFolder =
   | "clubs/logos"         // Logo câu lạc bộ
   | "clubs/covers"        // Ảnh bìa câu lạc bộ
   | "clubs/gallery"       // Bộ sưu tập ảnh câu lạc bộ
+  | "clubs/transfer-qr"   // Mã QR chuyển khoản CLB
   | "courts/images"       // Ảnh sân bóng
   | "documents/licenses"  // Giấy phép kinh doanh
   | "payments/proofs"     // Ảnh bằng chứng thanh toán
-  | "reviews/images";    // Ảnh đánh giá (Review)
+  | "reviews/images"    // Ảnh đánh giá (Review)
+  | "clubs/posts";      // Ảnh bài đăng / bảng tin CLB
 
 export interface UploadResult {
   url: string;           // URL công khai để hiển thị

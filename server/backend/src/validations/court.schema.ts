@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type infer as ZodInfer } from "zod";
 
 // ============================================================
 // COURT SEARCH SCHEMAS
@@ -56,9 +56,9 @@ export const createCourtSchema = z.object({
 // TYPES
 // ============================================================
 
-export type SearchCourtInput = z.infer<typeof searchCourtSchema>;
-export type CreateClubInput = z.infer<typeof createClubSchema>;
-export type CreateCourtInput = z.infer<typeof createCourtSchema>;
+export type SearchCourtInput = ZodInfer<typeof searchCourtSchema>;
+export type CreateClubInput = ZodInfer<typeof createClubSchema>;
+export type CreateCourtInput = ZodInfer<typeof createCourtSchema>;
 
 export const courtPricingSchema = z.array(z.object({
   dayOfWeek:    z.number().int().min(0).max(6).optional(),

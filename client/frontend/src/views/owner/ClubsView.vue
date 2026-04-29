@@ -15,7 +15,7 @@
     <!-- Stats Row -->
     <div class="stats-row">
       <div class="stat-card blue">
-        <div class="sc-icon"><span class="material-icons">business</span></div>
+        <div class="sc-icon"><span class="material-icons">domain</span></div>
         <div class="sc-info">
           <span class="sc-label">Tổng cơ sở</span>
           <span class="sc-val">{{ clubs.length }}</span>
@@ -23,21 +23,21 @@
         <div class="sc-chart"></div>
       </div>
       <div class="stat-card green">
-        <div class="sc-icon"><span class="material-icons">check_circle</span></div>
+        <div class="sc-icon"><span class="material-icons">bolt</span></div>
         <div class="sc-info">
           <span class="sc-label">Đang hoạt động</span>
           <span class="sc-val">{{ clubs.filter(c => c.approvalStatus === 'APPROVED').length }}</span>
         </div>
       </div>
       <div class="stat-card yellow">
-        <div class="sc-icon"><span class="material-icons">pending_actions</span></div>
+        <div class="sc-icon"><span class="material-icons">hourglass_top</span></div>
         <div class="sc-info">
           <span class="sc-label">Chờ duyệt</span>
           <span class="sc-val">{{ clubs.filter(c => c.approvalStatus === 'PENDING').length }}</span>
         </div>
       </div>
       <div class="stat-card purple">
-        <div class="sc-icon"><span class="material-icons">sports_soccer</span></div>
+        <div class="sc-icon"><span class="material-icons">fitness_center</span></div>
         <div class="sc-info">
           <span class="sc-label">Tổng số sân</span>
           <span class="sc-val">{{ clubs.reduce((acc, c) => acc + (c.courts?.length || 0), 0) }}</span>
@@ -94,10 +94,14 @@
 
     <!-- Grid -->
     <div v-else-if="list.length" class="grid">
-      <div v-for="(c,i) in list" :key="c.id" class="card premium-card" :style="`--d:${i*70}ms`">
-        <div class="cimg">
-          <img :src="c.coverImageUrl || fallbackImg" :alt="c.name" loading="lazy" />
-          <div class="glass-overlay"></div>
+      <div
+        v-for="(c,i) in list"
+        :key="c.id"
+        class="card premium-card"
+        :style="{ '--d': `${i * 70}ms`, '--cover-url': `url(${JSON.stringify(c.coverImageUrl || fallbackImg)})` }"
+      >
+        <div class="c-hero">
+          <div class="c-hero-bg" aria-hidden="true"></div>
           <span class="badge-new" :class="c.approvalStatus">{{ statusLabel(c.approvalStatus) }}</span>
         </div>
         <div class="cbody">
@@ -122,7 +126,7 @@
 
           <div class="actions">
             <button class="abtn edit" @click="openEdit(c)">
-              <span class="material-icons">edit</span> <span>Chỉnh sửa</span>
+              <span class="material-icons">edit</span> <span>Sửa</span>
             </button>
             <router-link :to="`/owner/courts?clubId=${c.id}`" class="abtn manage">
               <span class="material-icons">dashboard</span> <span>Quản lý sân</span>
@@ -166,16 +170,39 @@
                   <small v-if="addSub&&!addForm.name" class="err-msg">Bắt buộc</small>
                 </div>
                 <div class="f">
-                  <label>Thành phố <span class="req">*</span></label>
-                  <input v-model="addForm.city" :class="{inv:addSub&&!addForm.city}" placeholder="Đà Nẵng" />
+                  <label>Tỉnh/Thành phố <span class="req">*</span></label>
+                  <select
+                    v-model="addProvinceSlug"
+                    class="addr-sel"
+                    :class="{inv:addSub&&!addForm.city}"
+                    :disabled="vnProvincesLoading"
+                    @change="onAddProvinceChange"
+                  >
+                    <option value="" disabled>{{ vnProvincesLoading ? 'Đang tải...' : '— Chọn tỉnh/thành —' }}</option>
+                    <option v-for="p in vnProvinces" :key="p.slug" :value="p.slug">{{ p.name }}</option>
+                  </select>
+                  <small v-if="vnProvincesErr" class="err-msg">{{ vnProvincesErr }}</small>
+                  <small v-if="vnAddDetailLoading" class="muted-msg">Đang tải quận/huyện…</small>
                 </div>
                 <div class="f">
                   <label>Quận/Huyện <span class="req">*</span></label>
-                  <input v-model="addForm.district" :class="{inv:addSub&&!addForm.district}" placeholder="Hải Châu" />
+                  <select
+                    v-model="addDistrictCode"
+                    class="addr-sel"
+                    :class="{inv:addSub&&!addForm.district}"
+                    :disabled="!vnAddDetail || vnAddDetailLoading"
+                    @change="onAddDistrictChange"
+                  >
+                    <option value="" disabled>— Chọn quận/huyện —</option>
+                    <option v-for="d in (vnAddDetail?.districts || [])" :key="d.code" :value="d.code">{{ d.name }}</option>
+                  </select>
                 </div>
                 <div class="f span2">
                   <label>Phường/Xã</label>
-                  <input v-model="addForm.ward" placeholder="Hòa Cường Bắc" />
+                  <select v-model="addForm.ward" class="addr-sel" :disabled="!addDistrictCode">
+                    <option value="">— Chọn phường/xã (tuỳ chọn) —</option>
+                    <option v-for="w in addWardOptions" :key="w.code" :value="w.name">{{ w.name }}</option>
+                  </select>
                 </div>
                 <div class="f span2">
                   <label>Địa chỉ <span class="req">*</span></label>
@@ -184,6 +211,25 @@
                 <div class="f"><label>Số điện thoại</label><input v-model="addForm.phone" placeholder="0901 234 567" /></div>
                 <div class="f"><label>Email</label><input v-model="addForm.email" type="email" placeholder="info@club.com" /></div>
                 <div class="f span2"><label>Mô tả</label><textarea v-model="addForm.description" rows="2" placeholder="Giới thiệu về câu lạc bộ..."></textarea></div>
+              </div>
+            </div>
+
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">account_balance</span>Chuyển khoản (hiển thị cho khách khi thanh toán)</div>
+              <p class="flabel-hint" style="margin:-6px 0 12px;font-size:13px;color:#64748b;">Khách sẽ thấy STK / ngân hàng / nội dung CK (mã đơn) trên trang thanh toán.</p>
+              <div class="fgrid">
+                <div class="f"><label>Ngân hàng</label><input v-model="addForm.transferBankName" placeholder="Ví dụ: VietcomBank" /></div>
+                <div class="f"><label>Số tài khoản</label><input v-model="addForm.transferAccountNumber" placeholder="Số TK nhận tiền" /></div>
+                <div class="f span2"><label>Chủ tài khoản</label><input v-model="addForm.transferBeneficiaryName" placeholder="Họ tên chủ TK" /></div>
+                <div class="f span2">
+                  <label>Ảnh mã QR (tuỳ chọn)</label>
+                  <div class="url-input-wrap" style="margin-bottom:8px">
+                    <span class="material-icons">link</span>
+                    <input v-model="addForm.transferQrImageUrl" type="url" placeholder="https://... hoặc tải ảnh bên dưới" />
+                  </div>
+                  <input ref="addTransferQrFile" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="e=>uploadTransferQr(e.target.files[0],'add')" />
+                  <button type="button" class="hap-btn" @click="$refs.addTransferQrFile.click()"><span class="material-icons" style="font-size:18px">qr_code_2</span> Tải ảnh QR</button>
+                </div>
               </div>
             </div>
 
@@ -383,13 +429,61 @@
               <div class="flabel"><span class="material-icons">info</span>Thông tin cơ bản</div>
               <div class="fgrid">
                 <div class="f span2"><label>Tên CLB <span class="req">*</span></label><input v-model="editForm.name" :class="{inv:editSub&&!editForm.name}" /></div>
-                <div class="f"><label>Thành phố <span class="req">*</span></label><input v-model="editForm.city" /></div>
-                <div class="f"><label>Quận/Huyện <span class="req">*</span></label><input v-model="editForm.district" /></div>
-                <div class="f span2"><label>Phường/Xã</label><input v-model="editForm.ward" /></div>
+                <div class="f">
+                  <label>Tỉnh/Thành phố <span class="req">*</span></label>
+                  <select
+                    v-model="editProvinceSlug"
+                    class="addr-sel"
+                    :disabled="vnProvincesLoading"
+                    @change="onEditProvinceChange"
+                  >
+                    <option value="" disabled>— Chọn tỉnh/thành —</option>
+                    <option v-for="p in vnProvinces" :key="'e-'+p.slug" :value="p.slug">{{ p.name }}</option>
+                  </select>
+                  <small v-if="vnEditDetailLoading" class="muted-msg">Đang tải quận/huyện…</small>
+                </div>
+                <div class="f">
+                  <label>Quận/Huyện <span class="req">*</span></label>
+                  <select
+                    v-model="editDistrictCode"
+                    class="addr-sel"
+                    :disabled="!vnEditDetail || vnEditDetailLoading"
+                    @change="onEditDistrictChange"
+                  >
+                    <option value="" disabled>— Chọn quận/huyện —</option>
+                    <option v-for="d in (vnEditDetail?.districts || [])" :key="'ed-'+d.code" :value="d.code">{{ d.name }}</option>
+                  </select>
+                </div>
+                <div class="f span2">
+                  <label>Phường/Xã</label>
+                  <select v-model="editForm.ward" class="addr-sel" :disabled="!editDistrictCode">
+                    <option value="">— Chọn phường/xã (tuỳ chọn) —</option>
+                    <option v-for="w in editWardOptions" :key="'ew-'+w.code" :value="w.name">{{ w.name }}</option>
+                  </select>
+                </div>
                 <div class="f span2"><label>Địa chỉ <span class="req">*</span></label><input v-model="editForm.address" /></div>
                 <div class="f"><label>Số điện thoại</label><input v-model="editForm.phone" /></div>
                 <div class="f"><label>Email</label><input v-model="editForm.email" type="email" /></div>
                 <div class="f span2"><label>Mô tả</label><textarea v-model="editForm.description" rows="2"></textarea></div>
+              </div>
+            </div>
+
+            <div class="fsec">
+              <div class="flabel"><span class="material-icons">account_balance</span>Chuyển khoản (hiển thị cho khách khi thanh toán)</div>
+              <p class="flabel-hint" style="margin:-6px 0 12px;font-size:13px;color:#64748b;">Nội dung chuyển khoản trên đơn hàng luôn là mã đơn (booking code).</p>
+              <div class="fgrid">
+                <div class="f"><label>Ngân hàng</label><input v-model="editForm.transferBankName" placeholder="Ví dụ: VietcomBank" /></div>
+                <div class="f"><label>Số tài khoản</label><input v-model="editForm.transferAccountNumber" placeholder="Số TK nhận tiền" /></div>
+                <div class="f span2"><label>Chủ tài khoản</label><input v-model="editForm.transferBeneficiaryName" placeholder="Họ tên chủ TK" /></div>
+                <div class="f span2">
+                  <label>Ảnh mã QR (tuỳ chọn)</label>
+                  <div class="url-input-wrap" style="margin-bottom:8px">
+                    <span class="material-icons">link</span>
+                    <input v-model="editForm.transferQrImageUrl" type="url" placeholder="https://... hoặc tải ảnh" />
+                  </div>
+                  <input ref="editTransferQrFile" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="e=>uploadTransferQr(e.target.files[0],'edit')" />
+                  <button type="button" class="hap-btn" @click="$refs.editTransferQrFile.click()"><span class="material-icons" style="font-size:18px">qr_code_2</span> Tải ảnh QR</button>
+                </div>
               </div>
             </div>
 
@@ -478,11 +572,15 @@
 
 <script>
 import { clubService } from '@/services/club.service';
+import { addressService } from '@/services/address.service';
 import LocationPicker from '@/components/common/LocationPicker.vue';
 
 const MAX = 5 * 1024 * 1024;
 const TYPES = ['image/jpeg','image/png','image/webp'];
-const blank = () => ({ name:'', city:'', district:'', ward:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '', latitude: null, longitude: null });
+const blank = () => ({
+  name:'', city:'', district:'', ward:'', address:'', phone:'', email:'', description:'', coverImageUrl:'', images: [], newUrl: '', latitude: null, longitude: null,
+  transferBankName:'', transferAccountNumber:'', transferBeneficiaryName:'', transferQrImageUrl:'',
+});
 
 export default {
   name: 'OwnerClubsView',
@@ -511,9 +609,34 @@ export default {
 
       // DELETE
       showDel: false, delTarget: {}, delLoading: false,
+
+      // Địa chỉ (63 tỉnh/TP + quận/huyện/xã)
+      vnProvinces: [],
+      vnProvincesLoading: false,
+      vnProvincesErr: '',
+      addProvinceSlug: '',
+      addDistrictCode: '',
+      vnAddDetail: null,
+      vnAddDetailLoading: false,
+      editProvinceSlug: '',
+      editDistrictCode: '',
+      vnEditDetail: null,
+      vnEditDetailLoading: false,
     };
   },
   computed: {
+    addWardOptions() {
+      if (!this.vnAddDetail || this.addDistrictCode === '' || this.addDistrictCode === undefined) return [];
+      const code = Number(this.addDistrictCode);
+      const d = this.vnAddDetail.districts.find((x) => x.code === code);
+      return d?.wards || [];
+    },
+    editWardOptions() {
+      if (!this.vnEditDetail || this.editDistrictCode === '' || this.editDistrictCode === undefined) return [];
+      const code = Number(this.editDistrictCode);
+      const d = this.vnEditDetail.districts.find((x) => x.code === code);
+      return d?.wards || [];
+    },
     list() {
       const q = this.q.toLowerCase();
       return this.clubs.filter(c => {
@@ -523,8 +646,153 @@ export default {
       });
     }
   },
-  mounted() { this.load(); },
+  mounted() {
+    this.load();
+    this.loadVnProvinces();
+  },
   methods: {
+    async loadVnProvinces() {
+      this.vnProvincesLoading = true;
+      this.vnProvincesErr = '';
+      try {
+        const r = await addressService.getProvinces();
+        if (r.data?.success) this.vnProvinces = r.data.data || [];
+        else this.vnProvincesErr = r.data?.message || 'Không tải được danh sách tỉnh thành.';
+      } catch (e) {
+        this.vnProvincesErr = e.response?.data?.message || 'Không tải được danh sách tỉnh thành. Kiểm tra kết nối backend.';
+      } finally {
+        this.vnProvincesLoading = false;
+      }
+    },
+
+    async onAddProvinceChange() {
+      const slug = this.addProvinceSlug;
+      this.addForm.district = '';
+      this.addForm.ward = '';
+      this.addDistrictCode = '';
+      this.vnAddDetail = null;
+      if (!slug) {
+        this.addForm.city = '';
+        return;
+      }
+      const p = this.vnProvinces.find((x) => x.slug === slug);
+      this.addForm.city = p ? p.name : '';
+      this.vnAddDetailLoading = true;
+      try {
+        const r = await addressService.getProvinceDetail(slug);
+        if (r.data?.success) this.vnAddDetail = r.data.data;
+        else this.addErr = [r.data?.message || 'Không tải được đơn vị hành chính.'];
+      } catch (e) {
+        const msg = e.response?.data?.message || 'Không tải được quận/huyện. Thử lại sau.';
+        this.addErr = [msg];
+      } finally {
+        this.vnAddDetailLoading = false;
+      }
+    },
+
+    onAddDistrictChange() {
+      const code = Number(this.addDistrictCode);
+      const d = this.vnAddDetail?.districts?.find((x) => x.code === code);
+      this.addForm.ward = '';
+      this.addForm.district = d ? d.name : '';
+    },
+
+    async onEditProvinceChange() {
+      const slug = this.editProvinceSlug;
+      this.editForm.ward = '';
+      this.editForm.district = '';
+      this.editDistrictCode = '';
+      this.vnEditDetail = null;
+      if (!slug) {
+        this.editForm.city = '';
+        return;
+      }
+      const p = this.vnProvinces.find((x) => x.slug === slug);
+      this.editForm.city = p ? p.name : '';
+      this.vnEditDetailLoading = true;
+      try {
+        const r = await addressService.getProvinceDetail(slug);
+        if (r.data?.success) this.vnEditDetail = r.data.data;
+        else this.editErr = [r.data?.message || 'Không tải được đơn vị hành chính.'];
+      } catch (e) {
+        const msg = e.response?.data?.message || 'Không tải được quận/huyện.';
+        this.editErr = [msg];
+      } finally {
+        this.vnEditDetailLoading = false;
+      }
+    },
+
+    onEditDistrictChange() {
+      const code = Number(this.editDistrictCode);
+      const d = this.vnEditDetail?.districts?.find((x) => x.code === code);
+      this.editForm.ward = '';
+      this.editForm.district = d ? d.name : '';
+    },
+
+    /** Bỏ tiền tố "Thành phố"/"Tỉnh" để khớp tên lưu trong DB với open-api */
+    normalizeVnAdminName(s) {
+      if (!s) return '';
+      return String(s)
+        .trim()
+        .replace(/^thành phố\s+/iu, '')
+        .replace(/^tỉnh\s+/iu, '')
+        .replace(/^tp\.?\s+/iu, '')
+        .trim();
+    },
+
+    findProvinceByStoredCity(city) {
+      const raw = (city || '').trim();
+      if (!raw) return null;
+      const norm = this.normalizeVnAdminName(raw);
+      return (
+        this.vnProvinces.find((x) => x.name === raw) ||
+        this.vnProvinces.find((x) => this.normalizeVnAdminName(x.name) === norm) ||
+        this.vnProvinces.find((x) => raw.includes(x.name) || x.name.includes(raw)) ||
+        (norm &&
+          this.vnProvinces.find(
+            (x) =>
+              norm.includes(this.normalizeVnAdminName(x.name)) ||
+              this.normalizeVnAdminName(x.name).includes(norm)
+          ))
+      );
+    },
+
+    findDistrictByStoredName(districts, district) {
+      const raw = (district || '').trim();
+      if (!raw || !districts?.length) return null;
+      const norm = this.normalizeVnAdminName(raw);
+      return (
+        districts.find((di) => di.name === raw) ||
+        districts.find((di) => this.normalizeVnAdminName(di.name) === norm) ||
+        districts.find((di) => raw.includes(di.name) || di.name.includes(raw))
+      );
+    },
+
+    async hydrateEditAddressSelectors() {
+      if (!this.vnProvinces.length) await this.loadVnProvinces();
+      const city = (this.editForm.city || '').trim();
+      if (!city) return;
+      const p = this.findProvinceByStoredCity(city);
+      if (!p) return;
+      this.editProvinceSlug = p.slug;
+      this.vnEditDetailLoading = true;
+      try {
+        const r = await addressService.getProvinceDetail(p.slug);
+        if (r.data?.success) {
+          this.vnEditDetail = r.data.data;
+          const dist = (this.editForm.district || '').trim();
+          if (dist) {
+            const d = this.findDistrictByStoredName(this.vnEditDetail.districts, dist);
+            if (d) this.editDistrictCode = String(d.code);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        this.vnEditDetailLoading = false;
+      }
+    },
+
     statusLabel(s) { return {APPROVED:'Hoạt động',PENDING:'Chờ duyệt',REJECTED:'Tạm ngưng'}[s] || s; },
     fmt(t) {
       if (!t) return '--:--';
@@ -600,6 +868,9 @@ export default {
       this.addForm = { ...blank(), openingHours: this.initHours([]) }; 
       this.addSub = false; this.addErr = [];
       this.addPreview = null; this.addUpErr = ''; this.addMode = 'upload';
+      this.addProvinceSlug = '';
+      this.addDistrictCode = '';
+      this.vnAddDetail = null;
       this.showAdd = true; document.body.style.overflow = 'hidden';
     },
     closeAdd() { this.showAdd = false; document.body.style.overflow = ''; },
@@ -645,12 +916,20 @@ export default {
         latitude: c.latitude || null, longitude: c.longitude || null,
         images: c.images?.map(i => i.url) || [],
         newUrl: '',
+        transferBankName: c.transferBankName || '',
+        transferAccountNumber: c.transferAccountNumber || '',
+        transferBeneficiaryName: c.transferBeneficiaryName || '',
+        transferQrImageUrl: c.transferQrImageUrl || '',
         openingHours: this.initHours(c.openingHours)
       };
       this.editSub = false; this.editErr = []; this.editOk = false;
       this.editPreview = null; this.editUpErr = ''; this.editMode = 'upload';
+      this.editProvinceSlug = '';
+      this.editDistrictCode = '';
+      this.vnEditDetail = null;
       this.showEdit = true; document.body.style.overflow = 'hidden';
       this.loadAmenities(c.id);
+      this.$nextTick(() => this.hydrateEditAddressSelectors());
     },
     initHours(existing) {
       const days = ['Thứ 2','Thứ 3','Thứ 4','Thứ 5','Thứ 6','Thứ 7','Chủ Nhật'];
@@ -734,7 +1013,32 @@ export default {
       const p = {};
       ['name','city','district','ward','address','phone','email','description','coverImageUrl','images','latitude','longitude']
         .forEach(k => { if (f[k] !== undefined && f[k] !== '') p[k] = f[k]; });
+      ['transferBankName','transferAccountNumber','transferBeneficiaryName','transferQrImageUrl'].forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(f, k)) p[k] = f[k] ? f[k] : null;
+      });
       return p;
+    },
+
+    async uploadTransferQr(file, mode) {
+      if (!file) return;
+      if (!TYPES.includes(file.type)) { alert('Chỉ chấp nhận JPG, PNG, WEBP.'); return; }
+      if (file.size > MAX) { alert('File vượt quá 5MB.'); return; }
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('type', 'club-transfer-qr');
+      if (mode === 'edit' && this.editForm.id) fd.append('entityId', this.editForm.id);
+      try {
+        const res = await clubService.uploadImage(fd);
+        if (res.data.success) {
+          const url = res.data.data.url;
+          if (mode === 'add') this.addForm.transferQrImageUrl = url;
+          else this.editForm.transferQrImageUrl = url;
+        } else {
+          alert(res.data.message || 'Upload thất bại.');
+        }
+      } catch (e) {
+        alert(e.response?.data?.message || e.message || 'Upload thất bại.');
+      }
     },
     addPreviewFromUrl() { /* preview handled by v-if */ },
   }
@@ -781,22 +1085,53 @@ export default {
 .btn-primary{display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;height:54px;padding:0 28px;border-radius:20px;font-weight:700;font-size:15px;cursor:pointer;transition:all .3s;box-shadow:0 10px 20px -5px rgba(16,185,129,0.3);}
 .btn-primary:hover{transform:translateY(-2px);box-shadow:0 15px 25px -5px rgba(16,185,129,0.4);}
 
-/* Premium Card */
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:28px;}
-.premium-card{background:#fff;border-radius:32px;overflow:hidden;border:1px solid #f1f5f9;box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);animation:fadeInUp .6s ease both;animation-delay:var(--d);}
+/* Premium Card — hero ~40% chiều cao qua aspect-ratio; thân co theo nội dung (không cắt nút) */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:28px;align-items:stretch;}
+.premium-card{
+  position:relative;
+  isolation:isolate;
+  background:#fff;
+  border-radius:32px;
+  overflow:hidden;
+  border:1px solid #f1f5f9;
+  box-shadow:0 10px 40px -10px rgba(0,0,0,0.08);
+  transition:all .4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation:fadeInUp .6s ease both;
+  animation-delay:var(--d);
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  min-height:360px;
+  height:auto;
+}
+.c-hero{
+  position:relative;
+  flex:0 0 auto;
+  width:100%;
+  aspect-ratio:5 / 2;
+  min-height:140px;
+  max-height:min(220px,40vh);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border-bottom:1px solid #f1f5f9;
+}
+.c-hero-bg{
+  position:absolute;
+  inset:0;
+  background-image:var(--cover-url);
+  background-size:cover;
+  background-position:center;
+  border-radius:32px 32px 0 0;
+}
 .premium-card:hover{transform:translateY(-10px) scale(1.02);box-shadow:0 30px 60px -15px rgba(0,0,0,0.15);}
 
-.cimg{position:relative;height:220px;overflow:hidden;}
-.cimg img{width:100%;height:100%;object-fit:cover;transition:all .8s;}
-.premium-card:hover .cimg img{transform:scale(1.1);}
-.glass-overlay{position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,0.6), transparent);}
-
-.badge-new{position:absolute;top:20px;right:20px;padding:6px 14px;border-radius:14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;backdrop-filter:blur(8px);}
+.badge-new{position:absolute;top:16px;right:16px;z-index:2;padding:6px 14px;border-radius:14px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1px;backdrop-filter:blur(8px);}
 .badge-new.APPROVED{background:rgba(34,197,94,0.85);color:#fff;}
 .badge-new.PENDING{background:rgba(234,179,8,0.85);color:#fff;}
 .badge-new.REJECTED{background:rgba(239,68,68,0.85);color:#fff;}
 
-.cbody{padding:24px;}
+.cbody{position:relative;z-index:1;flex:1 1 auto;padding:24px;background:#fff;}
 .c-category{font-size:12px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;}
 .c-title{font-size:20px;font-weight:800;margin:0 0 10px;color:#0f172a;}
 .c-addr{display:flex;align-items:center;gap:6px;font-size:14px;color:#64748b;font-weight:500;margin-bottom:18px;}
@@ -816,18 +1151,36 @@ export default {
 .abtn.del{flex:0 0 46px;background:#fef2f2;color:#ef4444;}
 .abtn.del:hover{background:#fee2e2;}
 
-/* Drawer */
-.overlay{position:fixed;inset:0;background:rgba(15,23,42,0.4);backdrop-filter:blur(10px);z-index:9000;display:flex;justify-content:flex-end;}
-.drawer{width:540px;height:100vh;background:#fff;box-shadow:-20px 0 50px rgba(0,0,0,0.1);display:flex;flex-direction:column;animation:slideIn .4s cubic-bezier(0.16, 1, 0.3, 1);}
-@keyframes slideIn{from{transform:translateX(100%)} to{transform:translateX(0)}}
+/* Drawer — khung lớn giữa màn (giống vùng nội dung chính), không còn strip hẹp */
+.overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,0.45);backdrop-filter:blur(10px);z-index:9000;
+  display:flex;justify-content:center;align-items:flex-start;padding:24px 16px;
+  overflow-y:auto;
+}
+.drawer{
+  width:min(1200px,calc(100vw - 32px));
+  max-height:calc(100vh - 48px);
+  min-height:0;
+  margin:12px auto;
+  background:#fff;
+  border-radius:20px;
+  box-shadow:0 25px 80px rgba(15,23,42,0.22);
+  display:flex;flex-direction:column;
+  overflow:hidden;
+  animation:sheetIn .38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes sheetIn{
+  from{opacity:0;transform:translateY(14px) scale(0.987);}
+  to{opacity:1;transform:translateY(0) scale(1);}
+}
 
-.dhead{padding:32px;display:flex;justify-content:space-between;align-items:center;}
+.dhead{padding:28px 36px;flex-shrink:0;display:flex;justify-content:space-between;align-items:center;border-radius:20px 20px 0 0;}
 .add-head{background:linear-gradient(135deg, #10b981, #059669);color:#fff;}
 .edit-head{background:linear-gradient(135deg, #1e293b, #0f172a);color:#fff;}
 .dhead-left b{font-size:22px;font-weight:800;display:block;}
 .dhead-left small{opacity:0.8;font-size:14px;}
 
-.dbody{flex:1;overflow-y:auto;padding:32px;}
+.dbody{flex:1;overflow-y:auto;min-height:0;padding:36px 40px;}
 .fsec{margin-bottom:32px;}
 .flabel{font-size:12px;font-weight:800;text-transform:uppercase;color:#94a3b8;letter-spacing:1px;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 
@@ -847,8 +1200,10 @@ export default {
 /* Form fields */
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .f label{font-size:14px;font-weight:700;color:#475569;margin-bottom:8px;display:block;}
-.f input, .f textarea{width:100%;padding:14px 16px;border:2px solid #f1f5f9;border-radius:16px;font-family:inherit;font-size:14px;transition:all .2s;background:#f8fafc;}
-.f input:focus, .f textarea:focus{border-color:#10b981;background:#fff;outline:none;box-shadow:0 0 0 4px rgba(16,185,129,0.1);}
+.f input, .f textarea, .f select.addr-sel{width:100%;padding:14px 16px;border:2px solid #f1f5f9;border-radius:16px;font-family:inherit;font-size:14px;transition:all .2s;background:#f8fafc;}
+.f input:focus, .f textarea:focus, .f select.addr-sel:focus{border-color:#10b981;background:#fff;outline:none;box-shadow:0 0 0 4px rgba(16,185,129,0.1);}
+.f select.addr-sel{cursor:pointer;appearance:auto;}
+.muted-msg{display:block;margin-top:6px;font-size:12px;color:#64748b;}
 .f.span2{grid-column: span 2;}
 
 .upload-mode-tabs{display:flex;background:#f1f5f9;padding:4px;border-radius:14px;margin-bottom:16px;gap:4px;}
@@ -897,7 +1252,7 @@ export default {
 .url-input-mini input:focus{border-color:#10b981;outline:none;background:#fff;}
 .url-input-mini button{width:44px;height:44px;border-radius:12px;border:none;background:#10b981;color:#fff;cursor:pointer;}
 
-.dfoot{padding:24px 32px;background:#fff;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:12px;box-shadow:0 -10px 20px rgba(0,0,0,0.02);}
+.dfoot{flex-shrink:0;padding:22px 40px;background:#fff;border-top:1px solid #f1f5f9;display:flex;justify-content:flex-end;gap:12px;box-shadow:0 -10px 20px rgba(0,0,0,0.02);border-radius:0 0 20px 20px;}
 .btn-sec{height:54px;padding:0 24px;border:2px solid #f1f5f9;background:#fff;border-radius:20px;font-weight:700;color:#64748b;cursor:pointer;transition:all .2s;}
 .btn-sec:hover{background:#f8fafc;border-color:#e2e8f0;color:#1e293b;}
 
@@ -972,6 +1327,10 @@ export default {
 @media(max-width:768px){
   .grid{grid-template-columns:1fr;}
   .stats-row{grid-template-columns:1fr 1fr;}
-  .drawer{width:100vw;}
+  .overlay{padding:0;align-items:stretch;}
+  .drawer{width:100%;max-width:none;max-height:none;height:100vh;margin:0;border-radius:0;}
+  .dhead{border-radius:0;}
+  .dbody{padding:24px 18px;}
+  .dfoot{border-radius:0;padding:18px;}
 }
 </style>

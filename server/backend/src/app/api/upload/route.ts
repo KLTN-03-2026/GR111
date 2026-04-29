@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { uploadImage, UploadFolder } from "@/lib/cloudinary";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 // Giới hạn kích thước file (5MB)
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -18,10 +18,12 @@ const FOLDER_CONFIG: Record<string, {
   "club-logo":        { folder: "clubs/logos",         roles: ["OWNER", "ADMIN"],         description: "Logo câu lạc bộ" },
   "club-cover":       { folder: "clubs/covers",        roles: ["OWNER", "ADMIN"],         description: "Ảnh bìa câu lạc bộ" },
   "club-gallery":     { folder: "clubs/gallery",       roles: ["OWNER", "ADMIN"],         description: "Bộ sưu tập ảnh CLB" },
+  "club-transfer-qr": { folder: "clubs/transfer-qr",   roles: ["OWNER", "ADMIN"],         description: "Ảnh QR chuyển khoản CLB" },
   "court-image":      { folder: "courts/images",       roles: ["OWNER", "ADMIN"],         description: "Ảnh sân bóng" },
   "business-license": { folder: "documents/licenses",  roles: ["OWNER", "ADMIN"],         description: "Giấy phép kinh doanh" },
   "payment-proof":    { folder: "payments/proofs",     roles: ["USER", "OWNER", "ADMIN"], description: "Bằng chứng thanh toán" },
   "review-image":     { folder: "reviews/images",      roles: ["USER", "OWNER", "ADMIN"], description: "Ảnh đánh giá" },
+  "post-image":       { folder: "clubs/posts",         roles: ["OWNER", "ADMIN"],         description: "Ảnh bài đăng / bảng tin CLB" },
 };
 
 /**
@@ -154,6 +156,13 @@ async function updateEntityInDB(type: string, entityId: string, userId: string, 
         });
         break;
 
+      case "club-transfer-qr":
+        await prisma.club.update({
+          where: { id: entityId },
+          data: { transferQrImageUrl: url },
+        });
+        break;
+
       // Thêm ảnh vào danh sách ảnh của sân
       case "court-image":
         await prisma.courtImage.create({
@@ -170,12 +179,26 @@ async function updateEntityInDB(type: string, entityId: string, userId: string, 
         });
         break;
 
-      // Cập nhật ảnh bằng chứng thanh toán trong Payment
+      // Cập nhật ảnh bằng chứng thanh toán trong Payment + báo realtime cho chủ sân
       case "payment-proof":
         await prisma.payment.update({
           where: { bookingId: entityId },
           data: { proofImageUrl: url },
         });
+        {
+          const b = await prisma.booking.findUnique({
+            where: { id: entityId },
+            select: { id: true, clubId: true, bookingCode: true, status: true },
+          });
+          if (b?.clubId) {
+            const { notifyNewBooking } = await import("@/infra/realtime/socket");
+            await notifyNewBooking(b.clubId, {
+              clubId: b.clubId,
+              booking: b,
+              type: "payment-proof-submitted",
+            });
+          }
+        }
         break;
     }
   } catch (dbError) {

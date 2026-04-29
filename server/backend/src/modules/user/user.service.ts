@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import bcrypt from "bcrypt";
 import type { UpdateProfileInput } from "@/validations/user.schema";
 

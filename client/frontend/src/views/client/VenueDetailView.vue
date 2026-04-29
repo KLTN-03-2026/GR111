@@ -128,7 +128,8 @@
                 <span class="d-flex align-items-center gap-1 text-muted small fw-semibold"><span class="vdp-lgd rounded-2 shadow-sm" style="background:#fff;border:1.5px solid #d1d5db"></span>Còn trống</span>
                 <span class="d-flex align-items-center gap-1 text-muted small fw-semibold"><span class="vdp-lgd bg-success rounded-2 shadow-sm"></span>Đang chọn</span>
                 <span class="d-flex align-items-center gap-1 text-muted small fw-semibold"><span class="vdp-lgd rounded-2 shadow-sm" style="background:#fca5a5;border:1px solid #f87171"></span>Đã đặt</span>
-                <span class="d-flex align-items-center gap-1 text-muted small fw-semibold"><span class="vdp-lgd rounded-2 shadow-sm" style="background:#e2e8f0;border:1px solid #cbd5e1"></span>Hết hạn / Không hoạt động</span>
+                <span class="d-flex align-items-center gap-1 text-muted small fw-semibold"><span class="vdp-lgd rounded-2 shadow-sm" style="background:#f1f5f9;border:1.5px solid #cbd5e1"></span>Đã khóa</span>
+                <span class="d-flex align-items-center gap-1 text-muted small fw-semibold"><span class="vdp-lgd rounded-2 shadow-sm" style="background:#f8fafc;border:1px solid #cbd5e1"></span>Hết hạn</span>
               </div>
 
               <!-- ── GRID VIEW ── -->
@@ -153,9 +154,10 @@
                     <div :class="['vdp-slot-card rounded-4 p-3 h-100 position-relative overflow-hidden',
                       isSlotSelected(activeEditCourtId, slot) ? 'bg-success text-white border-success shadow-sm' :
                       slot.status === 'BOOKED' ? (slot.bookingStatus === 'WAITING_PAYMENT' ? 'vdp-slot--pending' : 'vdp-slot--booked') :
+                      slot.status === 'LOCKED' ? 'vdp-slot--locked' : 
                       isExpired(slot) ? 'vdp-slot--expired' :
                       'bg-white border-light-subtle shadow-sm']"
-                      :style="isExpired(slot) ? 'cursor: not-allowed; opacity: 0.6;' : 'cursor:pointer'"
+                      :style="(isExpired(slot) || slot.status === 'LOCKED') ? 'cursor: not-allowed; opacity: 0.6;' : 'cursor:pointer'"
                       @click="toggleSlot(activeEditCourtId, slot)">
                       <div class="d-flex justify-content-between align-items-center mb-1 relative z-2">
                         <span class="fw-black" style="font-size:14px; letter-spacing: 0.5px">{{ slot.time }}</span>
@@ -164,6 +166,7 @@
                               style="font-size:10px">
                           {{ slot.bookingStatus === 'WAITING_PAYMENT' ? 'Chờ thanh toán' : 'Đã đặt' }}
                         </span>
+                        <span v-else-if="slot.status==='LOCKED'" class="badge bg-secondary text-white" style="font-size:10px; background: #94a3b8 !important">Đã khóa</span>
                         <span v-else-if="isExpired(slot)" class="badge bg-secondary text-white" style="font-size:10px; background: #94a3b8 !important">Hết hạn</span>
                         <span v-else-if="isSlotSelected(activeEditCourtId, slot)" class="badge bg-white text-success shadow-sm" style="font-size:10px">Đã chọn</span>
                       </div>
@@ -200,8 +203,9 @@
                           :class="['vdp-tl-slot', 
                             isTlHourNoSlot(court.id,h) ? 'vdp-tl-slot--disabled' : 
                             isTlHourBooked(court.id,h) ? 'vdp-tl-slot--booked' : 
+                            isTlHourLocked(court.id,h) ? 'vdp-tl-slot--locked' : 
                             isTlHourExpired(court.id,h) ? 'vdp-tl-slot--expired' : 'vdp-tl-slot--available']"
-                          :style="isTlHourExpired(court.id,h) ? 'cursor: not-allowed' : 'cursor:pointer'"
+                          :style="(isTlHourExpired(court.id,h) || isTlHourLocked(court.id,h)) ? 'cursor: not-allowed' : 'cursor:pointer'"
                           @click="toggleTlHour(court.id,h)">
                         </div>
 
@@ -210,6 +214,13 @@
                           class="vdp-tl-segment vdp-tl-segment--booked position-absolute"
                           :style="tlBlockStyle(seg.start,seg.end)">
                           <span class="vdp-tl-segment-label">Đã đặt</span>
+                        </div>
+                        
+                        <!-- Locked Segments -->
+                        <div v-for="seg in getTlLockedSegs(court.id)" :key="`l${seg.start}`"
+                          class="vdp-tl-segment vdp-tl-segment--locked position-absolute"
+                          :style="tlBlockStyle(seg.start,seg.end)">
+                          <span class="vdp-tl-segment-label">Đã khóa</span>
                         </div>
 
                         <!-- Selected Segments (User choice) -->
@@ -877,9 +888,12 @@ export default {
       const code = this.form.voucher.trim().toUpperCase();
       const clubId = this.clubId;
       const orderAmount = this.courtTotal + this.serviceTotal;
+      const courtIds = [...new Set(
+        Object.keys(this.selectedSlotsByCourtId || {}).filter((cid) => (this.selectedSlotsByCourtId[cid] || []).length > 0)
+      )];
 
       try {
-        const res = await voucherService.validateVoucher(code, clubId, orderAmount);
+        const res = await voucherService.validateVoucher(code, clubId, orderAmount, courtIds);
         if (res && res.data) {
           const v = res.data;
           // Calculate discount if type is PERCENTAGE vs FIXED
@@ -906,6 +920,7 @@ export default {
     // ── Timeline ─────────────────────────────────────────────────
     tlBlockStyle(start,end) { const total=this.tlHours.length,iStart=this.tlHours.indexOf(start),iEnd=this.tlHours.indexOf(end),colEnd=iEnd===-1?total:iEnd;return{left:`calc(${(iStart/total)*100}% + 1px)`,width:`calc(${((colEnd-iStart)/total)*100}% - 3px)`}; },
     getTlBookedSegs(cid) { return(this.allSlots[cid]||[]).filter(s=>s.status==='BOOKED').map(s=>({start:this.slotStart(s),end:this.slotEnd(s)})); },
+    getTlLockedSegs(cid) { return(this.allSlots[cid]||[]).filter(s=>s.status==='LOCKED').map(s=>({start:this.slotStart(s),end:this.slotEnd(s)})); },
     getTlSelectedSegs(cid) {
       const sel = this.selectedSlotsByCourtId[cid] || [];
       const segs = []; let cur = null;
@@ -917,6 +932,7 @@ export default {
       return segs;
     },
     isTlHourBooked(cid,h) { return(this.allSlots[cid]||[]).some(s=>s.status==='BOOKED'&&h>=this.slotStart(s)&&h<this.slotEnd(s)); },
+    isTlHourLocked(cid,h) { return(this.allSlots[cid]||[]).some(s=>s.status==='LOCKED'&&h>=this.slotStart(s)&&h<this.slotEnd(s)); },
     isTlHourExpired(cid,h) {
       if(!this.selectedDate) return false;
       const now = new Date();
@@ -928,7 +944,7 @@ export default {
     },
     isTlHourNoSlot(cid,h) { return!(this.allSlots[cid]||[]).some(s=>h>=this.slotStart(s)&&h<this.slotEnd(s)); },
     toggleTlHour(cid,h) {
-      if(this.isTlHourNoSlot(cid,h)||this.isTlHourBooked(cid,h))return;
+      if(this.isTlHourNoSlot(cid,h)||this.isTlHourBooked(cid,h)||this.isTlHourLocked(cid,h))return;
       const slot=(this.allSlots[cid]||[]).find(s=>h>=this.slotStart(s)&&h<this.slotEnd(s));
       if(slot) this.toggleSlot(cid, slot);
     },

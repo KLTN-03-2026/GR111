@@ -6,8 +6,6 @@
     "dev": "npx tsx server.ts",
     "build": "next build",
     "start": "next start",
-    "seed:config": "npx tsx prisma/seed-config.ts",
-    "seed:vouchers": "npx tsx prisma/seed-vouchers.ts",
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest"

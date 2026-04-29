@@ -37,6 +37,10 @@ export function formatTime(d: Date | string) {
   });
 }
 
+export function formatVN(d: Date | string) {
+  return new Date(d).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+
 export function toISO(d: Date | string) {
   return new Date(d).toISOString();
 }
@@ -55,6 +59,81 @@ export function getVnHour(d: Date) {
   return Number(hourPart);
 }
 
+function normalizeAddressText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function extractDistrictNumber(value: unknown) {
+  const normalized = normalizeAddressText(value);
+  const match = normalized.match(/\d+/);
+  return match ? Number(match[0]) : null;
+}
+
+/** Lọc DB: một địa danh (chỉ city HOẶC chỉ district) khớp cả trường city và district — tránh miss khi user nói tên tỉnh nhưng model đặt nhầm field. */
+function prismaClubLocationWhere(city?: string | null, district?: string | null) {
+  const c = city?.trim();
+  const d = district?.trim();
+  if (!c && !d) return {};
+  if (c && d) {
+    return {
+      city: { contains: c, mode: "insensitive" as const },
+      district: { contains: d, mode: "insensitive" as const },
+    };
+  }
+  const term = (c ?? d)!;
+  return {
+    OR: [
+      { city: { contains: term, mode: "insensitive" as const } },
+      { district: { contains: term, mode: "insensitive" as const } },
+    ],
+  };
+}
+
+/** Gợi ý khi không có CLB khớp — hiển thị trong UI và cho model diễn đạt lại. */
+function buildClubSearchSuggestionHint(input: {
+  city?: string | null;
+  district?: string | null;
+  sport?: string | null;
+  name?: string | null;
+  filteredOut?: boolean;
+  userLat?: number | null;
+  userLng?: number | null;
+  radiusKm?: number | null;
+}): string {
+  const c = input.city?.trim();
+  const d = input.district?.trim();
+  const sp = input.sport ? (SPORT_LABEL[input.sport] ?? input.sport) : null;
+  const nm = input.name?.trim();
+
+  if (input.filteredOut && input.userLat != null && input.userLng != null) {
+    const rk = input.radiusKm ?? 20;
+    return (
+      `Trong phạm vi ~${rk}km quanh vị trí của bạn không có CLB phù hợp`
+      + (sp ? ` với môn ${sp}` : "")
+      + ". "
+      + "Thử nhập tỉnh/quận thủ công, hoặc đặt lại yêu cầu không chỉ dựa vào \"gần tôi\"."
+    );
+  }
+
+  const hints: string[] = [];
+  if (d && c) hints.push(`tìm rộng trong ${c} (bỏ lọc quận/huyện cụ thể)`);
+  else if (d) hints.push(`kiểm tra chính tả hoặc thêm tỉnh/thành`);
+  else if (c) hints.push(`thử vùng lân cận hoặc chỉ nhập tỉnh/thành`);
+  if (sp) hints.push(`thử đổi môn hoặc tạm bỏ lọc môn (${sp})`);
+  else hints.push("nêu rõ môn (vd: cầu lông, sân bóng)");
+  if (nm) hints.push("thử từ khóa tên CLB ngắn hơn");
+
+  const hintBody = hints.slice(0, 4).join("; ");
+  return (
+    `Chưa có CLB khớp đủ điều kiện. Gợi ý: ${hintBody}. `
+    + "Ví dụ nhắn lại: \"cầu lông Quận 7\" hoặc \"sân bóng TP.HCM\"."
+  );
+}
+
 export type PrismaLike = {
   club: {
     findMany: (args: unknown) => Promise<any[]>;
@@ -70,11 +149,14 @@ export type PrismaLike = {
   booking: {
     findMany: (args: unknown) => Promise<any[]>;
   };
+  favoriteClub: {
+    findMany: (args: unknown) => Promise<any[]>;
+  };
+  favoriteCourt: {
+    findMany: (args: unknown) => Promise<any[]>;
+  };
   user: {
     findUnique: (args: unknown) => Promise<any | null>;
-  };
-  booking: {
-    findMany: (args: unknown) => Promise<any[]>;
   };
 };
 
@@ -102,18 +184,38 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
 
   const searchClubs = {
     description:
-      "Tìm câu lạc bộ/sân theo môn, tên, khu vực. Có thể xếp hạng theo khoảng cách, rating, số slot trống, hoặc giá.",
+      "Tìm CLB/sân theo môn + địa điểm. sport phải khớp đúng ý user (FOOTBALL=bóng đá/futsal/sân bóng; BADMINTON=cầu lông — không nhầm). Địa chỉ: tỉnh/thành → city; quận/huyện → district; nếu chỉ nêu một địa danh cấp tỉnh thì đặt vào city (ưu tiên). User muốn **sân rẻ nhất / giá thấp nhất trong khu vực** → sortBy=PRICE_ASC kèm city hoặc district + sport (hoặc maxPrice nếu có ngân sách cụ thể).",
     parameters: z.object({
       name: z.string().optional(),
-      sport: z.enum(["FOOTBALL", "BADMINTON", "TENNIS", "PICKLEBALL", "BASKETBALL", "VOLLEYBALL"]).optional(),
-      city: z.string().optional(),
-      district: z.string().optional(),
-      maxPrice: z.number().optional(),
+      sport: z
+        .enum(["FOOTBALL", "BADMINTON", "TENNIS", "PICKLEBALL", "BASKETBALL", "VOLLEYBALL"])
+        .optional()
+        .describe(
+          "Môn thể thao CẦN LỌC trên sân (court). FOOTBALL = bóng đá, futsal, sân bóng/đá banh/đá phủi/sân 7/sân 11. BADMINTON = cầu lông, lông vũ. Không chọn BADMINTON khi user nói rõ bóng đá/sân bóng. Nếu user chỉ nói \"sân\"/\"đặt sân\" không rõ môn — không gọi tool; hỏi lại user."
+        ),
+      city: z
+        .string()
+        .optional()
+        .describe(
+          "Tỉnh hoặc thành phố trực thuộc TW (vd: TP.HCM, Hà Nội, Đồng Nai, Bình Dương). Dùng khi user chỉ nêu cấp tỉnh/thành hoặc địa danh lưu trong trường city của CLB."
+        ),
+      district: z
+        .string()
+        .optional()
+        .describe(
+          "Quận / huyện / thị xã / thị trấn (vd: Quận 7, Thủ Đức, Biên Hòa). Không đặt tên tỉnh vào đây — tên tỉnh thuộc city."
+        ),
+      maxPrice: z.number().optional().describe("Giá mục tiêu VND/giờ. Ưu tiên giá đúng bằng, nếu không có thì lấy giá gần nhất."),
       lat: z.number().optional(),
       lng: z.number().optional(),
       radiusKm: z.number().optional().default(20),
       date: z.string().optional(),
-      sortBy: z.enum(["NEAREST", "RATING_DESC", "MOST_AVAILABLE", "PRICE_ASC", "PRICE_DESC"]).optional(),
+      sortBy: z
+        .enum(["NEAREST", "RATING_DESC", "MOST_AVAILABLE", "PRICE_ASC", "PRICE_DESC"])
+        .optional()
+        .describe(
+          "**Sân rẻ nhất / giá thấp nhất / tiết kiệm / cheapest trong khu vực** → PRICE_ASC. Giá cao nhất → PRICE_DESC. Gần nhất → NEAREST (khi có lat/lng)."
+        ),
       limit: z.number().optional().default(5),
     }),
     execute: async (input: any) => {
@@ -122,6 +224,15 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
       } = input ?? {};
       const userLat = lat ?? defaultLat;
       const userLng = lng ?? defaultLng;
+      const normalizedCity = city ? normalizeAddressText(city) : null;
+      const normalizedDistrict = district ? normalizeAddressText(district) : null;
+      const requestedDistrictNo = district ? extractDistrictNumber(district) : null;
+
+      /** Lấy nhiều hàng khi sort theo giá để không bỏ sót CLB rẻ (findMany không order-by-price ở DB). */
+      const fetchTake =
+        sortBy === "PRICE_ASC" || sortBy === "PRICE_DESC"
+          ? 250
+          : Math.max(limit ?? 5, 20);
 
       const clubs = await prisma.club.findMany({
         where: {
@@ -129,17 +240,13 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
           approvalStatus: "APPROVED",
           deletedAt: null,
           ...(name ? { name: { contains: name, mode: "insensitive" } } : {}),
-          ...(city ? { city: { contains: city, mode: "insensitive" } } : {}),
-          ...(district ? { district: { contains: district, mode: "insensitive" } } : {}),
-          ...((sport || maxPrice)
+          ...prismaClubLocationWhere(city, district),
+          ...(sport
             ? {
               courts: {
                 some: {
                   deletedAt: null,
                   ...(sport ? { sportType: sport } : {}),
-                  ...(maxPrice
-                    ? { pricings: { some: { isActive: true, pricePerHour: { lte: maxPrice } } } }
-                    : {}),
                 },
               },
             }
@@ -153,10 +260,16 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
           },
           images: { take: 1, orderBy: { createdAt: "asc" } },
         },
-        take: Math.max(limit ?? 5, 20),
+        take: fetchTake,
       });
 
-      if (!clubs.length) return { found: false, clubs: [] };
+      if (!clubs.length) {
+        return {
+          found: false,
+          clubs: [],
+          suggestionHint: buildClubSearchSuggestionHint({ city, district, sport, name }),
+        };
+      }
 
       const clubIds = clubs.map((c) => c.id);
       const ratingRows = await prisma.review.groupBy({
@@ -198,9 +311,18 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
 
       const currentDay = new Date().getDay();
       const processed = clubs.map((c) => {
-        const prices = c.courts.flatMap((ct: any) => ct.pricings.map((px: any) => Number(px.pricePerHour)));
+        const courtsForPricing =
+          sport != null && typeof sport === "string"
+            ? c.courts.filter((ct: any) => String(ct.sportType) === sport)
+            : c.courts;
+        const priceSource =
+          courtsForPricing.length > 0 ? courtsForPricing : c.courts;
+        const prices = priceSource.flatMap((ct: any) =>
+          ct.pricings.map((px: any) => Number(px.pricePerHour))
+        );
         const todayH = c.openingHours.find((h: any) => h.dayOfWeek === currentDay) || c.openingHours[0];
-        const sports = [...new Set(c.courts.map((ct: any) => ct.sportType as string))].map((s) => ({
+        const sportKeys = [...new Set<string>(c.courts.map((ct: any) => String(ct.sportType)))];
+        const sports = sportKeys.map((s) => ({
           key: s,
           label: SPORT_LABEL[s] ?? s,
         }));
@@ -214,11 +336,24 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
         const avgRating = r?.avg != null ? Number(r.avg.toFixed(1)) : null;
         const reviewCount = r?.count ?? 0;
         const availableSlotCount = availabilityMap.get(c.id) ?? null;
+        const targetPrice = typeof maxPrice === "number" ? maxPrice : null;
+        const closestPrice =
+          targetPrice != null && prices.length
+            ? prices.reduce((best: number, current: number) =>
+              Math.abs(current - targetPrice) < Math.abs(best - targetPrice) ? current : best
+            )
+            : null;
+        const priceDiff =
+          targetPrice != null && closestPrice != null
+            ? Math.abs(closestPrice - targetPrice)
+            : null;
 
         return {
           id: c.id,
           name: c.name,
           slug: c.slug,
+          city: c.city,
+          district: c.district,
           address: `${c.address}, ${c.district}, ${c.city}`,
           phone: c.phone ?? null,
           rating: avgRating,
@@ -229,6 +364,9 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
           totalCourts: c.courts.length,
           minPrice: prices.length ? Math.min(...prices) : null,
           maxPrice: prices.length ? Math.max(...prices) : null,
+          displayPrice: closestPrice ?? (prices.length ? Math.min(...prices) : null),
+          priceMatchType: priceDiff === 0 ? "EXACT" : (priceDiff != null ? "NEAREST" : null),
+          priceDiff,
           openTime: todayH ? formatTime(todayH.openTime) : null,
           closeTime: todayH ? formatTime(todayH.closeTime) : null,
           availableSlotCount,
@@ -242,8 +380,92 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
         return c.distanceKm <= radiusKm;
       });
 
+      const matchesLocationRefinement = (club: { city?: string | null; district?: string | null }) => {
+        if (!normalizedCity && !normalizedDistrict) return true;
+        const ncText = normalizeAddressText(club.city);
+        const ndText = normalizeAddressText(club.district);
+
+        const cityTermMatch =
+          !normalizedCity ||
+          ncText.includes(normalizedCity) ||
+          ndText.includes(normalizedCity);
+
+        const districtTermMatch =
+          !normalizedDistrict ||
+          ndText.includes(normalizedDistrict) ||
+          ncText.includes(normalizedDistrict) ||
+          (requestedDistrictNo != null &&
+            extractDistrictNumber(club.district) === requestedDistrictNo);
+
+        if (normalizedCity && normalizedDistrict) return cityTermMatch && districtTermMatch;
+        if (normalizedCity) return cityTermMatch;
+        return districtTermMatch;
+      };
+
+      const byAddress = withinRadius.filter(matchesLocationRefinement);
+      const byCityOnly = normalizedCity
+        ? withinRadius.filter((club) => {
+          const ncText = normalizeAddressText(club.city);
+          const ndText = normalizeAddressText(club.district);
+          return ncText.includes(normalizedCity) || ndText.includes(normalizedCity);
+        })
+        : [];
+      const candidateBase =
+        byAddress.length > 0
+          ? byAddress
+          : (byCityOnly.length > 0 ? byCityOnly : withinRadius);
+
+      const targetPrice = typeof maxPrice === "number" ? maxPrice : null;
       const effectiveSort = sortBy ?? (userLat != null && userLng != null ? "NEAREST" : undefined);
-      const sorted = [...withinRadius].sort((a, b) => {
+      const sortPriceAsc = (a: any, b: any) => {
+        const pa = a.minPrice ?? Number.MAX_SAFE_INTEGER;
+        const pb = b.minPrice ?? Number.MAX_SAFE_INTEGER;
+        return pa - pb;
+      };
+      const sortPriceDesc = (a: any, b: any) => {
+        const pa = a.maxPrice ?? 0;
+        const pb = b.maxPrice ?? 0;
+        return pb - pa;
+      };
+
+      const sorted = [...candidateBase].sort((a, b) => {
+        /** Trong khu vực đã lọc: ưu tiên giá trước khi so khớp địa chỉ chi tiết — đúng ý “rẻ nhất tại đây”. */
+        if (effectiveSort === "PRICE_ASC") {
+          const byP = sortPriceAsc(a, b);
+          if (byP !== 0) return byP;
+        } else if (effectiveSort === "PRICE_DESC") {
+          const byP = sortPriceDesc(a, b);
+          if (byP !== 0) return byP;
+        }
+
+        if (normalizedCity || normalizedDistrict) {
+          const scoreAddress = (club: { city?: string | null; district?: string | null }) => {
+            let score = 0;
+            const ncText = normalizeAddressText(club.city);
+            const ndText = normalizeAddressText(club.district);
+            if (normalizedCity && (ncText.includes(normalizedCity) || ndText.includes(normalizedCity))) score += 2;
+            if (
+              normalizedDistrict &&
+              (ndText.includes(normalizedDistrict) || ncText.includes(normalizedDistrict))
+            ) {
+              score += 4;
+            }
+            const clubDistrictNo = extractDistrictNumber(club.district);
+            if (requestedDistrictNo != null && clubDistrictNo === requestedDistrictNo) score += 2;
+            return score;
+          };
+          const byAddressScore = scoreAddress(b) - scoreAddress(a);
+          if (byAddressScore !== 0) return byAddressScore;
+        }
+
+        if (targetPrice != null && !sortBy) {
+          const byPriceDiff = (a.priceDiff ?? 1e18) - (b.priceDiff ?? 1e18);
+          if (byPriceDiff !== 0) return byPriceDiff;
+          const byDistance = (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9);
+          if (byDistance !== 0) return byDistance;
+          return (b.rating ?? 0) - (a.rating ?? 0);
+        }
+
         switch (effectiveSort) {
           case "NEAREST":
             return (a.distanceKm ?? 1e9) - (b.distanceKm ?? 1e9);
@@ -252,15 +474,211 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
           case "MOST_AVAILABLE":
             return (b.availableSlotCount ?? 0) - (a.availableSlotCount ?? 0);
           case "PRICE_ASC":
-            return (a.minPrice ?? 1e18) - (b.minPrice ?? 1e18);
+            return sortPriceAsc(a, b);
           case "PRICE_DESC":
-            return (b.maxPrice ?? 0) - (a.maxPrice ?? 0);
+            return sortPriceDesc(a, b);
           default:
             return 0;
         }
       });
 
-      return { found: true, clubs: sorted.slice(0, limit ?? 5) };
+      const limited = sorted.slice(0, limit ?? 5);
+
+      if (limited.length === 0 && clubs.length > 0) {
+        return {
+          found: false,
+          clubs: [],
+          suggestionHint: buildClubSearchSuggestionHint({
+            city,
+            district,
+            sport,
+            name,
+            filteredOut: true,
+            userLat,
+            userLng,
+            radiusKm,
+          }),
+        };
+      }
+
+      return { found: true, clubs: limited };
+    },
+  };
+
+  const getClubDetails = {
+    description: "Lấy chi tiết CLB: mô tả, tiện ích, danh sách sân con, bảng giá theo khung giờ.",
+    parameters: z.object({ slug: z.string() }),
+    execute: async (input: any) => {
+      const slug = input?.slug;
+      const club = await prisma.club.findFirst({
+        where: { slug, deletedAt: null },
+        include: {
+          openingHours: true,
+          courts: {
+            where: { deletedAt: null },
+            include: { pricings: { where: { isActive: true }, orderBy: { startTime: "asc" } } },
+          },
+          amenities: { include: { amenity: true } },
+          images: { orderBy: { createdAt: "asc" } },
+          vouchers: { where: { isActive: true, endDate: { gte: new Date() } } },
+        },
+      });
+
+      if (!club) return { error: "Không tìm thấy câu lạc bộ." };
+
+      const currentDay = new Date().getDay();
+      const todayH =
+        club.openingHours.find((h: any) => h.dayOfWeek === currentDay) ||
+        club.openingHours[0];
+
+      const pricingWindows = club.courts.flatMap((ct: any) =>
+        ct.pricings.map((px: any) => ({
+          courtId: ct.id,
+          courtName: ct.name,
+          sportType: ct.sportType,
+          sportLabel: SPORT_LABEL[ct.sportType] ?? ct.sportType,
+          startTime: formatTime(px.startTime),
+          endTime: formatTime(px.endTime),
+          pricePerHour: Number(px.pricePerHour),
+          label: px.label ?? null,
+        }))
+      );
+
+      const cheapestPricingWindows = [...pricingWindows]
+        .sort((a, b) => a.pricePerHour - b.pricePerHour)
+        .slice(0, 3);
+
+      return {
+        id: club.id,
+        name: club.name,
+        slug: club.slug,
+        description: club.description ?? null,
+        fullAddress: `${club.address}, ${club.district}, ${club.city}`,
+        phone: club.phone ?? null,
+        email: club.email ?? null,
+        rating: null,
+        images: club.images.map((img: any) => img.url),
+        cheapestPricingWindows,
+        todayHours: todayH
+          ? { openTime: formatTime(todayH.openTime), closeTime: formatTime(todayH.closeTime), isClosed: todayH.isClosed ?? false }
+          : null,
+        weeklyHours: club.openingHours.map((h: any) => ({
+          dayOfWeek: h.dayOfWeek,
+          openTime: formatTime(h.openTime),
+          closeTime: formatTime(h.closeTime),
+          isClosed: h.isClosed ?? false,
+        })),
+        amenities: club.amenities.map((a: any) => ({
+          name: a.amenity.name,
+          icon: a.amenity.icon ?? null,
+          price: Number(a.price),
+        })),
+        vouchers: club.vouchers.map((v: any) => ({
+          code: v.code,
+          title: v.title,
+          discount: Number(v.value),
+          type: v.type,
+        })),
+        courts: club.courts.map((ct: any) => ({
+          id: ct.id,
+          name: ct.name,
+          sportType: ct.sportType,
+          sportLabel: SPORT_LABEL[ct.sportType] ?? ct.sportType,
+          status: ct.status,
+          pricings: ct.pricings.map((px: any) => ({
+            startTime: formatTime(px.startTime),
+            endTime: formatTime(px.endTime),
+            pricePerHour: Number(px.pricePerHour),
+            label: px.label ?? null,
+          })),
+        })),
+      };
+    },
+  };
+
+  const getAvailableSlots = {
+    description:
+      "Xem slot trống. Trả về startTimeISO (dùng cho createBooking) và startTimeDisplay (hiển thị cho user).",
+    parameters: z.object({
+      clubId: z.string(),
+      date: z.string().describe("Ngày YYYY-MM-DD"),
+      sportType: z.enum(["FOOTBALL", "BADMINTON", "TENNIS", "PICKLEBALL", "BASKETBALL", "VOLLEYBALL"]).optional(),
+    }),
+    execute: async (input: any) => {
+      const { clubId, date, sportType } = input ?? {};
+      const { gte, lte } = vnDayToUTC(date);
+
+      const slots = await prisma.timeSlot.findMany({
+        where: {
+          court: {
+            clubId,
+            status: "ACTIVE",
+            deletedAt: null,
+            ...(sportType ? { sportType } : {}),
+          },
+          startTime: { gte, lte },
+          status: "AVAILABLE",
+        },
+        include: {
+          court: { include: { pricings: { where: { isActive: true } } } },
+        },
+        orderBy: { startTime: "asc" },
+      });
+
+      if (!slots.length) {
+        return {
+          available: false,
+          date,
+          courts: [],
+          message: `Không có slot trống ngày ${date}.`,
+        };
+      }
+
+      const groups: Record<string, any> = {};
+      for (const s of slots) {
+        const key = s.court.id;
+        if (!groups[key]) {
+          groups[key] = {
+            courtId: s.court.id,
+            courtName: s.court.name,
+            sportType: s.court.sportType,
+            sportLabel: SPORT_LABEL[s.court.sportType] ?? s.court.sportType,
+            slots: [],
+          };
+        }
+
+        const startHourUTC = s.startTime.getUTCHours();
+        const pricing = s.court.pricings.find((px: any) => {
+          const st = new Date(px.startTime).getUTCHours();
+          const en = new Date(px.endTime).getUTCHours();
+          return startHourUTC >= st && startHourUTC < en;
+        });
+
+        const endTime = s.endTime;
+        const endMs = endTime.getTime();
+        groups[key].slots.push({
+          id: s.id,
+          startTimeISO: toISO(s.startTime),
+          endTimeISO: toISO(endTime),
+          startTimeDisplay: formatTime(s.startTime),
+          endTimeDisplay: formatTime(endTime),
+          durationMinutes: Math.round((endMs - s.startTime.getTime()) / 60_000),
+          pricePerHour: pricing ? Number(pricing.pricePerHour) : 0,
+        });
+      }
+
+      return {
+        available: true,
+        date,
+        courts: Object.values(groups),
+        summary: Object.values(groups).map((g: any) => ({
+          courtName: g.courtName,
+          sportLabel: g.sportLabel,
+          slotCount: g.slots.length,
+          firstSlot: g.slots[0].startTimeDisplay,
+          lastSlot: g.slots[g.slots.length - 1].startTimeDisplay,
+        })),
+      };
     },
   };
 
@@ -334,12 +752,149 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
     },
   };
 
+  const getUserProfile = {
+    description: "Lấy thông tin cá nhân người dùng đang đăng nhập.",
+    parameters: z.object({}),
+    execute: async () => {
+      if (!userId) return { error: "Bạn chưa đăng nhập." };
+      const profile = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { fullName: true, phone: true, email: true, avatarUrl: true },
+      });
+      return profile ?? { error: "Không tìm thấy profile." };
+    },
+  };
+
+  const getUserBookings = {
+    description: "Xem lịch sử đặt sân của người dùng.",
+    parameters: z.object({
+      limit: z.number().optional().default(5),
+      status: z.enum(["PENDING", "WAITING_PAYMENT", "CONFIRMED", "COMPLETED", "CANCELLED"]).optional(),
+    }),
+    execute: async (input: any) => {
+      const { limit, status } = input ?? {};
+      if (!userId) return { error: "Bạn cần đăng nhập." };
+
+      const list = await prisma.booking.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          ...(status ? { status } : {}),
+        },
+        include: {
+          club: { select: { name: true, address: true, city: true } },
+          payment: { select: { method: true } },
+          items: {
+            include: {
+              timeSlot: { include: { court: { select: { name: true, sportType: true } } } },
+            },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit ?? 5,
+      });
+
+      return list.map((b: any) => {
+        const item = b.items[0];
+        const court = item?.timeSlot?.court;
+        return {
+          bookingCode: b.bookingCode,
+          status: b.status,
+          clubName: b.club?.name ?? null,
+          courtName: court?.name ?? null,
+          sportLabel: court ? (SPORT_LABEL[court.sportType] ?? court.sportType) : null,
+          startTime: item ? formatVN(item.timeSlot.startTime) : null,
+          paymentMethod: b.payment?.method ?? null,
+          finalAmount: Number(b.finalAmount),
+          createdAt: formatVN(b.createdAt),
+        };
+      });
+    },
+  };
+
   const getUserInsights = {
-    description: "Analytics on-the-fly từ lịch sử đặt sân.",
+    description:
+      "Thống kê thói quen từ lịch sử đặt (môn, giờ, CLB hay đặt) và CLB/sân đã lưu (bookmark) để cá nhân hóa gợi ý.",
     parameters: z.object({ lookbackBookings: z.number().optional().default(50) }),
     execute: async (input: any) => {
       if (!userId) return { error: "Bạn cần đăng nhập." };
       const lookbackBookings = input?.lookbackBookings ?? 50;
+
+      const [savedClubRows, savedCourtRows] = await Promise.all([
+        prisma.favoriteClub.findMany({
+          where: { userId },
+          include: {
+            club: {
+              select: { id: true, name: true, slug: true, city: true, district: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+        }),
+        prisma.favoriteCourt.findMany({
+          where: { userId },
+          include: {
+            court: {
+              select: {
+                id: true,
+                name: true,
+                sportType: true,
+                club: {
+                  select: { id: true, name: true, slug: true, city: true, district: true },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+        }),
+      ]);
+
+      const savedClubBookmarks = savedClubRows.map(
+        (fc: {
+          club: {
+            id: string;
+            name: string;
+            slug: string | null;
+            city: string | null;
+            district: string | null;
+          };
+        }) => ({
+        clubId: fc.club.id,
+        clubName: fc.club.name,
+        slug: fc.club.slug ?? null,
+        city: fc.club.city ?? null,
+        district: fc.club.district ?? null,
+      }));
+
+      const savedCourtBookmarks = savedCourtRows.map(
+        (fv: {
+          court: {
+            id: string;
+            name: string;
+            sportType: string;
+            club: {
+              id: string;
+              name: string;
+              slug: string | null;
+              city: string | null;
+              district: string | null;
+            };
+          };
+        }) => ({
+        courtId: fv.court.id,
+        courtName: fv.court.name,
+        sportType: fv.court.sportType,
+        sportLabel: SPORT_LABEL[fv.court.sportType] ?? fv.court.sportType,
+        clubId: fv.court.club.id,
+        clubName: fv.court.club.name,
+        clubSlug: fv.court.club.slug ?? null,
+        city: fv.court.club.city ?? null,
+        district: fv.court.club.district ?? null,
+      }));
+
+      const bookmarksPayload = { savedClubBookmarks, savedCourtBookmarks };
 
       const bookings = await prisma.booking.findMany({
         where: { userId, deletedAt: null, status: { in: ["CONFIRMED", "COMPLETED"] } },
@@ -352,12 +907,25 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
       });
 
       if (!bookings.length) {
+        const hasBookmarks =
+          savedClubBookmarks.length > 0 || savedCourtBookmarks.length > 0;
+        if (!hasBookmarks) {
+          return {
+            message:
+              "Chưa có lịch sử đặt sân và chưa lưu CLB/sân yêu thích — hãy đặt sân hoặc lưu yêu thích trong app để CourtMate gợi ý tốt hơn.",
+            favoriteSports: [],
+            favoriteHours: [],
+            topClubs: [],
+            bookingFrequencyByMonth: [],
+            ...bookmarksPayload,
+          };
+        }
         return {
-          message: "Bạn chưa có lịch sử đặt sân đủ để phân tích.",
           favoriteSports: [],
           favoriteHours: [],
           topClubs: [],
           bookingFrequencyByMonth: [],
+          ...bookmarksPayload,
         };
       }
 
@@ -419,7 +987,14 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([month, bookingsCount]) => ({ month, bookingsCount }));
 
-      return { lookbackBookings: bookings.length, favoriteSports, favoriteHours, topClubs, bookingFrequencyByMonth };
+      return {
+        lookbackBookings: bookings.length,
+        favoriteSports,
+        favoriteHours,
+        topClubs,
+        bookingFrequencyByMonth,
+        ...bookmarksPayload,
+      };
     },
   };
 
@@ -447,7 +1022,11 @@ export function buildChatbotTools(deps: ChatToolsDeps) {
 
   return {
     searchClubs,
+    getClubDetails,
+    getAvailableSlots,
     checkSlotAvailability,
+    getUserProfile,
+    getUserBookings,
     getUserInsights,
     createBooking: createBookingTool,
   };

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { submitOwnerOnboarding } from "@/modules/admin/owner.service";
-import { getAuthUser, requireRole } from "@/middlewares/auth.middleware";
+import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 
 // POST /api/owner/onboarding  → Nộp hồ sơ KYC & hoàn tất Onboarding

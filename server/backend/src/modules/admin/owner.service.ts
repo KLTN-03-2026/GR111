@@ -1,4 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
+
+const VALID_PLAN_KEYS = new Set(["starter", "growth", "pro"]);
+const VALID_ADDON_IDS = new Set(["advanced_reports", "priority_support", "sms_reminders"]);
 
 // ============================================================
 // OWNER SERVICE - Quản lý hồ sơ & KYC của chủ sân
@@ -152,4 +155,49 @@ export async function updateOwnerProfile(
   ]);
 
   return { ...user, name: user.fullName };
+}
+
+export type BillingIntroInput =
+  | { action: "dismiss" }
+  | { action: "subscribe"; planKey: string; addons?: string[] };
+
+/**
+ * Lưu trạng thái modal giới thiệu phí duy trì / chọn gói Subscription (Hybrid).
+ */
+export async function saveOwnerBillingIntro(userId: string, input: BillingIntroInput) {
+  if (input.action === "dismiss") {
+    return prisma.ownerProfile.upsert({
+      where: { userId },
+      create: {
+        userId,
+        billingIntroDismissedAt: new Date(),
+      },
+      update: {
+        billingIntroDismissedAt: new Date(),
+      },
+    });
+  }
+
+  const planKey = input.planKey?.trim().toLowerCase();
+  if (!planKey || !VALID_PLAN_KEYS.has(planKey)) {
+    throw new Error("INVALID_PLAN_KEY");
+  }
+
+  const addons =
+    Array.isArray(input.addons) && input.addons.length > 0
+      ? [...new Set(input.addons.map((a) => String(a).trim()))].filter((id) => VALID_ADDON_IDS.has(id))
+      : [];
+
+  return prisma.ownerProfile.upsert({
+    where: { userId },
+    create: {
+      userId,
+      subscriptionPlanKey: planKey,
+      subscriptionAddons: addons,
+    },
+    update: {
+      subscriptionPlanKey: planKey,
+      subscriptionAddons: addons,
+    },
+  });
 }

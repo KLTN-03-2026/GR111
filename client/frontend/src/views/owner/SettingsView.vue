@@ -12,7 +12,7 @@
           <span class="material-icons">{{ kycStatusIcon }}</span>
           <span>{{ kycStatusLabel }}</span>
         </div>
-        <button class="save-btn" @click="saveChanges">
+        <button v-if="currentTab !== 'billing'" class="save-btn" @click="saveChanges">
           <span class="material-icons">save</span>
           <span>Lưu thay đổi</span>
         </button>
@@ -47,7 +47,13 @@
           <li>
             <button class="menu-item" :class="{ active: currentTab === 'payment' }" @click="currentTab = 'payment'">
               <span class="material-icons">account_balance_wallet</span>
-              <span>Tài khoản ngân hàng</span>
+              <span>Ngân hàng &amp; CK khách</span>
+            </button>
+          </li>
+          <li>
+            <button class="menu-item" :class="{ active: currentTab === 'billing' }" @click="currentTab = 'billing'">
+              <span class="material-icons">card_membership</span>
+              <span>Gói đăng ký &amp; phí duy trì</span>
             </button>
           </li>
           <li>
@@ -267,12 +273,16 @@
           </div>
         </div>
 
-        <!-- Tab: Payment (Ngân hàng) -->
+        <!-- Tab: Payment (Ngân hàng + CK hiển thị cho khách theo CLB) -->
         <div v-if="currentTab === 'payment'" class="tab-pane fade-in card">
           <div class="pane-header">
-            <h3>Tài khoản thụ hưởng</h3>
-            <p>Tài khoản nhận tiền thanh toán, đặt cọc từ hệ thống.</p>
+            <h3>Tài khoản &amp; chuyển khoản</h3>
+            <p>Tài khoản nhận tiền trong hồ sơ; và thông tin CK ngân hàng hiển thị cho khách khi thanh toán từng câu lạc bộ.</p>
           </div>
+
+          <h4 class="payment-section-title">
+            <span class="material-icons">savings</span> Tài khoản thụ hưởng (hệ thống)
+          </h4>
           
           <div class="linked-bank card-alt">
             <div class="bank-icon">
@@ -306,6 +316,141 @@
               <label>Tên chủ tài khoản</label>
               <input type="text" v-model="payment.accountName" />
             </div>
+          </div>
+
+          <div class="transfer-divider"></div>
+
+          <h4 class="payment-section-title">
+            <span class="material-icons">payments</span> Chuyển khoản hiển thị cho khách
+          </h4>
+          <p class="transfer-intro">
+            Thông tin này xuất hiện trên trang thanh toán khi khách chọn thanh toán chuyển khoản (theo từng câu lạc bộ). Nội dung CK trên đơn luôn là mã đặt sân.
+          </p>
+
+          <div v-if="!ownerClubs.length" class="transfer-empty card-alt">
+            <span class="material-icons">domain_disabled</span>
+            <p>Bạn chưa có câu lạc bộ. Tạo câu lạc bộ trước, sau đó cấu hình CK tại đây.</p>
+          </div>
+
+          <template v-else>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Câu lạc bộ</label>
+                <select v-model="transferClubId" @change="syncClubTransferFromList">
+                  <option v-for="c in ownerClubs" :key="c.id" :value="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="ownerClubs.length > 1" class="form-group full-width transfer-apply-all-wrap">
+              <label class="transfer-apply-all-label">
+                <input type="checkbox" v-model="applyTransferToAllClubs" />
+                <span>Áp dụng thông tin CK này cho <strong>tất cả</strong> câu lạc bộ khi lưu</span>
+              </label>
+              <p v-if="applyTransferToAllClubs" class="transfer-hint">
+                Mọi CLB sẽ dùng chung ngân hàng, STK, chủ TK và ảnh QR như ô bên dưới (ghi đè cấu hình hiện có).
+              </p>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Ngân hàng</label>
+                <input type="text" v-model="clubTransfer.transferBankName" placeholder="Ví dụ: Vietcombank" />
+              </div>
+              <div class="form-group">
+                <label>Số tài khoản</label>
+                <input type="text" v-model="clubTransfer.transferAccountNumber" placeholder="Số TK nhận tiền" />
+              </div>
+              <div class="form-group full-width">
+                <label>Chủ tài khoản</label>
+                <input type="text" v-model="clubTransfer.transferBeneficiaryName" placeholder="Họ tên chủ TK" />
+              </div>
+            </div>
+
+            <div class="form-group full-width transfer-qr-block">
+              <label>Ảnh mã QR (tuỳ chọn)</label>
+              <input
+                type="url"
+                v-model="clubTransfer.transferQrImageUrl"
+                class="transfer-qr-url"
+                placeholder="https://... hoặc tải ảnh bên dưới"
+              />
+              <div class="transfer-qr-row">
+                <div
+                  class="transfer-qr-preview"
+                  :class="{ uploading: uploadingTransferQr }"
+                  @click="$refs.transferQrInput.click()"
+                >
+                  <img
+                    v-if="clubTransfer.transferQrImageUrl"
+                    :src="clubTransfer.transferQrImageUrl"
+                    alt="QR"
+                  />
+                  <template v-else>
+                    <span class="material-icons">qr_code_2</span>
+                    <span>Nhấn để tải ảnh QR</span>
+                  </template>
+                </div>
+                <button type="button" class="btn-outline transfer-qr-btn" @click="$refs.transferQrInput.click()" :disabled="uploadingTransferQr || !transferClubId">
+                  <span class="material-icons">upload</span>
+                  {{ uploadingTransferQr ? 'Đang tải...' : 'Tải ảnh QR' }}
+                </button>
+                <input
+                  ref="transferQrInput"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  style="display:none"
+                  @change="onTransferQrFile"
+                />
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Tab: Gói Subscription & phí duy trì -->
+        <div v-if="currentTab === 'billing'" class="tab-pane fade-in card billing-tab">
+          <div class="pane-header">
+            <h3>Gói đăng ký &amp; phí duy trì hệ thống</h3>
+            <p>
+              Xem lại gói và add-on đã chọn; thanh toán định kỳ hiện qua chuyển khoản / xác nhận với vận hành cho đến khi có cổng thanh toán.
+            </p>
+          </div>
+
+          <div class="billing-summary card-alt">
+            <div class="billing-summary-row">
+              <span class="billing-label">Gói Subscription hiện tại</span>
+              <strong class="billing-value">{{ billingPlanSummary }}</strong>
+            </div>
+            <div v-if="billing.subscriptionPlanKey" class="billing-summary-row">
+              <span class="billing-label">Add-on</span>
+              <span class="billing-value muted">{{ billingAddonsSummary }}</span>
+            </div>
+            <div v-if="billing.billingIntroDismissedAt && !billing.subscriptionPlanKey" class="billing-note warn">
+              <span class="material-icons">info</span>
+              Bạn đã đóng thông báo lần đầu mà chưa chọn gói. Hãy chọn gói để chúng tôi ghi nhận cho kỳ thanh toán.
+            </div>
+          </div>
+
+          <div class="billing-box">
+            <h4><span class="material-icons">payments</span> Thanh toán gói Subscription</h4>
+            <ol class="billing-steps">
+              <li>Nhấn <strong>Chọn hoặc đổi gói</strong> bên dưới để cập nhật gói / add-on trong hệ thống.</li>
+              <li>
+                Chuyển khoản ngân hàng theo <strong>STK và nội dung</strong> do đội ngũ vận hành gửi qua email / tin nhắn sau khi bạn xác nhận gói
+                (hoặc liên hệ hotline hỗ trợ trên website).
+              </li>
+              <li>Sau khi tích hợp cổng thanh toán, bạn có thể thanh toán tự động theo tháng / năm trong cùng mục này.</li>
+            </ol>
+            <p class="billing-muted">
+              Hoa hồng theo đơn đặt sân (pilot ~8–10%) được minh bạch trong báo cáo tài chính khi tính năng được bật — không thay thế hoàn toàn phí gói nếu bạn đang dùng mô hình Hybrid.
+            </p>
+          </div>
+
+          <div class="billing-actions">
+            <button type="button" class="btn-primary billing-open-btn" @click="showBillingModal = true">
+              <span class="material-icons">tune</span>
+              Chọn hoặc đổi gói Subscription
+            </button>
           </div>
         </div>
 
@@ -354,15 +499,30 @@
 
       </div>
     </div>
+
+    <OwnerBillingIntroModal
+      :show="showBillingModal"
+      exit-without-saving
+      :initial-plan-key="billing.subscriptionPlanKey"
+      :initial-addons="billingAddonsArray"
+      @completed="onBillingModalCompleted"
+    />
   </div>
 </template>
 
 <script>
 import axios from 'axios';
 import { useOwnerTrial } from '@/composables/useOwnerTrial.js';
+import { clubService } from '@/services/club.service';
+import OwnerBillingIntroModal from '@/components/owner/OwnerBillingIntroModal.vue';
+import { toast } from 'vue3-toastify';
+
+const TRANSFER_QR_MAX = 5 * 1024 * 1024;
+const TRANSFER_QR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default {
   name: 'OwnerSettingsView',
+  components: { OwnerBillingIntroModal },
   setup() {
     const { isVerified, kycStatus, isPendingReview, isKycApproved, isKycRejected, refreshStatus, syncUser } = useOwnerTrial();
     return { isVerified, kycStatus, isPendingReview, isKycApproved, isKycRejected, refreshStatus, syncUser };
@@ -386,7 +546,33 @@ export default {
       if (this.isKycRejected) return 'Hồ sơ bị từ chối';
       if (!this.isVerified) return 'Hồ sơ chưa hoàn thiện';
       return 'Hồ sơ đã nộp';
-    }
+    },
+    billingAddonsArray() {
+      const a = this.billing.subscriptionAddons;
+      if (Array.isArray(a)) return a;
+      if (a && typeof a === 'object' && Array.isArray(a.data)) return a.data;
+      return [];
+    },
+    billingPlanSummary() {
+      const k = this.billing.subscriptionPlanKey;
+      const map = {
+        starter: 'Starter — 299.000đ/tháng',
+        growth: 'Growth — 599.000đ/tháng',
+        pro: 'Pro — 1.299.000đ/tháng',
+      };
+      if (k && map[k]) return map[k];
+      return 'Chưa chọn gói Subscription';
+    },
+    billingAddonsSummary() {
+      const ids = this.billingAddonsArray;
+      if (!ids.length) return 'Không có';
+      const labels = {
+        advanced_reports: 'Báo cáo nâng cao',
+        priority_support: 'Hỗ trợ ưu tiên',
+        sms_reminders: 'Nhắc SMS',
+      };
+      return ids.map((id) => labels[id] || id).join(', ');
+    },
   },
   data() {
     const user = (() => { try { return JSON.parse(localStorage.getItem('user')) || {}; } catch { return {}; } })();
@@ -413,8 +599,24 @@ export default {
       },
       security: { oldPassword: '', newPassword: '', confirmPassword: '' },
       payment: { bankName: 'Vietcombank', accountName: user.name || '', accountNumber: '' },
+      ownerClubs: [],
+      transferClubId: null,
+      clubTransfer: {
+        transferBankName: '',
+        transferAccountNumber: '',
+        transferBeneficiaryName: '',
+        transferQrImageUrl: '',
+      },
+      uploadingTransferQr: false,
+      applyTransferToAllClubs: false,
       notifications: { newBooking: true, cancelBooking: true, weeklyReport: false },
       uploadingAvatar: false,
+      billing: {
+        subscriptionPlanKey: null,
+        subscriptionAddons: [],
+        billingIntroDismissedAt: null,
+      },
+      showBillingModal: false,
       uploading: {
         kycFront: false,
         kycBack: false,
@@ -423,7 +625,11 @@ export default {
     }
   },
   mounted() {
+    if (this.$route.query.tab === 'billing') {
+      this.currentTab = 'billing';
+    }
     this.loadProfile();
+    this.loadOwnerClubs();
   },
   methods: {
     // Load dữ liệu đầy đủ từ API khi vào trang
@@ -453,6 +659,18 @@ export default {
           this.kyc.bankAccountNumber = data.ownerProfile.bankAccountNumber || '';
           this.kyc.taxCode = data.ownerProfile.taxCode || '';
           this.kyc.cancellationPolicy = data.ownerProfile.cancellationPolicy || '';
+          this.billing.subscriptionPlanKey = data.ownerProfile.subscriptionPlanKey || null;
+          this.billing.billingIntroDismissedAt = data.ownerProfile.billingIntroDismissedAt || null;
+          const rawAddons = data.ownerProfile.subscriptionAddons;
+          if (Array.isArray(rawAddons)) this.billing.subscriptionAddons = rawAddons;
+          else if (rawAddons && typeof rawAddons === 'string') {
+            try {
+              const p = JSON.parse(rawAddons);
+              this.billing.subscriptionAddons = Array.isArray(p) ? p : [];
+            } catch {
+              this.billing.subscriptionAddons = [];
+            }
+          } else this.billing.subscriptionAddons = [];
         }
 
         // Cập nhật localStorage để đồng bộ Layout & Badge
@@ -469,6 +687,93 @@ export default {
         // Nếu lỗi (chưa có profile) thì bỏ qua, dùng dữ liệu từ localStorage
         console.warn('Không load được profile từ API:', e?.response?.status);
       }
+    },
+
+    async onBillingModalCompleted(payload) {
+      this.showBillingModal = false;
+      if (payload?.type === 'cancel') return;
+      await this.loadProfile();
+      if (payload?.type === 'subscribe') {
+        toast.success('Đã cập nhật gói Subscription và add-on trong hệ thống.');
+      }
+    },
+
+    async loadOwnerClubs() {
+      try {
+        const r = await clubService.getOwnerClubs();
+        const list = r.data?.data || r.data?.clubs || [];
+        this.ownerClubs = Array.isArray(list) ? list : [];
+        if (!this.transferClubId && this.ownerClubs.length) {
+          this.transferClubId = this.ownerClubs[0].id;
+        }
+        this.syncClubTransferFromList();
+      } catch (e) {
+        console.warn('Không load được danh sách CLB:', e?.response?.status);
+      }
+    },
+
+    syncClubTransferFromList() {
+      const id = this.transferClubId;
+      const c = this.ownerClubs.find((x) => String(x.id) === String(id));
+      if (!c) {
+        this.clubTransfer = {
+          transferBankName: '',
+          transferAccountNumber: '',
+          transferBeneficiaryName: '',
+          transferQrImageUrl: '',
+        };
+        return;
+      }
+      this.clubTransfer = {
+        transferBankName: c.transferBankName || '',
+        transferAccountNumber: c.transferAccountNumber || '',
+        transferBeneficiaryName: c.transferBeneficiaryName || '',
+        transferQrImageUrl: c.transferQrImageUrl || '',
+      };
+    },
+
+    async onTransferQrFile(event) {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file || !this.transferClubId) return;
+      if (!TRANSFER_QR_TYPES.includes(file.type)) {
+        alert('Chỉ chấp nhận JPG, PNG, WEBP.');
+        return;
+      }
+      if (file.size > TRANSFER_QR_MAX) {
+        alert('File vượt quá 5MB.');
+        return;
+      }
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('type', 'club-transfer-qr');
+      fd.append('entityId', String(this.transferClubId));
+      this.uploadingTransferQr = true;
+      try {
+        const res = await clubService.uploadImage(fd);
+        if (res.data?.success && res.data?.data?.url) {
+          this.clubTransfer.transferQrImageUrl = res.data.data.url;
+          const idx = this.ownerClubs.findIndex((x) => String(x.id) === String(this.transferClubId));
+          if (idx !== -1) {
+            this.ownerClubs[idx] = { ...this.ownerClubs[idx], transferQrImageUrl: res.data.data.url };
+          }
+        } else {
+          alert(res.data?.message || 'Upload thất bại.');
+        }
+      } catch (e) {
+        alert(e.response?.data?.message || e.message || 'Upload thất bại.');
+      } finally {
+        this.uploadingTransferQr = false;
+      }
+    },
+
+    transferPayloadForClub() {
+      const f = this.clubTransfer;
+      const p = {};
+      ['transferBankName', 'transferAccountNumber', 'transferBeneficiaryName', 'transferQrImageUrl'].forEach((k) => {
+        if (Object.prototype.hasOwnProperty.call(f, k)) p[k] = f[k] ? f[k] : null;
+      });
+      return p;
     },
 
     // Lưu thông tin cá nhân (tab profile) hoặc ngân hàng (tab payment)
@@ -497,7 +802,26 @@ export default {
         await axios.patch('/api/owner/profile', payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        alert('✅ Đã lưu thay đổi thành công!');
+
+        if (this.currentTab === 'payment' && this.ownerClubs.length) {
+          const tp = this.transferPayloadForClub();
+          if (this.applyTransferToAllClubs && this.ownerClubs.length > 1) {
+            await Promise.all(this.ownerClubs.map((c) => clubService.editClub(c.id, tp)));
+            this.applyTransferToAllClubs = false;
+          } else if (this.transferClubId) {
+            await clubService.editClub(this.transferClubId, tp);
+          }
+          const r = await clubService.getOwnerClubs();
+          const list = r.data?.data || r.data?.clubs || [];
+          this.ownerClubs = Array.isArray(list) ? list : [];
+          this.syncClubTransferFromList();
+        }
+
+        if (this.currentTab === 'payment' && this.applyTransferToAllClubs && this.ownerClubs.length > 1) {
+          alert(`✅ Đã lưu và áp dụng thông tin chuyển khoản cho ${this.ownerClubs.length} câu lạc bộ.`);
+        } else {
+          alert('✅ Đã lưu thay đổi thành công!');
+        }
       } catch (err) {
         alert('Lỗi: ' + (err.response?.data?.message || 'Không thể lưu lúc này.'));
       }
@@ -886,6 +1210,95 @@ export default {
 .mt-24 { margin-top: 24px; }
 
 /* Linked Bank Info */
+.payment-section-title {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;
+  color: #1e293b; margin: 28px 0 12px;
+}
+.payment-section-title:first-of-type { margin-top: 0; }
+.payment-section-title .material-icons { font-size: 20px; color: #16a34a; }
+
+.transfer-divider {
+  height: 1px; background: #f1f5f9; margin: 28px 0;
+}
+
+.transfer-intro {
+  font-size: 13px; color: #64748b; margin: 0 0 16px; line-height: 1.5;
+}
+
+.transfer-apply-all-wrap {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.transfer-apply-all-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+}
+.transfer-apply-all-label input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: #16a34a;
+  flex-shrink: 0;
+}
+.transfer-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 10px 0 0;
+  line-height: 1.45;
+  padding-left: 28px;
+}
+
+.transfer-empty {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 20px; border-radius: 14px;
+}
+.transfer-empty .material-icons { font-size: 28px; color: #94a3b8; flex-shrink: 0; }
+.transfer-empty p { margin: 0; font-size: 14px; color: #64748b; line-height: 1.5; }
+
+.transfer-qr-block {
+  margin-top: 8px;
+}
+
+.transfer-qr-url {
+  margin-bottom: 12px;
+}
+
+.transfer-qr-row {
+  display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px;
+}
+
+.transfer-qr-preview {
+  width: 140px; height: 140px;
+  border: 2px dashed #cbd5e1; border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; cursor: pointer; overflow: hidden;
+  background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 600;
+  transition: border-color 0.2s, background 0.2s;
+}
+.transfer-qr-preview:hover:not(.uploading) {
+  border-color: #16a34a; background: #f0fdf4;
+}
+.transfer-qr-preview.uploading { opacity: 0.65; pointer-events: none; }
+.transfer-qr-preview img {
+  width: 100%; height: 100%; object-fit: contain;
+}
+.transfer-qr-preview .material-icons { font-size: 36px; color: #94a3b8; }
+
+.transfer-qr-btn {
+  align-self: center;
+}
+
 .linked-bank { display: flex; align-items: center; gap: 20px; }
 .bank-icon { width: 56px; height: 56px; background: #16a34a; color: white; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
 .bank-icon span { font-size: 28px; }
@@ -915,6 +1328,67 @@ export default {
 }
 .switch-input:checked + .switch-label { background-color: #16a34a; }
 .switch-input:checked + .switch-label:before { transform: translateX(20px); }
+
+/* Billing / Subscription tab */
+.billing-tab .billing-summary {
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.billing-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.billing-summary-row:last-child { margin-bottom: 0; }
+.billing-label { font-size: 13px; color: #64748b; font-weight: 600; }
+.billing-value { font-size: 15px; color: #0f172a; }
+.billing-value.muted { font-weight: 500; font-size: 14px; color: #475569; }
+.billing-note.warn {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-top: 14px; padding: 12px 14px;
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+  font-size: 13px; color: #92400e; line-height: 1.45;
+}
+.billing-note.warn .material-icons { font-size: 20px; flex-shrink: 0; color: #d97706; }
+
+.billing-box {
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  margin-bottom: 18px;
+}
+.billing-box h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.billing-box h4 .material-icons { font-size: 20px; color: #059669; }
+.billing-steps {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.55;
+}
+.billing-steps li { margin-bottom: 6px; }
+.billing-muted {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+.billing-actions .billing-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* Responsive */
 @media (max-width: 1024px) {

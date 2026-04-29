@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type infer as ZodInfer } from "zod";
 
 // Zod schema for booking input supporting hybrid slot mechanism
 export const createBookingSchema = z.object({
@@ -39,5 +39,5 @@ export const cancelBookingSchema = z.object({
   reason: z.string().max(500, "Lý do không quá 500 ký tự").optional(),
 });
 
-export type CreateBookingInput = z.infer<typeof createBookingSchema>;
-export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
+export type CreateBookingInput = ZodInfer<typeof createBookingSchema>;
+export type CancelBookingInput = ZodInfer<typeof cancelBookingSchema>;

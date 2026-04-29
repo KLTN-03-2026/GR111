@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { getMyFavorites, toggleFavorite } from "@/modules/user/favorite.service";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 

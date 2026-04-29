@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { getAuthUser } from "@/middlewares/auth.middleware";
+import { getAuthUser } from "@/middleware/auth.middleware";
 import { getUserReviews } from "@/modules/review/review.service";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
+import { successResponse, serverErrorResponse } from "@/lib/response";
 
 /**
  * GET /api/reviews/me

@@ -1,26 +1,24 @@
 <template>
   <header class="header-wrapper">
-    <div class="header-left">
-      <button class="toggle-btn" @click="$emit('toggle-sidebar')">
-        <span class="material-icons">menu_open</span>
-      </button>
-      <div class="header-title">
-        <h2 class="breadcrumb-item primary">DASHBOARD</h2>
-        <span class="breadcrumb-separator">/</span>
-        <span class="breadcrumb-item current">Chào buổi sáng, {{ user?.name || 'Owner' }}! 👋</span>
-      </div>
-    </div>
-    
     <div class="header-right">
       <div class="header-notifications">
       </div>
-      <div class="user-profile">
+      <time class="header-today" :datetime="todayIso">{{ todayLabel }}</time>
+      <router-link
+        to="/owner/settings"
+        class="user-profile"
+        aria-label="Mở trang cài đặt tài khoản"
+      >
         <div class="user-info">
-          <p class="user-name">{{ user?.name  }}</p>
-          <p class="user-role">{{ user?.email  }}</p>
+          <p class="user-name">{{ displayName }}</p>
+          <p class="user-role">{{ user?.email || '—' }}</p>
         </div>
-        <img class="user-avatar" :src="`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'Owner')}&background=16a34a&color=fff`" alt="User Avatar" />
-      </div>
+        <img
+          class="user-avatar"
+          :src="user?.avatarUrl || avatarUrl"
+          alt=""
+        />
+      </router-link>
     </div>
   </header>
 </template>
@@ -31,11 +29,46 @@ export default {
   name: 'OwnerHeader',
   components: {
   },
-  emits: ['toggle-sidebar'],
   data() {
     return {
       user: null
     }
+  },
+  computed: {
+    displayName() {
+      if (!this.user) return 'Chủ sân';
+      return (
+        this.user.name ||
+        this.user.fullName ||
+        (this.user.email ? String(this.user.email).split('@')[0] : '') ||
+        'Chủ sân'
+      );
+    },
+    avatarUrl() {
+      const n = encodeURIComponent(this.displayName || 'Owner');
+      return `https://ui-avatars.com/api/?name=${n}&background=16a34a&color=fff`;
+    },
+    /** yyyy-mm-dd cho <time datetime> */
+    todayIso() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    },
+    /** Ngày hôm nay (tiếng Việt), ví dụ: Thứ Sáu, 29 tháng 4, 2026 */
+    todayLabel() {
+      try {
+        return new Intl.DateTimeFormat('vi-VN', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }).format(new Date());
+      } catch {
+        return '';
+      }
+    },
   },
   mounted() {
     const userData = localStorage.getItem('user');
@@ -51,13 +84,12 @@ export default {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 .header-wrapper {
   height: 80px;
   background-color: #ffffff;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 0 30px;
   border-bottom: 1px solid #e2e8f0;
   position: sticky;
@@ -65,57 +97,20 @@ export default {
   z-index: 999;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.toggle-btn {
-  background: #f1f5f9;
-  border: none;
-  border-radius: 8px;
-  padding: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.toggle-btn:hover {
-  background: #e2e8f0;
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.breadcrumb-item {
-  font-size: 14px;
-}
-
-.breadcrumb-item.primary {
-  font-weight: 800;
-  color: #1a1a2e;
-  letter-spacing: 0.5px;
-}
-
-.breadcrumb-item.current {
-  color: #64748b;
-}
-
-.breadcrumb-separator {
-  color: #cbd5e1;
-}
-
 .header-right {
   display: flex;
   align-items: center;
   gap: 24px;
+}
+
+.header-today {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  line-height: 1.35;
+  text-align: right;
+  max-width: min(320px, 42vw);
 }
 
 .notif-btn {
@@ -147,6 +142,21 @@ export default {
   border-radius: 50px;
   background-color: #f8fafc;
   border: 1px solid #f1f5f9;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.user-profile:hover {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.user-profile:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
 }
 
 .user-avatar {
@@ -176,10 +186,11 @@ export default {
 }
 
 @media (max-width: 640px) {
-  .user-info {
-    display: none;
+  .header-today {
+    font-size: 11px;
+    max-width: 160px;
   }
-  .breadcrumb-item.current {
+  .user-info {
     display: none;
   }
 }

@@ -28,6 +28,10 @@
         </transition-group>
         <div class="hero__overlay" aria-hidden="true" />
       </div>
+      <div class="hero__ambient" aria-hidden="true">
+        <span class="hero__orb hero__orb--one"></span>
+        <span class="hero__orb hero__orb--two"></span>
+      </div>
 
       <!-- Slide dots -->
       <div class="slide-dots" role="tablist" aria-label="Ảnh nền">
@@ -282,12 +286,13 @@ import banner6 from "../../../assets/assets/images/banner/banner6.jpg";
 import banner7 from "../../../assets/assets/images/banner/banner7.jpg";
 import banner8 from "../../../assets/assets/images/banner/banner8.jpg";
 import banner9 from "../../../assets/assets/images/banner/banner9.jpg";
+import { formatDateInputLocal } from "@/utils/dateInput";
 
 export default {
   name: "HeroView",
 
   data() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatDateInputLocal();
     return {
       selectedSport: "football",
       location: "Đà Nẵng",
@@ -406,6 +411,15 @@ export default {
   overflow: hidden;
 }
 
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10%;
+  z-index: 1;
+  pointer-events: none;
+  animation: heroGlow 12s ease-in-out infinite alternate;
+}
+
 .hero__bg    { position: absolute; inset: 0; z-index: 0; }
 .hero__slider{ position: relative; width: 100%; height: 100%; }
 .hero__slide { position: absolute; inset: 0; }
@@ -421,6 +435,38 @@ export default {
 
 .crossfade-enter-active,.crossfade-leave-active{ transition: opacity 1.2s ease; }
 .crossfade-enter-from,.crossfade-leave-to{ opacity: 0; }
+
+.hero__ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hero__orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(0.5px);
+  opacity: 0.55;
+  animation: floatOrb 8s ease-in-out infinite;
+}
+
+.hero__orb--one {
+  width: 140px;
+  height: 140px;
+  left: 6%;
+  top: 12%;
+  background: radial-gradient(circle, rgba(255,255,255,0.32) 0%, rgba(255,255,255,0) 72%);
+}
+
+.hero__orb--two {
+  width: 110px;
+  height: 110px;
+  right: 18%;
+  bottom: 18%;
+  background: radial-gradient(circle, rgba(74, 222, 128, 0.28) 0%, rgba(74, 222, 128, 0) 72%);
+  animation-delay: 1.5s;
+}
 
 .slide-dots {
   position: absolute; bottom: 20px; left: 50%;
@@ -442,7 +488,21 @@ export default {
   padding: 32px 32px 28px;
   margin-left: 7%; width: 390px;
   box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  animation: heroCardIn .8s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.hero__desktop-card > * {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: fadeInUp .5s ease forwards;
+}
+
+.hero__desktop-card > *:nth-child(1) { animation-delay: .15s; }
+.hero__desktop-card > *:nth-child(2) { animation-delay: .24s; }
+.hero__desktop-card > *:nth-child(3) { animation-delay: .33s; }
+.hero__desktop-card > *:nth-child(4) { animation-delay: .42s; }
+.hero__desktop-card > *:nth-child(5) { animation-delay: .51s; }
+.hero__desktop-card > *:nth-child(6) { animation-delay: .6s; }
 
 .dc-title {
   font-family: "Barlow Condensed", sans-serif;
@@ -510,7 +570,7 @@ export default {
   cursor: pointer; margin-top: 4px;
   transition: background .2s, transform .1s;
 }
-.dc-cta:hover { background: #162039; }
+.dc-cta:hover { background: #162039; transform: translateY(-1px); box-shadow: 0 10px 18px rgba(30, 42, 74, 0.28); }
 .dc-cta:active { transform: scale(.99); }
 .dc-cta__accent { color: #4ade80; }
 
@@ -579,6 +639,7 @@ export default {
     background: var(--bg);
     flex: 1; /* Occupy remaining space in hero-root */
     justify-content: center; /* Center content vertically if space permits */
+    animation: fadeInUp .45s ease both;
   }
 
   .ms-title {
@@ -682,6 +743,26 @@ export default {
     font-size: 20px; font-weight: 300;
     user-select: none; line-height: 1;
   }
+}
+
+@keyframes heroCardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatOrb {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes heroGlow {
+  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.9; }
+  100% { transform: translate3d(1.5%, -1.5%, 0) scale(1.04); opacity: 1; }
 }
 
 /* Very small phones */

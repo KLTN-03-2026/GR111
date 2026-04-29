@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { CreateCourtInput } from "@/validations/court.schema";
 
 /**
@@ -21,7 +21,7 @@ export async function createCourt(clubId: string, ownerId: string, input: Create
       ...data,
       clubId,
       images: images ? {
-        create: images.map(url => ({ url }))
+        create: images.map((url: string) => ({ url }))
       } : undefined
     },
     include: {
@@ -68,7 +68,7 @@ export async function updateCourt(courtId: string, ownerId: string, input: Parti
       ...data,
       images: images ? {
         deleteMany: {},
-        create: images.map(url => ({ url }))
+        create: images.map((url: string) => ({ url }))
       } : undefined
     },
     include: { pricings: true, images: true }
@@ -118,7 +118,7 @@ export async function updateCourtPricing(courtId: string, ownerId: string, prici
       };
 
       await tx.courtPricing.createMany({
-        data: pricings.map(p => ({
+        data: pricings.map((p: { dayOfWeek?: number; startTime: string; endTime: string; pricePerHour: number }) => ({
           courtId,
           dayOfWeek: p.dayOfWeek,
           startTime: toTime(p.startTime),

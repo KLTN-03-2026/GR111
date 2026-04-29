@@ -1,9 +1,42 @@
 <template>
   <div class="owner-layout">
-    <OwnerSidebar :is-collapsed="isSidebarCollapsed" :is-locked="isLocked" :is-kyc-approved="isKycApproved" />
+    <div
+      v-if="mobileNavOpen"
+      class="sidebar-backdrop"
+      aria-hidden="true"
+      @click="closeMobileNav"
+    />
+    <OwnerSidebar
+      :is-collapsed="isSidebarCollapsed"
+      :is-mobile-open="mobileNavOpen"
+      :is-locked="isLocked"
+      :is-kyc-approved="isKycApproved"
+      :pending-bookings-count="pendingPaymentTotal"
+    />
     <div class="main-wrapper" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-      <OwnerHeader @toggle-sidebar="isSidebarCollapsed = !isSidebarCollapsed" />
-      
+      <button
+        type="button"
+        class="owner-sidebar-toggle"
+        :aria-label="mobileNavOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
+        :aria-expanded="mobileNavOpen ? 'true' : 'false'"
+        @click="toggleSidebar"
+      >
+        <span class="material-icons">{{ mobileNavOpen ? 'close' : 'menu' }}</span>
+      </button>
+      <OwnerHeader />
+
+      <transition name="banner-slide">
+        <div v-if="pendingPaymentTotal > 0" class="owner-pending-strip" role="status">
+          <span class="owner-pending-strip-badge">Thông báo</span>
+          <span class="owner-pending-strip-text">
+            <strong>{{ pendingPaymentTotal }}</strong> đơn chờ thanh toán / xác nhận trên các CLB của bạn — có thể có đơn mới vừa đặt.
+          </span>
+          <button type="button" class="owner-pending-strip-btn" @click="openPendingQueuePanel">
+            Xử lý ngay
+          </button>
+        </div>
+      </transition>
+
       <!-- Banner 1: Trial countdown (chưa nộp hồ sơ) -->
       <transition name="banner-slide">
         <div v-if="!isVerified && !isTrialExpired" class="trial-banner">
@@ -55,6 +88,102 @@
         </router-view>
       </main>
     </div>
+
+    <PaymentProofNotificationModal
+      :show="showPaymentProofModal"
+      :booking="paymentProofModalBooking"
+      :confirming="paymentProofConfirmLoading"
+      @close="closePaymentProofModal"
+      @confirm="handlePaymentProofModalConfirm"
+    />
+
+    <NewBookingNotificationModal
+      :show="showNewBookingModal"
+      :booking="newBookingModalBooking"
+      :confirm-loading="newBookingConfirmLoading"
+      @close="closeNewBookingModal"
+      @view-detail="handleNewBookingModalViewDetail"
+      @confirm="handleConfirmPaymentFromNewBookingModal"
+    />
+
+    <OwnerBillingIntroModal
+      :show="showBillingIntroModal"
+      @completed="onBillingIntroCompleted"
+    />
+
+    <transition name="fade">
+      <div
+        v-if="showPendingQueuePanel"
+        class="opq-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="opq-title"
+        @click.self="closePendingQueuePanel"
+      >
+        <div class="opq-panel">
+          <div class="opq-head">
+            <div>
+              <h2 id="opq-title" class="opq-title">Đơn chờ thanh toán / xác nhận</h2>
+              <p class="opq-sub">Danh sách theo tất cả CLB của bạn — xử lý trực tiếp tại đây.</p>
+            </div>
+            <button type="button" class="opq-x" aria-label="Đóng" @click="closePendingQueuePanel">
+              <span class="material-icons">close</span>
+            </button>
+          </div>
+
+          <div class="opq-body">
+            <div v-if="pendingQueueLoading" class="opq-state">
+              <span class="opq-spinner" aria-hidden="true" />
+              <span>Đang tải danh sách…</span>
+            </div>
+            <p v-else-if="!pendingQueueRows.length" class="opq-state opq-muted">
+              Không còn đơn chờ xử lý.
+            </p>
+            <ul v-else class="opq-list">
+              <li
+                v-for="row in pendingQueueRows"
+                :key="`${row.clubId}-${row.booking.id}`"
+                class="opq-item"
+              >
+                <div class="opq-item-main">
+                  <div class="opq-item-top">
+                    <span class="opq-badge">{{ statusLabelPending(row.booking.status) }}</span>
+                    <span class="opq-code mono">{{ row.booking.bookingCode || row.booking.id }}</span>
+                  </div>
+                  <div class="opq-club">{{ row.clubName }}</div>
+                  <div class="opq-line">{{ row.booking.bookerName || row.booking.user?.fullName || 'Khách' }}</div>
+                  <div class="opq-line opq-muted-sm">{{ slotPreview(row.booking) }}</div>
+                  <div class="opq-amount">{{ formatMoneyPending(row.booking.finalAmount ?? row.booking.totalAmount) }}</div>
+                </div>
+                <div class="opq-item-actions">
+                  <button
+                    v-if="canConfirmPendingBooking(row.booking)"
+                    type="button"
+                    class="opq-btn opq-btn-primary"
+                    :disabled="pendingQueueConfirmId === row.booking.id"
+                    @click="confirmPendingQueueRow(row)"
+                  >
+                    <span v-if="pendingQueueConfirmId === row.booking.id" class="opq-spin" aria-hidden="true" />
+                    <span v-else class="material-icons opq-ico">verified</span>
+                    {{
+                      pendingQueueConfirmId === row.booking.id ? 'Đang xử lý…' : 'Xác nhận'
+                    }}
+                  </button>
+                  <p v-else class="opq-hint">
+                    <template v-if="row.booking.status === 'WAITING_PAYMENT' && row.booking.payment?.method === 'BANK_TRANSFER' && !row.booking.payment?.proofImageUrl">
+                      Chờ khách gửi ảnh CK.
+                    </template>
+                    <template v-else>
+                      Không thể xác nhận tự động từ đây.
+                    </template>
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -62,13 +191,24 @@
 import { provide } from 'vue';
 import OwnerSidebar from '../components/layout/OwnerSidebar.vue';
 import OwnerHeader from '../components/layout/OwnerHeader.vue';
+import PaymentProofNotificationModal from '../components/owner/dashboard/PaymentProofNotificationModal.vue';
+import NewBookingNotificationModal from '../components/owner/dashboard/NewBookingNotificationModal.vue';
+import OwnerBillingIntroModal from '../components/owner/OwnerBillingIntroModal.vue';
+import api from '@/api/axios';
 import { useOwnerTrial } from '../composables/useOwnerTrial.js';
+import { clubService } from '@/services/club.service';
+import { bookingService } from '@/services/booking.service';
+import { socketService } from '@/services/socket.service.js';
+import { toast } from 'vue3-toastify';
 
 export default {
   name: 'OwnerLayout',
   components: {
     OwnerSidebar,
-    OwnerHeader
+    OwnerHeader,
+    PaymentProofNotificationModal,
+    NewBookingNotificationModal,
+    OwnerBillingIntroModal,
   },
   setup() {
     const { isLocked, isVerified, isKycApproved, isPendingReview, isKycRejected, isTrialExpired, timeLeftFormatted, trialPercent, startTrial, refreshStatus } = useOwnerTrial();
@@ -84,23 +224,467 @@ export default {
   data() {
     return {
       isSidebarCollapsed: false,
+      mobileNavOpen: false,
+      _mqMobile: null,
+
+      ownerClubIds: [],
+      /** @type {{ id: string|number, name: string }[]} */
+      ownerClubsMeta: [],
+      pendingPaymentTotal: 0,
+
+      showPendingQueuePanel: false,
+      pendingQueueLoading: false,
+      pendingQueueRows: [],
+      pendingQueueConfirmId: null,
+
+      showPaymentProofModal: false,
+      paymentProofModalBooking: null,
+      paymentProofConfirmLoading: false,
+
+      showNewBookingModal: false,
+      newBookingModalBooking: null,
+      newBookingConfirmLoading: false,
+
+      /** Modal giới thiệu phí duy trì / gói Subscription (chủ sân mới) */
+      showBillingIntroModal: false,
     }
+  },
+  watch: {
+    $route() {
+      this.closeMobileNav();
+      this.closePendingQueuePanel();
+    },
   },
   mounted() {
     // Khởi động timer ngay khi vào Dashboard
     this.startTrial();
     // Đồng bộ trạng thái mới nhất từ backend
     this.refreshStatus();
-  }
+
+    this._mqMobile = window.matchMedia('(max-width: 1024px)');
+    this._onMqChange = () => {
+      if (!this._mqMobile.matches) {
+        this.mobileNavOpen = false;
+      }
+    };
+    this._mqMobile.addEventListener('change', this._onMqChange);
+
+    this.initOwnerRealtimeHub();
+
+    this.$nextTick(() => {
+      setTimeout(() => this.checkBillingIntroModal(), 600);
+    });
+  },
+  beforeUnmount() {
+    if (this._mqMobile && this._onMqChange) {
+      this._mqMobile.removeEventListener('change', this._onMqChange);
+    }
+    socketService.disconnect();
+  },
+  methods: {
+    /** Chủ sân đăng ký trong ~30 ngày và chưa xử lý modal billing → hiển thị một lần */
+    async checkBillingIntroModal() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('user') || '{}');
+        if (raw.role !== 'OWNER') return;
+
+        const res = await api.get('/owner/profile');
+        const profile = res.data?.data;
+        if (!profile?.createdAt) return;
+
+        const op = profile.ownerProfile;
+        if (op?.billingIntroDismissedAt || op?.subscriptionPlanKey) return;
+
+        const ageMs = Date.now() - new Date(profile.createdAt).getTime();
+        const maxNewMs = 30 * 24 * 60 * 60 * 1000;
+        if (ageMs > maxNewMs) return;
+
+        this.showBillingIntroModal = true;
+      } catch (e) {
+        console.warn('checkBillingIntroModal', e);
+      }
+    },
+
+    onBillingIntroCompleted(payload) {
+      this.showBillingIntroModal = false;
+      if (payload?.type === 'cancel') return;
+      if (payload?.type === 'subscribe') {
+        const label = {
+          starter: 'Starter',
+          growth: 'Growth',
+          pro: 'Pro',
+        }[payload.planKey] || payload.planKey;
+        toast.success(`Đã ghi nhận gói ${label}. Thanh toán định kỳ sẽ được kết nối trong bản cập nhật sau.`);
+      } else if (payload?.type === 'dismiss') {
+        toast.info('Đã ghi nhận. Bạn có thể chọn gói Subscription bất cứ lúc nào sau này.');
+      }
+    },
+
+    isMobileLayout() {
+      return typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches;
+    },
+    toggleSidebar() {
+      if (this.isMobileLayout()) {
+        this.mobileNavOpen = !this.mobileNavOpen;
+        return;
+      }
+      this.mobileNavOpen = false;
+      this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    },
+    closeMobileNav() {
+      this.mobileNavOpen = false;
+    },
+
+    dispatchRealtimeDetail(data) {
+      window.dispatchEvent(new CustomEvent('owner-booking-realtime', { detail: data }));
+    },
+
+    ownerClubSet() {
+      return new Set(this.ownerClubIds.map((id) => String(id)));
+    },
+
+    isOwnerClub(clubId) {
+      return clubId != null && this.ownerClubSet().has(String(clubId));
+    },
+
+    async initOwnerRealtimeHub() {
+      try {
+        const clubRes = await clubService.getOwnerClubs();
+        const payload = clubRes?.data;
+        const clubs =
+          payload?.success && Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : [];
+        if (!clubs.length) return;
+
+        this.ownerClubIds = clubs.map((c) => c.id);
+        this.ownerClubsMeta = clubs.map((c) => ({
+          id: c.id,
+          name: c.name || `CLB #${c.id}`,
+        }));
+
+        socketService.connect();
+        socketService.onBookingUpdate((data) => this.handleOwnerBookingSocket(data));
+        socketService.onRecentNotifications((list) => this.handleOwnerRecentNotifications(list));
+
+        clubs.forEach((c) => socketService.joinVenue(c.id));
+        await this.refreshPendingTotals();
+      } catch (e) {
+        console.error('Owner realtime hub failed', e);
+      }
+    },
+
+    async refreshPendingTotals() {
+      let total = 0;
+      for (const cid of this.ownerClubIds) {
+        try {
+          const res = await bookingService.getBookingsByClub(cid);
+          const rawList = this.bookingListFromResponse(res);
+          total += rawList.filter(
+            (b) => b.status === 'WAITING_PAYMENT' || b.status === 'PENDING'
+          ).length;
+        } catch (_) {
+          /* ignore */
+        }
+      }
+      this.pendingPaymentTotal = total;
+    },
+
+    bookingListFromResponse(res) {
+      if (!res) return [];
+      if (Array.isArray(res)) return res;
+      if (Array.isArray(res.data)) return res.data;
+      if (Array.isArray(res.data?.data)) return res.data.data;
+      return [];
+    },
+
+    async loadPendingQueueRows() {
+      if (!this.ownerClubsMeta.length) return;
+      this.pendingQueueLoading = true;
+      try {
+        const rows = [];
+        for (const meta of this.ownerClubsMeta) {
+          try {
+            const res = await bookingService.getBookingsByClub(meta.id);
+            const rawList = this.bookingListFromResponse(res);
+            const pending = rawList.filter((b) =>
+              ['PENDING', 'WAITING_PAYMENT'].includes(b.status)
+            );
+            for (const b of pending) {
+              rows.push({ booking: b, clubId: meta.id, clubName: meta.name });
+            }
+          } catch (_) {
+            /* skip club */
+          }
+        }
+        rows.sort(
+          (a, b) =>
+            new Date(b.booking.createdAt || 0).getTime() -
+            new Date(a.booking.createdAt || 0).getTime()
+        );
+        this.pendingQueueRows = rows;
+      } finally {
+        this.pendingQueueLoading = false;
+      }
+    },
+
+    async openPendingQueuePanel() {
+      this.showPendingQueuePanel = true;
+      await this.loadPendingQueueRows();
+    },
+
+    closePendingQueuePanel() {
+      this.showPendingQueuePanel = false;
+      this.pendingQueueConfirmId = null;
+    },
+
+    statusLabelPending(status) {
+      const map = {
+        WAITING_PAYMENT: 'Chờ thanh toán',
+        PENDING: 'Chờ xác nhận',
+      };
+      return map[status] || status || '—';
+    },
+
+    formatMoneyPending(v) {
+      const n = Number(v ?? 0);
+      return `${n.toLocaleString('vi-VN')}đ`;
+    },
+
+    slotPreview(booking) {
+      const items = booking?.items;
+      if (!items?.length) return '—';
+      const it = items[0];
+      const court = it.timeSlot?.court?.name || 'Sân';
+      const st = it.timeSlot?.startTime;
+      const en = it.timeSlot?.endTime;
+      if (!st || !en) return court;
+      const d0 = new Date(st);
+      const d1 = new Date(en);
+      const date = d0.toLocaleDateString('vi-VN');
+      const t0 = d0.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const t1 = d1.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+      return `${court} · ${date} ${t0} – ${t1}`;
+    },
+
+    canConfirmPendingBooking(booking) {
+      if (!booking) return false;
+      const payMethod = booking.payment?.method;
+      return (
+        booking.status === 'PENDING' ||
+        (booking.status === 'WAITING_PAYMENT' &&
+          payMethod === 'BANK_TRANSFER' &&
+          !!booking.payment?.proofImageUrl)
+      );
+    },
+
+    async confirmPendingQueueRow(row) {
+      const booking = row.booking;
+      if (!booking?.id || !this.canConfirmPendingBooking(booking)) return;
+      this.pendingQueueConfirmId = booking.id;
+      try {
+        const res = await bookingService.confirmPayment(booking.id);
+        if (res?.success === false) {
+          toast.error(res?.message || 'Xác nhận thanh toán thất bại.');
+          return;
+        }
+        toast.success('Đã xác nhận thanh toán.');
+        this.dispatchRealtimeDetail({
+          type: 'payment-confirmed-local',
+          clubId: row.clubId,
+          booking,
+        });
+        await this.refreshPendingTotals();
+        await this.loadPendingQueueRows();
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Không thể xác nhận thanh toán.');
+      } finally {
+        this.pendingQueueConfirmId = null;
+      }
+    },
+
+    async refreshPendingQueueIfOpen() {
+      if (!this.showPendingQueuePanel) return;
+      await this.loadPendingQueueRows();
+    },
+
+    async handleOwnerBookingSocket(data) {
+      const clubId = data?.clubId ?? data?.booking?.clubId;
+      if (!this.isOwnerClub(clubId)) return;
+
+      this.dispatchRealtimeDetail(data);
+
+      if (data?.type === 'payment-proof-submitted') {
+        toast.info('Khách đã gửi minh chứng chuyển khoản.');
+        const bid = data?.booking?.id;
+        if (bid) await this.openPaymentProofModalByBookingId(bid);
+        await this.refreshPendingTotals();
+        await this.refreshPendingQueueIfOpen();
+        return;
+      }
+
+      if (data?.type === 'new-booking' || data?.type === 'manual-booking-created') {
+        const bid = data?.booking?.id;
+        let bookingPayload = data?.booking || null;
+        if (bid && clubId) {
+          const fresh = await this.enrichBookingByClub(bid, clubId);
+          if (fresh) bookingPayload = fresh;
+        }
+        toast.success(
+          data?.type === 'manual-booking-created'
+            ? 'Đã tạo đơn tại quầy.'
+            : 'Có đơn đặt sân mới từ khách!',
+          { autoClose: 6000 }
+        );
+        this.newBookingModalBooking = bookingPayload;
+        this.showNewBookingModal = !!bookingPayload;
+        await this.refreshPendingTotals();
+        await this.refreshPendingQueueIfOpen();
+        return;
+      }
+
+      if (data?.type === 'booking-cancelled') {
+        toast.info('Một đơn đặt sân đã bị hủy.');
+      } else {
+        toast.info('Có cập nhật đơn đặt sân.');
+      }
+      await this.refreshPendingTotals();
+      await this.refreshPendingQueueIfOpen();
+    },
+
+    async handleOwnerRecentNotifications(list) {
+      if (!Array.isArray(list) || !list.length) return;
+      const relevant = list.filter((n) =>
+        this.isOwnerClub(n?.clubId ?? n?.booking?.clubId)
+      );
+      const proof = [...relevant].reverse().find((n) => n.type === 'payment-proof-submitted');
+      if (proof?.booking?.id && !this.showPaymentProofModal) {
+        await this.openPaymentProofModalByBookingId(proof.booking.id);
+      }
+    },
+
+    async enrichBookingByClub(bookingId, clubId) {
+      try {
+        const res = await bookingService.getBookingsByClub(clubId);
+        const rawList = this.bookingListFromResponse(res);
+        return rawList.find((x) => String(x.id) === String(bookingId)) || null;
+      } catch (_) {
+        return null;
+      }
+    },
+
+    async openPaymentProofModalByBookingId(bookingId) {
+      if (!bookingId) return;
+      for (const cid of this.ownerClubIds) {
+        try {
+          const res = await bookingService.getBookingsByClub(cid);
+          const rawList = this.bookingListFromResponse(res);
+          const b = rawList.find((x) => String(x.id) === String(bookingId));
+          if (b?.payment?.proofImageUrl) {
+            this.paymentProofModalBooking = b;
+            this.showPaymentProofModal = true;
+            return;
+          }
+        } catch (_) {
+          /* next club */
+        }
+      }
+    },
+
+    closePaymentProofModal() {
+      this.showPaymentProofModal = false;
+      this.paymentProofModalBooking = null;
+      this.paymentProofConfirmLoading = false;
+    },
+
+    closeNewBookingModal() {
+      this.showNewBookingModal = false;
+      this.newBookingModalBooking = null;
+      this.newBookingConfirmLoading = false;
+    },
+
+    handleNewBookingModalViewDetail(booking) {
+      if (!booking?.id) return;
+      this.closeNewBookingModal();
+      try {
+        sessionStorage.setItem('owner_prefill_booking_detail', JSON.stringify(booking));
+      } catch (_) {
+        /* ignore */
+      }
+      this.$router.push({ path: '/owner/bookings', query: { bookingId: String(booking.id) } });
+    },
+
+    async handleConfirmPaymentFromNewBookingModal(booking) {
+      if (!booking?.id) return;
+      this.newBookingConfirmLoading = true;
+      try {
+        const res = await bookingService.confirmPayment(booking.id);
+        if (res?.success === false) {
+          toast.error(res?.message || 'Xác nhận thanh toán thất bại.');
+          return;
+        }
+        toast.success('Đã xác nhận thanh toán.');
+        this.closeNewBookingModal();
+        this.dispatchRealtimeDetail({
+          type: 'payment-confirmed-local',
+          clubId: booking.clubId,
+          booking,
+        });
+        await this.refreshPendingTotals();
+        await this.refreshPendingQueueIfOpen();
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Không thể xác nhận thanh toán.');
+      } finally {
+        this.newBookingConfirmLoading = false;
+      }
+    },
+
+    async handlePaymentProofModalConfirm(booking) {
+      if (!booking?.id) return;
+      this.paymentProofConfirmLoading = true;
+      try {
+        const res = await bookingService.confirmPayment(booking.id);
+        if (res?.success === false) {
+          toast.error(res?.message || 'Xác nhận thanh toán thất bại.');
+          return;
+        }
+        toast.success('Đã xác nhận thanh toán.');
+        this.closePaymentProofModal();
+        this.dispatchRealtimeDetail({
+          type: 'payment-confirmed-local',
+          clubId: booking.clubId,
+          booking,
+        });
+        await this.refreshPendingTotals();
+        await this.refreshPendingQueueIfOpen();
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'Không thể xác nhận thanh toán.');
+      } finally {
+        this.paymentProofConfirmLoading = false;
+      }
+    },
+  },
 }
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 .owner-layout {
   display: flex;
   min-height: 100vh;
   background-color: #f8fafc;
   font-family: 'Barlow', sans-serif;
+  position: relative;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 998;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .main-wrapper {
@@ -110,10 +694,310 @@ export default {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 280px;
   min-width: 0;
+  position: relative;
 }
 
 .main-wrapper.sidebar-collapsed {
   margin-left: 80px;
+}
+
+.owner-sidebar-toggle {
+  position: absolute;
+  left: 24px;
+  top: 20px;
+  z-index: 1001;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.owner-sidebar-toggle:hover {
+  background: #e2e8f0;
+}
+.owner-sidebar-toggle .material-icons {
+  font-size: 22px;
+  color: #334155;
+}
+
+.owner-pending-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 16px 28px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  position: sticky;
+  top: 80px;
+  z-index: 99;
+  background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%);
+  border-bottom: 1px solid #a7f3d0;
+}
+.owner-pending-strip-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #059669, #047857);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+}
+.owner-pending-strip-text {
+  color: #0f172a;
+  flex: 1;
+  min-width: 200px;
+  line-height: 1.5;
+  font-size: 15px;
+}
+.owner-pending-strip-text strong {
+  font-size: 1.15em;
+  font-weight: 800;
+}
+.owner-pending-strip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  background: #059669;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 12px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.owner-pending-strip-btn:hover {
+  background: #047857;
+}
+
+/* Pending queue overlay */
+.opq-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10045;
+  background: rgba(15, 22, 35, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.opq-panel {
+  width: min(100%, 520px);
+  max-height: min(88vh, 720px);
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 24px 48px rgba(15, 22, 35, 0.18);
+  border: 1px solid #eaecf2;
+  display: flex;
+  flex-direction: column;
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+}
+.opq-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 18px 12px;
+  border-bottom: 1px solid #eaecf2;
+}
+.opq-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #0f1623;
+}
+.opq-sub {
+  margin: 6px 0 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+.opq-x {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.opq-x:hover {
+  background: #e2e8f0;
+  color: #0f1723;
+}
+.opq-body {
+  padding: 12px 16px 18px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.opq-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 12px;
+  font-size: 14px;
+  color: #475569;
+}
+.opq-spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #059669;
+  border-radius: 50%;
+  animation: opq-spin 0.75s linear infinite;
+}
+@keyframes opq-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.opq-muted {
+  text-align: center;
+}
+.opq-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.opq-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+}
+.opq-item-main {
+  flex: 1;
+  min-width: 0;
+}
+.opq-item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.opq-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.opq-code {
+  font-size: 12px;
+  color: #64748b;
+}
+.opq-code.mono {
+  font-family: ui-monospace, monospace;
+}
+.opq-club {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d4ed8;
+  margin-bottom: 4px;
+}
+.opq-line {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f1623;
+}
+.opq-muted-sm {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 4px;
+}
+.opq-amount {
+  margin-top: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #059669;
+}
+.opq-item-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 132px;
+}
+.opq-btn {
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.15s;
+}
+.opq-btn:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+.opq-btn-primary {
+  background: linear-gradient(135deg, #059669, #047857);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+.opq-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.opq-ico {
+  font-size: 18px !important;
+}
+.opq-spin {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: opq-spin 0.75s linear infinite;
+}
+.opq-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #64748b;
+  max-width: 140px;
 }
 
 /* Trial Banner */
@@ -218,5 +1102,12 @@ export default {
 @media (max-width: 1024px) {
   .main-wrapper { margin-left: 0 !important; }
   .trial-banner { flex-wrap: wrap; }
+}
+
+@media (max-width: 768px) {
+  .content-area {
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
 }
 </style>

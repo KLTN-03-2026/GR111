@@ -1,7 +1,7 @@
 import { eventEmitter } from "@/lib/events";
-import { notifyNewBooking, notifyBookingStatusChanged } from "@/lib/socket";
-import { sendBookingConfirmationEmail, sendBookingWaitingPaymentEmail } from "@/lib/mail";
-import { prisma } from "@/lib/prisma";
+import { notifyNewBooking, notifyBookingStatusChanged } from "@/infra/realtime/socket";
+import { sendBookingConfirmationEmail, sendBookingWaitingPaymentEmail } from "@/infra/mail/mailer";
+import { prisma } from "@/infra/db/prisma";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   BANK_TRANSFER: 'Chuyển khoản ngân hàng',
@@ -25,6 +25,7 @@ export const initBookingListeners = () => {
     // 1. Real-time Socket notification (cho Owner dashboard)
     if (clubId) {
       await notifyNewBooking(clubId, {
+        clubId,
         booking,
         type: type || 'new-booking'
       });
@@ -43,7 +44,15 @@ export const initBookingListeners = () => {
               }
             }
           },
-          payment: { select: { method: true } }
+          payment: {
+            select: {
+              method: true,
+              bankName: true,
+              accountNumber: true,
+              beneficiaryName: true,
+              transferContent: true,
+            },
+          },
         }
       });
 
@@ -73,6 +82,10 @@ export const initBookingListeners = () => {
           discountAmount: Number(fullBooking.discountAmount),
           finalAmount: Number(fullBooking.finalAmount),
           paymentMethod: PAYMENT_METHOD_LABELS[fullBooking.payment?.method || ''] || fullBooking.payment?.method || 'N/A',
+          transferBankName: fullBooking.payment?.bankName,
+          transferAccountNumber: fullBooking.payment?.accountNumber,
+          transferBeneficiaryName: fullBooking.payment?.beneficiaryName,
+          transferContent: fullBooking.payment?.transferContent || fullBooking.bookingCode,
         };
 
         // Nếu là chuyển khoản, gửi hướng dẫn thanh toán. Nếu là tiền mặt, gửi xác nhận đặt chỗ.
@@ -95,6 +108,7 @@ export const initBookingListeners = () => {
     // 1. Thông báo cho Owner dashboard (venue room)
     if (clubId) {
       await notifyNewBooking(clubId, {
+        clubId,
         booking,
         type: type || 'booking-status-updated'
       });
@@ -125,6 +139,7 @@ export const initBookingListeners = () => {
   eventEmitter.on('booking.cancelled', async ({ clubId, booking }) => {
       if (clubId) {
         await notifyNewBooking(clubId, {
+          clubId,
           booking,
           type: 'booking-cancelled'
         });

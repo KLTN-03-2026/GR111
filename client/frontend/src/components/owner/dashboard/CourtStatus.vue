@@ -105,4 +105,25 @@ export default {
 .court-label.occupied  { background: #fef2f2; color: #dc2626; }
 .court-label.available { background: #ecfdf5; color: #059669; }
 .court-label.locked    { background: #f1f5f9; color: #64748b; }
+
+@media (max-width: 768px) {
+  .card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .card-header {
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .card-title {
+    font-size: 15px;
+  }
+  .court-item {
+    padding: 14px 12px;
+  }
+  .court-name {
+    font-size: 14px;
+  }
+}
 </style>

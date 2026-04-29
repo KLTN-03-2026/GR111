@@ -3,7 +3,7 @@
     <div class="navbar-container">
       <div class="navbar-left">
         <router-link to="/" class="logo">
-          <img src="../../assets/logo.png" alt="Logo" width="40" height="40" style="object-fit: contain;" />
+          <img src="/logo.png" alt="Logo" width="40" height="40" style="object-fit: contain;" />
           <span>SPORTS BOOKING</span>
         </router-link>
 
@@ -147,7 +147,7 @@
         <div class="mobile-menu-content">
           <div class="mobile-menu-header">
             <router-link @click="closeMenu" to="/" class="logo">
-              <img src="../../assets/logo.png" alt="Logo" width="32" height="32" />
+              <img src="/logo.png" alt="Logo" width="32" height="32" />
               <span>SPORTS BOOKING</span>
             </router-link>
           </div>

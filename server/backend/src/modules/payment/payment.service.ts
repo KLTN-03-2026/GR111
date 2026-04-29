@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import Stripe from "stripe";
-import { prisma } from "@/lib/prisma";
-import { notifyNewBooking } from "@/lib/socket";
+import { prisma } from "@/infra/db/prisma";
+import { notifyNewBooking } from "@/infra/realtime/socket";
 import { eventEmitter } from "@/lib/events";
 
 const VNP_TMN_CODE = process.env.VNP_TMN_CODE || "";
@@ -249,6 +249,7 @@ async function handleSuccessfulPayment(bookingId: string, transactionRef: string
 
   if (updatedBooking?.clubId) {
     notifyNewBooking(updatedBooking.clubId, {
+      clubId: updatedBooking.clubId,
       booking: updatedBooking,
       type: "payment-confirmed",
     });
@@ -276,6 +277,7 @@ async function handleFailedPayment(bookingId: string) {
 
   if (updatedBooking.clubId) {
     notifyNewBooking(updatedBooking.clubId, {
+      clubId: updatedBooking.clubId,
       booking: updatedBooking,
       type: "booking-cancelled",
     });
@@ -302,6 +304,7 @@ export async function submitPaymentProof(bookingId: string, proofImageUrl: strin
 
     if (updatedBooking.clubId) {
       notifyNewBooking(updatedBooking.clubId, {
+        clubId: updatedBooking.clubId,
         booking: updatedBooking,
         type: "payment-proof-submitted",
       });

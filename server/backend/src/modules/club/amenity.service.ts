@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 
 /**
  * Lấy danh sách toàn bộ tiện ích có sẵn trong hệ thống (Wifi, Parking...)

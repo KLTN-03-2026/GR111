@@ -4,6 +4,33 @@ import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 const SALT_ROUNDS = 12;
 
+const slugify = (text: string) => text.toString().toLowerCase().trim()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/\s+/g, '-').replace(/[^\w-]+/g, '').replace(/--+/g, '-');
+
+const sportImages = {
+  FOOTBALL: [
+    "https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1200",
+    "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?q=80&w=1200",
+    "https://images.unsplash.com/photo-1517466787929-bc9028880944?q=80&w=1200",
+  ],
+  BADMINTON: [
+    "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?q=80&w=1200",
+    "https://images.unsplash.com/photo-1521537634581-0dced2fee2ef?q=80&w=1200",
+    "https://images.unsplash.com/photo-1613918108466-292b78a8ef95?q=80&w=1200",
+  ],
+  TENNIS: [
+    "https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=1200",
+    "https://images.unsplash.com/photo-1622279457486-62dcc4a4603b?q=80&w=1200",
+    "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=1200",
+  ],
+  PICKLEBALL: [
+    "https://images.unsplash.com/photo-1504450758481-7338eba7524a?q=80&w=1200",
+    "https://images.unsplash.com/photo-1544919396-d130b0d39b34?q=80&w=1200",
+    "https://images.unsplash.com/photo-1519766428956-61327914a1c2?q=80&w=1200",
+  ]
+};
+
 async function main() {
   console.log("🌱 Starting seed...");
 
@@ -240,6 +267,84 @@ async function main() {
     },
   });
 
+  // 4a. Create 10 Da Nang Clubs
+  console.log("🏢 Creating 10 Da Nang clubs...");
+  const daNangClubDataList = [
+    { name: "Sân bóng Chuyên Việt", district: "Hải Châu", address: "98 Tiểu La", lat: 16.0500, lng: 108.2100 },
+    { name: "Sân bóng Tuyên Sơn", district: "Hải Châu", address: "01 Vũ Quang Thuận", lat: 16.0350, lng: 108.2250 },
+    { name: "Sân bóng đá mini Duy Tân", district: "Hải Châu", address: "07 Duy Tân", lat: 16.0450, lng: 108.2200 },
+    { name: "Sân cầu lông Kỳ Đồng", district: "Thanh Khê", address: "01 Kỳ Đồng", lat: 16.0650, lng: 108.1950 },
+    { name: "Sân bóng Mỹ Gia", district: "Liên Chiểu", address: "P. Hòa Khánh Bắc", lat: 16.0750, lng: 108.1550 },
+    { name: "Pickleball Đà Nẵng Club", district: "Sơn Trà", address: "Đường Hồ Nghinh", lat: 16.0700, lng: 108.2450 },
+    { name: "Sân bóng Lê Quý Đôn", district: "Sơn Trà", address: "Đường Vũ Văn Dũng", lat: 16.0600, lng: 108.2400 },
+    { name: "Sân bóng Ngũ Hành Sơn", district: "Ngũ Hành Sơn", address: "Đường Minh Mạng", lat: 16.0150, lng: 108.2550 },
+    { name: "Trung tâm Thể thao Cẩm Lệ", district: "Cẩm Lệ", address: "P. Hòa Thọ Đông", lat: 16.0200, lng: 108.1900 },
+    { name: "Sân bóng Hòa Xuân", district: "Cẩm Lệ", address: "Văn Tiến Dũng", lat: 15.9950, lng: 108.2150 },
+  ];
+
+  const daNangCourtIds: string[] = [];
+
+  for (const info of daNangClubDataList) {
+    const club = await prisma.club.create({
+      data: {
+        ownerId: vidinhOwner.id,
+        name: info.name,
+        slug: slugify(info.name) + "-" + Math.floor(Math.random() * 1000),
+        address: info.address,
+        city: "Đà Nẵng",
+        district: info.district,
+        latitude: info.lat,
+        longitude: info.lng,
+        logoUrl: `https://api.dicebear.com/7.x/identicon/svg?seed=${info.name}`,
+        coverImageUrl: info.name.includes("cầu lông") ? sportImages.BADMINTON[0] : 
+                       info.name.includes("Pickleball") ? sportImages.PICKLEBALL[0] : sportImages.FOOTBALL[0],
+        approvalStatus: "APPROVED",
+        amenities: {
+          create: [
+            { amenityId: wifi.id, price: 0 },
+            { amenityId: parking.id, price: 5000 },
+          ],
+        },
+        openingHours: {
+          create: [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+            dayOfWeek: day,
+            openTime: new Date(Date.UTC(1970, 0, 1, 5, 0)),
+            closeTime: new Date(Date.UTC(1970, 0, 1, 23, 0)),
+          })),
+        },
+      },
+    });
+
+    for (let i = 1; i <= 3; i++) {
+      const sportType = info.name.includes("cầu lông") ? "BADMINTON" : 
+                        info.name.includes("Pickleball") ? "PICKLEBALL" : "FOOTBALL";
+      
+      const court = await prisma.court.create({
+        data: {
+          clubId: club.id,
+          name: `Sân ${i}`,
+          sportType: sportType as any,
+          surface: sportType === "FOOTBALL" ? "Cỏ nhân tạo" : "Thảm chuyên dụng",
+          indoorOutdoor: i % 2 === 0 ? "INDOOR" : "OUTDOOR",
+          images: {
+            create: sportImages[sportType as keyof typeof sportImages].map((url, idx) => ({
+              url: url,
+              caption: `Ảnh ${info.name} - Sân ${i} (${idx + 1})`,
+              sortOrder: idx
+            }))
+          },
+          pricings: {
+            create: [
+              { startTime: new Date(Date.UTC(1970, 0, 1, 5, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 16, 0)), pricePerHour: 150000, label: "Giờ thường" },
+              { startTime: new Date(Date.UTC(1970, 0, 1, 16, 0)), endTime: new Date(Date.UTC(1970, 0, 1, 23, 0)), pricePerHour: 300000, label: "Giờ cao điểm" },
+            ],
+          },
+        },
+      });
+      daNangCourtIds.push(court.id);
+    }
+  }
+
   // 5. Create Courts & Pricing
   console.log("🏟 Creating courts and pricing...");
 
@@ -377,7 +482,7 @@ async function main() {
     }
   }
 
-  const allCourtIds = [court1.id, courtF2.id, court2.id, courtB2.id, courtT1.id, courtP1.id, courtBB1.id];
+  const allCourtIds = [court1.id, courtF2.id, court2.id, courtB2.id, courtT1.id, courtP1.id, courtBB1.id, ...daNangCourtIds];
 
   for (const id of allCourtIds) {
     await createSlots(id, today);
@@ -502,9 +607,9 @@ async function main() {
   console.log("✍️ Seeding posts...");
   await prisma.post.createMany({
     data: [
-      { clubId: club1.id, title: "Giải bóng đá tứ hùng Thanh Đa", content: "Chào mừng các đội bóng tham gia giải đấu lớn nhất năm tại sân Thanh Đa Super.", type: "EVENT", status: "ACTIVE" },
-      { clubId: club1.id, title: "Giảm giá 20% khung giờ sáng", content: "Đồng giá chỉ 150k cho các khung giờ từ 6h-10h sáng các ngày trong tuần.", type: "DISCOUNT", status: "ACTIVE" },
-      { clubId: club2.id, title: "Khai trương sân thảm VIP mới", content: "Trải nghiệm sân thảm Yonex chuẩn quốc tế vừa được hoàn thiện tại Q7 Pro.", type: "ANNOUNCEMENT", status: "ACTIVE" },
+      { clubId: club1.id, slug: "giai-bong-da-tu-hung-thanh-da", title: "Giải bóng đá tứ hùng Thanh Đa", content: "Chào mừng các đội bóng tham gia giải đấu lớn nhất năm tại sân Thanh Đa Super.", type: "EVENT", status: "ACTIVE" },
+      { clubId: club1.id, slug: "giam-gia-20-khung-gio-sang", title: "Giảm giá 20% khung giờ sáng", content: "Đồng giá chỉ 150k cho các khung giờ từ 6h-10h sáng các ngày trong tuần.", type: "DISCOUNT", status: "ACTIVE" },
+      { clubId: club2.id, slug: "khai-truong-san-tham-vip-moi", title: "Khai trương sân thảm VIP mới", content: "Trải nghiệm sân thảm Yonex chuẩn quốc tế vừa được hoàn thiện tại Q7 Pro.", type: "ANNOUNCEMENT", status: "ACTIVE" },
     ]
   });
 

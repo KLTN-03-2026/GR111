@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/infra/db/prisma";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
+import { vnHourAndDayOfWeek, vnHourAndMinute, vnNoonAnchor } from "@/lib/vnCalendar";
 import { getInferredSlotsForCourt } from "@/modules/slot/slot.service";
 
 /**
@@ -34,7 +35,7 @@ export async function GET(
       return errorResponse("Không tìm thấy câu lạc bộ", 404);
     }
 
-    const targetDate = new Date(`${date}T12:00:00.000+07:00`);
+    const targetDate = vnNoonAnchor(date);
 
     // 2. Lấy tất cả courts của club kèm pricing cho ngày đó
     const courts = await prisma.court.findMany({
@@ -74,12 +75,11 @@ export async function GET(
 
     // 3. Map dữ liệu & Tính toán slots theo cơ chế Hybrid cho từng sân
     const result = await Promise.all(courts.map(async (court) => {
-      const calculatedSlots = await getInferredSlotsForCourt(court.id, targetDate);
+      const calculatedSlots = await getInferredSlotsForCourt(court.id, date);
 
       const slots = calculatedSlots.map((slot) => {
         const slotDate = new Date(slot.startTime);
-        const slotHour = slotDate.getHours();
-        const slotDow = slotDate.getDay();
+        const { hour: slotHour, dayOfWeek: slotDow } = vnHourAndDayOfWeek(slotDate);
 
         // ── CHIẾN LƯỢC TÍNH GIÁ ──
         // 1. ƯU TIÊN: Kiểm tra giá Ngày đặc biệt (Holidays) trước
@@ -115,11 +115,13 @@ export async function GET(
         const price = (pricePerHour * club.slotDuration) / 60;
 
         // Format thời gian thành "HH:mm – HH:mm"
-        const startH = slotDate.getHours().toString().padStart(2, "0");
-        const startM = slotDate.getMinutes().toString().padStart(2, "0");
+        const { hour: sh, minute: sm } = vnHourAndMinute(slotDate);
         const endDate = new Date(slot.endTime);
-        const endH = endDate.getHours().toString().padStart(2, "0");
-        const endM = endDate.getMinutes().toString().padStart(2, "0");
+        const { hour: eh, minute: em } = vnHourAndMinute(endDate);
+        const startH = sh.toString().padStart(2, "0");
+        const startM = sm.toString().padStart(2, "0");
+        const endH = eh.toString().padStart(2, "0");
+        const endM = em.toString().padStart(2, "0");
         const time = `${startH}:${startM} – ${endH}:${endM}`;
 
         return {

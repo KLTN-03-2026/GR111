@@ -1,5 +1,5 @@
 import { eventEmitter } from "@/lib/events";
-import { notifyNewBooking } from "@/lib/socket";
+import { notifyNewBooking } from "@/infra/realtime/socket";
 
 /**
  * Slot Event Listener

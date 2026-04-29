@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z, type infer as ZodInfer } from "zod";
 
 export const manualBookingSchema = z.object({
   clubId: z.string().min(1, "Vui lòng chọn câu lạc bộ"),
@@ -16,4 +16,4 @@ export const manualBookingSchema = z.object({
   isPaid: z.boolean().default(true),
 });
 
-export type ManualBookingInput = z.infer<typeof manualBookingSchema>;
+export type ManualBookingInput = ZodInfer<typeof manualBookingSchema>;
