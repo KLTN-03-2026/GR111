@@ -22,12 +22,14 @@
           <p class="club-card-addr">📍 {{ club.address }}</p>
           <div class="club-card-footer">
             <span class="card-tag">🕐 {{ club.openTime }}-{{ club.closeTime }}</span>
-            <button @click="emitQuickMessage('Xem chi tiết sân ' + (club.slug || club.name))" class="card-btn">Chi tiết</button>
+            <button type="button" @click="openVenueDetail(club)" class="card-btn">Chi tiết</button>
           </div>
         </div>
       </div>
       <div v-else class="no-results">
-        <p>Rất tiếc, tôi không tìm thấy sân nào phù hợp với yêu cầu của bạn. 😅</p>
+        <p class="no-results-title">Rất tiếc, hiện không có CLB phù hợp với bộ lọc.</p>
+        <p v-if="structuredData.data?.suggestionHint" class="no-results-hint">{{ structuredData.data.suggestionHint }}</p>
+        <p v-else class="no-results-hint">Thử nới địa điểm, đổi môn hoặc nhắn lại khu vực cụ thể hơn nhé.</p>
       </div>
     </div>
 
@@ -146,18 +148,28 @@
 
     <!-- Component: userInsights -->
     <div v-if="structuredData.component === 'userInsights'" class="insights-comp">
-      <div class="insights-title">📊 Thói quen đặt sân của bạn</div>
+      <div class="insights-title">📊 Thói quen &amp; sở thích của bạn</div>
 
-      <div v-if="structuredData.data?.message" class="insights-empty">
+      <div
+        v-if="structuredData.data?.message && !insightsHasAnyBody(structuredData.data)"
+        class="insights-empty"
+      >
         {{ structuredData.data.message }}
       </div>
 
       <template v-else>
-        <div class="insights-section">
+        <div
+          v-if="structuredData.data?.message && insightsHasAnyBody(structuredData.data)"
+          class="insights-hint"
+        >
+          {{ structuredData.data.message }}
+        </div>
+
+        <div v-if="structuredData.data.favoriteSports?.length" class="insights-section">
           <div class="insights-label">Môn hay chơi</div>
           <div class="insights-chips">
             <span
-              v-for="item in (structuredData.data.favoriteSports || [])"
+              v-for="item in structuredData.data.favoriteSports"
               :key="item.sportType"
               class="insight-chip"
             >
@@ -166,11 +178,11 @@
           </div>
         </div>
 
-        <div class="insights-section">
+        <div v-if="structuredData.data.favoriteHours?.length" class="insights-section">
           <div class="insights-label">Giờ hay đặt</div>
           <div class="insights-chips">
             <span
-              v-for="item in (structuredData.data.favoriteHours || [])"
+              v-for="item in structuredData.data.favoriteHours"
               :key="item.hour"
               class="insight-chip"
             >
@@ -180,7 +192,7 @@
         </div>
 
         <div class="insights-section" v-if="structuredData.data.topClubs?.length">
-          <div class="insights-label">Sân hay đặt</div>
+          <div class="insights-label">CLB hay đặt</div>
           <div
             v-for="club in structuredData.data.topClubs"
             :key="club.clubId"
@@ -188,6 +200,46 @@
           >
             <span>{{ club.clubName }}</span>
             <strong>{{ club.slotCount }} slot</strong>
+          </div>
+        </div>
+
+        <div class="insights-section" v-if="structuredData.data.savedClubBookmarks?.length">
+          <div class="insights-label">CLB đã lưu</div>
+          <div
+            v-for="row in structuredData.data.savedClubBookmarks"
+            :key="row.clubId"
+            class="insight-row insight-row-action"
+          >
+            <button
+              type="button"
+              class="insight-link"
+              @click="openVenueDetail({ slug: row.slug, name: row.clubName })"
+            >
+              {{ row.clubName }}
+            </button>
+            <span class="insight-meta">{{ formatInsightPlace(row.city, row.district) }}</span>
+          </div>
+        </div>
+
+        <div class="insights-section" v-if="structuredData.data.savedCourtBookmarks?.length">
+          <div class="insights-label">Sân đã lưu</div>
+          <div
+            v-for="row in structuredData.data.savedCourtBookmarks"
+            :key="row.courtId"
+            class="insight-block"
+          >
+            <div class="insight-row">
+              <span><strong>{{ row.courtName }}</strong> · {{ row.sportLabel }}</span>
+              <button
+                v-if="row.clubSlug"
+                type="button"
+                class="insight-link-small"
+                @click="openVenueDetail({ slug: row.clubSlug, name: row.clubName })"
+              >
+                CLB
+              </button>
+            </div>
+            <div class="insight-sub">{{ row.clubName }} · {{ formatInsightPlace(row.city, row.district) }}</div>
           </div>
         </div>
       </template>
@@ -208,6 +260,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 
 const props = defineProps({
   structuredData: {
@@ -217,6 +270,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["quick-message"]);
+
+const router = useRouter();
 
 const supportedComponents = new Set([
   'clubList',
@@ -238,22 +293,83 @@ const shouldRender = computed(() =>
 const emitQuickMessage = (text) => {
   emit("quick-message", text);
 };
+
+/** Có ít nhất một khối dữ liệu để hiển thị (không chỉ message). */
+function insightsHasAnyBody(data) {
+  if (!data || typeof data !== "object") return false;
+  return Boolean(
+    (data.favoriteSports && data.favoriteSports.length)
+      || (data.favoriteHours && data.favoriteHours.length)
+      || (data.topClubs && data.topClubs.length)
+      || (data.savedClubBookmarks && data.savedClubBookmarks.length)
+      || (data.savedCourtBookmarks && data.savedCourtBookmarks.length),
+  );
+}
+
+function formatInsightPlace(city, district) {
+  const d = typeof district === "string" && district.trim() ? district.trim() : "";
+  const c = typeof city === "string" && city.trim() ? city.trim() : "";
+  if (d && c) return `${d}, ${c}`;
+  return d || c || "";
+}
+
+/** Trang chi tiết đặt sân: /venue/:id với id = slug CLB (VenueDetailView). */
+const openVenueDetail = (club) => {
+  const slug = typeof club?.slug === "string" ? club.slug.trim() : "";
+  if (slug) {
+    router.push({ name: "venue-detail", params: { id: slug } });
+    return;
+  }
+  emitQuickMessage(`Xem chi tiết sân ${club?.name || ""}`);
+};
 </script>
 
 <style scoped>
-.component-area { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 0.85rem; width: 330px; }
+.component-area {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 
 .club-card { background: var(--bg-card, #f8f9fa); border-radius: 12px; border: 1px solid var(--border, #e9ecef); padding: 1.15rem; transition: 0.2s; }
 .club-card:hover { border-color: var(--primary-light, rgba(0, 140, 255, 0.1)); box-shadow: 0 4px 12px var(--primary-light, rgba(0, 140, 255, 0.1)); }
-.club-card-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; align-items: flex-start; }
-.club-card-title { font-weight: 700; color: var(--text-hi, #1e293b); font-size: 0.95rem; }
-.club-card-price { color: var(--primary, #008cff); font-weight: 700; font-size: 0.85rem; background: var(--primary-light, rgba(0, 140, 255, 0.1)); padding: 4px 8px; border-radius: 6px; }
+
+.club-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.club-card-title {
+  font-weight: 700;
+  color: var(--text-hi, #1e293b);
+  font-size: 0.95rem;
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.club-card-price {
+  color: var(--primary, #008cff);
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: var(--primary-light, rgba(0, 140, 255, 0.1));
+  padding: 4px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
 .price-match-row { margin: 4px 0 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .price-match-badge { font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
 .price-match-badge.exact { background: #dcfce7; color: #166534; }
 .price-match-badge.nearest { background: #dbeafe; color: #1e40af; }
 .price-diff-text { font-size: 0.75rem; color: var(--text-mid, #6c757d); font-weight: 600; }
-.club-card-addr { font-size: 0.8rem; color: var(--text-mid, #6c757d); margin: 6px 0 12px; line-height: 1.4; }
+.club-card-addr { font-size: 0.8rem; color: var(--text-mid, #6c757d); margin: 6px 0 12px; line-height: 1.4; overflow-wrap: anywhere; word-break: break-word; }
 .club-card-footer { display: flex; justify-content: space-between; align-items: center; }
 .card-tag { font-size: 0.75rem; color: var(--text-mid, #6c757d); font-weight: 500; background: #e2e8f0; padding: 4px 8px; border-radius: 6px; }
 .card-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid var(--primary, #008cff); background: transparent; color: var(--primary, #008cff); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; outline: none; }
@@ -311,12 +427,59 @@ const emitQuickMessage = (text) => {
 .insights-label { font-size: 0.78rem; color: var(--text-mid, #6c757d); font-weight: 700; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.3px; }
 .insights-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .insight-chip { font-size: 0.8rem; background: var(--bg-chat, #f4f6f9); border: 1px solid var(--border, #e9ecef); border-radius: 8px; padding: 4px 8px; color: var(--text-hi, #1e293b); }
-.insight-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 6px 0; border-bottom: 1px dashed var(--border, #e9ecef); }
+.insight-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; font-size: 0.85rem; padding: 6px 0; border-bottom: 1px dashed var(--border, #e9ecef); min-width: 0; }
+.insight-row > span:first-child { min-width: 0; overflow-wrap: anywhere; flex: 1; }
 .insight-row:last-child { border-bottom: none; }
 .insights-empty { font-size: 0.9rem; color: var(--text-mid, #6c757d); }
+.insights-hint {
+  font-size: 0.82rem;
+  color: var(--text-mid, #6c757d);
+  margin-bottom: 0.75rem;
+  line-height: 1.45;
+  padding: 8px 10px;
+  background: var(--bg-chat, #f4f6f9);
+  border-radius: 8px;
+}
+.insight-row-action { align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.insight-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--primary, #008cff);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.insight-link:hover { color: var(--primary-dark, #0073cc); }
+.insight-meta { font-size: 0.78rem; color: var(--text-mid, #6c757d); text-align: right; overflow-wrap: anywhere; flex-shrink: 1; min-width: 0; }
+.insight-block { margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--border, #e9ecef); }
+.insight-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.insight-sub { font-size: 0.78rem; color: var(--text-mid, #6c757d); margin-top: 4px; }
+.insight-link-small {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary, #008cff);
+  cursor: pointer;
+  border-radius: 6px;
+}
+.insight-link-small:hover { background: var(--primary-light, rgba(0, 140, 255, 0.1)); }
 
 .club-detail-comp { background: var(--bg-base, #ffffff); padding: 1.25rem; border-radius: 16px; border: 1px solid var(--border, #e9ecef); }
-.detail-banner { font-size: 1.15rem; font-weight: 700; color: var(--text-hi, #1e293b); margin: 0 0 1rem 0; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border, #e9ecef); }
+.detail-banner {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-hi, #1e293b);
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border, #e9ecef);
+  overflow-wrap: anywhere;
+}
 .detail-info-row { margin-bottom: 1rem; }
 .info-item { font-size: 0.95rem; color: var(--text-mid, #6c757d); display: flex; justify-content: space-between; }
 .info-item strong { color: var(--text-hi, #1e293b); }
@@ -325,10 +488,21 @@ const emitQuickMessage = (text) => {
 .court-pricing-wrap { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
 .court-pricing-title { font-size: 0.78rem; color: var(--text-mid, #6c757d); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
 .court-pricing-card { border: 1px solid var(--border, #e9ecef); border-radius: 10px; background: var(--bg-chat, #f4f6f9); padding: 0.75rem; }
-.court-pricing-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-.court-name { font-size: 0.88rem; font-weight: 700; color: var(--text-hi, #1e293b); }
+.court-pricing-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 0.5rem; flex-wrap: wrap; }
+.court-name { font-size: 0.88rem; font-weight: 700; color: var(--text-hi, #1e293b); overflow-wrap: anywhere; min-width: 0; flex: 1; }
 .court-sport { font-size: 0.72rem; font-weight: 700; color: var(--primary-dark, #0073cc); background: var(--primary-light, rgba(0, 140, 255, 0.1)); border-radius: 999px; padding: 3px 8px; }
-.price-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--border, #e9ecef); font-size: 0.82rem; color: var(--text-mid, #6c757d); }
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border, #e9ecef);
+  font-size: 0.82rem;
+  color: var(--text-mid, #6c757d);
+  flex-wrap: wrap;
+}
+.price-row span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .price-row:last-child { border-bottom: none; }
 .price-row strong { color: var(--text-hi, #1e293b); font-size: 0.83rem; }
 .price-empty { font-size: 0.8rem; color: var(--text-mid, #6c757d); font-style: italic; }
@@ -336,5 +510,6 @@ const emitQuickMessage = (text) => {
 .action-full-btn:hover { background: var(--primary-dark, #0073cc); box-shadow: 0 4px 15px var(--primary-light, rgba(0, 140, 255, 0.1)); }
 
 .no-results { text-align: center; padding: 1.5rem; background: var(--bg-base, #ffffff); border-radius: 12px; border: 1px dashed var(--border, #e9ecef); }
-.no-results p { font-size: 0.95rem; color: var(--text-mid, #6c757d); font-weight: 500; margin:0;}
+.no-results-title { font-size: 0.95rem; color: var(--text-hi, #1e293b); font-weight: 600; margin: 0 0 0.65rem 0; line-height: 1.45; }
+.no-results-hint { font-size: 0.88rem; color: var(--text-mid, #6c757d); font-weight: 500; margin: 0; line-height: 1.5; text-align: left; }
 </style>
