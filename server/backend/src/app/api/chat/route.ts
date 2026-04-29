@@ -210,7 +210,7 @@ export async function POST(req: NextRequest) {
 NGỮCẢNH: Hôm nay ${new Date().toLocaleDateString("vi-VN", {
             weekday: "long", year: "numeric", month: "long", day: "numeric",
           })} — ${new Date().toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}.
-User: ${userId ? `đã đăng nhập (userId=${userId})` : "chưa đăng nhập"}.`,
+User: ${userId ? `đã đăng nhập (userId=${userId}). Khi gợi ý tìm sân hoặc người dùng chưa nêu rõ môn/khu vực, có thể gọi getUserInsights để dùng thói quen đặt + CLB/sân đã lưu — không bịa nếu tool trả rỗng.` : "chưa đăng nhập"}.`,
           temperature: 0.3,
           tools: chatbotTools,
 

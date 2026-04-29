@@ -12,7 +12,7 @@
           <span class="material-icons">{{ kycStatusIcon }}</span>
           <span>{{ kycStatusLabel }}</span>
         </div>
-        <button class="save-btn" @click="saveChanges">
+        <button v-if="currentTab !== 'billing'" class="save-btn" @click="saveChanges">
           <span class="material-icons">save</span>
           <span>Lưu thay đổi</span>
         </button>
@@ -48,6 +48,12 @@
             <button class="menu-item" :class="{ active: currentTab === 'payment' }" @click="currentTab = 'payment'">
               <span class="material-icons">account_balance_wallet</span>
               <span>Ngân hàng &amp; CK khách</span>
+            </button>
+          </li>
+          <li>
+            <button class="menu-item" :class="{ active: currentTab === 'billing' }" @click="currentTab = 'billing'">
+              <span class="material-icons">card_membership</span>
+              <span>Gói đăng ký &amp; phí duy trì</span>
             </button>
           </li>
           <li>
@@ -336,6 +342,16 @@
               </div>
             </div>
 
+            <div v-if="ownerClubs.length > 1" class="form-group full-width transfer-apply-all-wrap">
+              <label class="transfer-apply-all-label">
+                <input type="checkbox" v-model="applyTransferToAllClubs" />
+                <span>Áp dụng thông tin CK này cho <strong>tất cả</strong> câu lạc bộ khi lưu</span>
+              </label>
+              <p v-if="applyTransferToAllClubs" class="transfer-hint">
+                Mọi CLB sẽ dùng chung ngân hàng, STK, chủ TK và ảnh QR như ô bên dưới (ghi đè cấu hình hiện có).
+              </p>
+            </div>
+
             <div class="form-grid">
               <div class="form-group">
                 <label>Ngân hàng</label>
@@ -391,6 +407,53 @@
           </template>
         </div>
 
+        <!-- Tab: Gói Subscription & phí duy trì -->
+        <div v-if="currentTab === 'billing'" class="tab-pane fade-in card billing-tab">
+          <div class="pane-header">
+            <h3>Gói đăng ký &amp; phí duy trì hệ thống</h3>
+            <p>
+              Xem lại gói và add-on đã chọn; thanh toán định kỳ hiện qua chuyển khoản / xác nhận với vận hành cho đến khi có cổng thanh toán.
+            </p>
+          </div>
+
+          <div class="billing-summary card-alt">
+            <div class="billing-summary-row">
+              <span class="billing-label">Gói Subscription hiện tại</span>
+              <strong class="billing-value">{{ billingPlanSummary }}</strong>
+            </div>
+            <div v-if="billing.subscriptionPlanKey" class="billing-summary-row">
+              <span class="billing-label">Add-on</span>
+              <span class="billing-value muted">{{ billingAddonsSummary }}</span>
+            </div>
+            <div v-if="billing.billingIntroDismissedAt && !billing.subscriptionPlanKey" class="billing-note warn">
+              <span class="material-icons">info</span>
+              Bạn đã đóng thông báo lần đầu mà chưa chọn gói. Hãy chọn gói để chúng tôi ghi nhận cho kỳ thanh toán.
+            </div>
+          </div>
+
+          <div class="billing-box">
+            <h4><span class="material-icons">payments</span> Thanh toán gói Subscription</h4>
+            <ol class="billing-steps">
+              <li>Nhấn <strong>Chọn hoặc đổi gói</strong> bên dưới để cập nhật gói / add-on trong hệ thống.</li>
+              <li>
+                Chuyển khoản ngân hàng theo <strong>STK và nội dung</strong> do đội ngũ vận hành gửi qua email / tin nhắn sau khi bạn xác nhận gói
+                (hoặc liên hệ hotline hỗ trợ trên website).
+              </li>
+              <li>Sau khi tích hợp cổng thanh toán, bạn có thể thanh toán tự động theo tháng / năm trong cùng mục này.</li>
+            </ol>
+            <p class="billing-muted">
+              Hoa hồng theo đơn đặt sân (pilot ~8–10%) được minh bạch trong báo cáo tài chính khi tính năng được bật — không thay thế hoàn toàn phí gói nếu bạn đang dùng mô hình Hybrid.
+            </p>
+          </div>
+
+          <div class="billing-actions">
+            <button type="button" class="btn-primary billing-open-btn" @click="showBillingModal = true">
+              <span class="material-icons">tune</span>
+              Chọn hoặc đổi gói Subscription
+            </button>
+          </div>
+        </div>
+
         <!-- Tab: Notifications -->
         <div v-if="currentTab === 'notifications'" class="tab-pane fade-in card">
           <div class="pane-header">
@@ -436,6 +499,14 @@
 
       </div>
     </div>
+
+    <OwnerBillingIntroModal
+      :show="showBillingModal"
+      exit-without-saving
+      :initial-plan-key="billing.subscriptionPlanKey"
+      :initial-addons="billingAddonsArray"
+      @completed="onBillingModalCompleted"
+    />
   </div>
 </template>
 
@@ -443,12 +514,15 @@
 import axios from 'axios';
 import { useOwnerTrial } from '@/composables/useOwnerTrial.js';
 import { clubService } from '@/services/club.service';
+import OwnerBillingIntroModal from '@/components/owner/OwnerBillingIntroModal.vue';
+import { toast } from 'vue3-toastify';
 
 const TRANSFER_QR_MAX = 5 * 1024 * 1024;
 const TRANSFER_QR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default {
   name: 'OwnerSettingsView',
+  components: { OwnerBillingIntroModal },
   setup() {
     const { isVerified, kycStatus, isPendingReview, isKycApproved, isKycRejected, refreshStatus, syncUser } = useOwnerTrial();
     return { isVerified, kycStatus, isPendingReview, isKycApproved, isKycRejected, refreshStatus, syncUser };
@@ -472,7 +546,33 @@ export default {
       if (this.isKycRejected) return 'Hồ sơ bị từ chối';
       if (!this.isVerified) return 'Hồ sơ chưa hoàn thiện';
       return 'Hồ sơ đã nộp';
-    }
+    },
+    billingAddonsArray() {
+      const a = this.billing.subscriptionAddons;
+      if (Array.isArray(a)) return a;
+      if (a && typeof a === 'object' && Array.isArray(a.data)) return a.data;
+      return [];
+    },
+    billingPlanSummary() {
+      const k = this.billing.subscriptionPlanKey;
+      const map = {
+        starter: 'Starter — 299.000đ/tháng',
+        growth: 'Growth — 599.000đ/tháng',
+        pro: 'Pro — 1.299.000đ/tháng',
+      };
+      if (k && map[k]) return map[k];
+      return 'Chưa chọn gói Subscription';
+    },
+    billingAddonsSummary() {
+      const ids = this.billingAddonsArray;
+      if (!ids.length) return 'Không có';
+      const labels = {
+        advanced_reports: 'Báo cáo nâng cao',
+        priority_support: 'Hỗ trợ ưu tiên',
+        sms_reminders: 'Nhắc SMS',
+      };
+      return ids.map((id) => labels[id] || id).join(', ');
+    },
   },
   data() {
     const user = (() => { try { return JSON.parse(localStorage.getItem('user')) || {}; } catch { return {}; } })();
@@ -508,8 +608,15 @@ export default {
         transferQrImageUrl: '',
       },
       uploadingTransferQr: false,
+      applyTransferToAllClubs: false,
       notifications: { newBooking: true, cancelBooking: true, weeklyReport: false },
       uploadingAvatar: false,
+      billing: {
+        subscriptionPlanKey: null,
+        subscriptionAddons: [],
+        billingIntroDismissedAt: null,
+      },
+      showBillingModal: false,
       uploading: {
         kycFront: false,
         kycBack: false,
@@ -518,6 +625,9 @@ export default {
     }
   },
   mounted() {
+    if (this.$route.query.tab === 'billing') {
+      this.currentTab = 'billing';
+    }
     this.loadProfile();
     this.loadOwnerClubs();
   },
@@ -549,6 +659,18 @@ export default {
           this.kyc.bankAccountNumber = data.ownerProfile.bankAccountNumber || '';
           this.kyc.taxCode = data.ownerProfile.taxCode || '';
           this.kyc.cancellationPolicy = data.ownerProfile.cancellationPolicy || '';
+          this.billing.subscriptionPlanKey = data.ownerProfile.subscriptionPlanKey || null;
+          this.billing.billingIntroDismissedAt = data.ownerProfile.billingIntroDismissedAt || null;
+          const rawAddons = data.ownerProfile.subscriptionAddons;
+          if (Array.isArray(rawAddons)) this.billing.subscriptionAddons = rawAddons;
+          else if (rawAddons && typeof rawAddons === 'string') {
+            try {
+              const p = JSON.parse(rawAddons);
+              this.billing.subscriptionAddons = Array.isArray(p) ? p : [];
+            } catch {
+              this.billing.subscriptionAddons = [];
+            }
+          } else this.billing.subscriptionAddons = [];
         }
 
         // Cập nhật localStorage để đồng bộ Layout & Badge
@@ -564,6 +686,15 @@ export default {
       } catch (e) {
         // Nếu lỗi (chưa có profile) thì bỏ qua, dùng dữ liệu từ localStorage
         console.warn('Không load được profile từ API:', e?.response?.status);
+      }
+    },
+
+    async onBillingModalCompleted(payload) {
+      this.showBillingModal = false;
+      if (payload?.type === 'cancel') return;
+      await this.loadProfile();
+      if (payload?.type === 'subscribe') {
+        toast.success('Đã cập nhật gói Subscription và add-on trong hệ thống.');
       }
     },
 
@@ -672,15 +803,25 @@ export default {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        if (this.currentTab === 'payment' && this.transferClubId) {
-          await clubService.editClub(this.transferClubId, this.transferPayloadForClub());
+        if (this.currentTab === 'payment' && this.ownerClubs.length) {
+          const tp = this.transferPayloadForClub();
+          if (this.applyTransferToAllClubs && this.ownerClubs.length > 1) {
+            await Promise.all(this.ownerClubs.map((c) => clubService.editClub(c.id, tp)));
+            this.applyTransferToAllClubs = false;
+          } else if (this.transferClubId) {
+            await clubService.editClub(this.transferClubId, tp);
+          }
           const r = await clubService.getOwnerClubs();
           const list = r.data?.data || r.data?.clubs || [];
           this.ownerClubs = Array.isArray(list) ? list : [];
           this.syncClubTransferFromList();
         }
 
-        alert('✅ Đã lưu thay đổi thành công!');
+        if (this.currentTab === 'payment' && this.applyTransferToAllClubs && this.ownerClubs.length > 1) {
+          alert(`✅ Đã lưu và áp dụng thông tin chuyển khoản cho ${this.ownerClubs.length} câu lạc bộ.`);
+        } else {
+          alert('✅ Đã lưu thay đổi thành công!');
+        }
       } catch (err) {
         alert('Lỗi: ' + (err.response?.data?.message || 'Không thể lưu lúc này.'));
       }
@@ -1085,6 +1226,39 @@ export default {
   font-size: 13px; color: #64748b; margin: 0 0 16px; line-height: 1.5;
 }
 
+.transfer-apply-all-wrap {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.transfer-apply-all-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin: 0;
+}
+.transfer-apply-all-label input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: #16a34a;
+  flex-shrink: 0;
+}
+.transfer-hint {
+  font-size: 12px;
+  color: #64748b;
+  margin: 10px 0 0;
+  line-height: 1.45;
+  padding-left: 28px;
+}
+
 .transfer-empty {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 20px; border-radius: 14px;
@@ -1154,6 +1328,67 @@ export default {
 }
 .switch-input:checked + .switch-label { background-color: #16a34a; }
 .switch-input:checked + .switch-label:before { transform: translateX(20px); }
+
+/* Billing / Subscription tab */
+.billing-tab .billing-summary {
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.billing-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.billing-summary-row:last-child { margin-bottom: 0; }
+.billing-label { font-size: 13px; color: #64748b; font-weight: 600; }
+.billing-value { font-size: 15px; color: #0f172a; }
+.billing-value.muted { font-weight: 500; font-size: 14px; color: #475569; }
+.billing-note.warn {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-top: 14px; padding: 12px 14px;
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px;
+  font-size: 13px; color: #92400e; line-height: 1.45;
+}
+.billing-note.warn .material-icons { font-size: 20px; flex-shrink: 0; color: #d97706; }
+
+.billing-box {
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  margin-bottom: 18px;
+}
+.billing-box h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.billing-box h4 .material-icons { font-size: 20px; color: #059669; }
+.billing-steps {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.55;
+}
+.billing-steps li { margin-bottom: 6px; }
+.billing-muted {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+.billing-actions .billing-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 
 /* Responsive */
 @media (max-width: 1024px) {

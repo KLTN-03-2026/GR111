@@ -296,7 +296,7 @@ export default {
 .modal-title-group { display: flex; align-items: center; gap: 14px; }
 .modal-icon-wrap {
   width: 44px; height: 44px; border-radius: 12px;
-  background: linear-gradient(135deg,#059669,#0d9488);
+  background: #059669;
   display: flex; align-items: center; justify-content: center;
 }
 .modal-icon { font-size: 22px; color: #fff; }
@@ -383,12 +383,16 @@ export default {
 .btn-submit {
   display: flex; align-items: center; gap: 6px;
   padding: 11px 22px;
-  background: linear-gradient(135deg,#059669,#047857);
+  background: #059669;
   border: none; border-radius: 10px; font-weight: 700;
-  color: #fff; cursor: pointer; font-size: 14px; transition: all .2s;
-  box-shadow: 0 3px 10px rgba(5,150,105,.3);
+  color: #fff; cursor: pointer; font-size: 14px; transition: background .2s, transform .2s, box-shadow .2s;
+  box-shadow: 0 3px 10px rgba(5,150,105,.28);
 }
-.btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(5,150,105,.4); }
+.btn-submit:hover:not(:disabled) {
+  background: #047857;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(5,150,105,.35);
+}
 .btn-submit:disabled { opacity: .6; cursor: not-allowed; transform: none; }
 .btn-submit .material-icons { font-size: 16px; }
 .spin-icon { animation: spin .8s linear infinite; }

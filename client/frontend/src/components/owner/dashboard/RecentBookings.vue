@@ -215,7 +215,7 @@ export default {
 .avatar-ring {
   padding: 2px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #059669, #0d9488);
+  background: #059669;
   flex-shrink: 0;
 }
 .client-avatar { width: 34px; height: 34px; border-radius: 50%; display: block; }

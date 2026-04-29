@@ -3,13 +3,12 @@
     <!-- Dashboard Header with Filters -->
     <div class="dashboard-header">
         <div class="header-left">
-        <h2 class="page-title">Tổng quan Dashboard</h2>
         <p class="page-subtitle">Quản lý hoạt động sân bãi và doanh thu từ câu lạc bộ của bạn.</p>
       </div>
       <div class="header-filters">
         <!-- Club Selector -->
         <div class="filter-group">
-          <label><i class="material-icons-outlined">storefront</i> Câu lạc bộ</label>
+          <label>Câu lạc bộ</label>
           <select v-model="currentClubId" class="filter-select" @change="refreshAllData">
             <option v-for="club in ownerClubs" :key="club.id" :value="club.id">
               {{ club.name }}
@@ -19,7 +18,7 @@
         
         <!-- Date Selector -->
         <div class="filter-group">
-          <label><i class="material-icons-outlined">event</i> Ngày hiển thị</label>
+          <label>Ngày hiển thị</label>
           <input type="date" v-model="selectedDate" class="filter-date" @change="refreshAllData"/>
         </div>
       </div>
@@ -412,16 +411,6 @@ export default {
   min-width: min(100%, 260px);
 }
 
-.page-title {
-  font-family: 'Syne', sans-serif;
-  font-size: clamp(1.25rem, 4vw, 1.75rem);
-  font-weight: 800;
-  color: #0f1623;
-  margin: 0 0 6px;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
 .page-subtitle {
   margin: 0;
   font-size: 0.9375rem;
@@ -445,17 +434,10 @@ export default {
 }
 
 .filter-group label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: block;
   font-size: 12px;
   font-weight: 600;
   color: #64748b;
-}
-
-.filter-group label .material-icons-outlined {
-  font-size: 18px;
-  color: #059669;
 }
 
 .filter-select,

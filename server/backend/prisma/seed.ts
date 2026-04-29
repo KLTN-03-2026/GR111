@@ -607,9 +607,9 @@ async function main() {
   console.log("✍️ Seeding posts...");
   await prisma.post.createMany({
     data: [
-      { clubId: club1.id, title: "Giải bóng đá tứ hùng Thanh Đa", content: "Chào mừng các đội bóng tham gia giải đấu lớn nhất năm tại sân Thanh Đa Super.", type: "EVENT", status: "ACTIVE" },
-      { clubId: club1.id, title: "Giảm giá 20% khung giờ sáng", content: "Đồng giá chỉ 150k cho các khung giờ từ 6h-10h sáng các ngày trong tuần.", type: "DISCOUNT", status: "ACTIVE" },
-      { clubId: club2.id, title: "Khai trương sân thảm VIP mới", content: "Trải nghiệm sân thảm Yonex chuẩn quốc tế vừa được hoàn thiện tại Q7 Pro.", type: "ANNOUNCEMENT", status: "ACTIVE" },
+      { clubId: club1.id, slug: "giai-bong-da-tu-hung-thanh-da", title: "Giải bóng đá tứ hùng Thanh Đa", content: "Chào mừng các đội bóng tham gia giải đấu lớn nhất năm tại sân Thanh Đa Super.", type: "EVENT", status: "ACTIVE" },
+      { clubId: club1.id, slug: "giam-gia-20-khung-gio-sang", title: "Giảm giá 20% khung giờ sáng", content: "Đồng giá chỉ 150k cho các khung giờ từ 6h-10h sáng các ngày trong tuần.", type: "DISCOUNT", status: "ACTIVE" },
+      { clubId: club2.id, slug: "khai-truong-san-tham-vip-moi", title: "Khai trương sân thảm VIP mới", content: "Trải nghiệm sân thảm Yonex chuẩn quốc tế vừa được hoàn thiện tại Q7 Pro.", type: "ANNOUNCEMENT", status: "ACTIVE" },
     ]
   });
 

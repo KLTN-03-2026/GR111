@@ -122,7 +122,12 @@ export async function PUT(
                 );
             }
 
-            const cleaned = parsedBulk.data.map((row) => ({
+            const cleaned = parsedBulk.data.map((row: {
+                dayOfWeek?: number | null;
+                startTime: string;
+                endTime: string;
+                pricePerHour: number;
+            }) => ({
                 dayOfWeek: row.dayOfWeek ?? null,
                 startTime: row.startTime.substring(0, 5),
                 endTime: row.endTime.substring(0, 5),

@@ -6,7 +6,7 @@
         <h1 class="view-title">Bảng tin câu lạc bộ</h1>
         <p class="view-subtitle">Mỗi bài đăng sẽ đồng thời gửi thông báo trong app tới người chơi đã từng đặt sân thành công tại CLB (khuyến mãi, sự kiện, ghép kèo…).</p>
       </div>
-      <button class="btn-primary" @click="showAddModal = true">
+      <button class="btn-primary" @click="openAddModal">
         <span class="material-icons">add_circle</span>
         <span>Đăng tin mới</span>
       </button>
@@ -18,14 +18,14 @@
         <div class="sc-icon"><span class="material-icons">rss_feed</span></div>
         <div class="sc-info">
           <span class="sc-label">Tổng bài đăng</span>
-          <span class="sc-val">{{ posts.length }}</span>
+          <span class="sc-val">{{ totalPostsDisplay }}</span>
         </div>
       </div>
       <div class="stat-card green">
         <div class="sc-icon"><span class="material-icons">visibility</span></div>
         <div class="sc-info">
           <span class="sc-label">Lượt tiếp cận</span>
-          <span class="sc-val">1.2k+</span>
+          <span class="sc-val">{{ totalViewsSum }}</span>
         </div>
       </div>
     </div>
@@ -43,7 +43,6 @@
         <div class="f-item type-sel">
           <select v-model="typeFilter">
             <option value="all">Tất cả bài đăng</option>
-            <option value="PROMOTION">🎁 Khuyến mãi (Voucher)</option>
             <option value="AVAILABLE_SLOT">🕒 Khung giờ trống</option>
             <option value="EVENT">🏆 Sự kiện</option>
             <option value="TEAM_MATCHING">🤝 Ghép kèo</option>
@@ -59,7 +58,7 @@
       <span class="material-icons">post_add</span>
       <h3>Chưa có bài đăng nào</h3>
       <p>Bắt đầu đăng tin để kết nối với người chơi trong khu vực của bạn.</p>
-      <button class="btn-primary mt-16" @click="showAddModal = true">Đăng tin ngay</button>
+      <button class="btn-primary mt-16" @click="openAddModal">Đăng tin ngay</button>
     </div>
 
     <!-- Posts Grid -->
@@ -70,9 +69,17 @@
             <span class="material-icons">{{ getPostTypeIcon(post.type) }}</span>
             {{ getPostTypeLabel(post.type) }}
           </div>
-          <button class="btn-more" @click="confirmDelete(post)">
-            <span class="material-icons">delete_outline</span>
-          </button>
+          <div class="post-actions">
+            <button type="button" class="btn-more btn-share" title="Copy link chia sẻ" @click="copyShareLink(post)">
+              <span class="material-icons">share</span>
+            </button>
+            <button type="button" class="btn-more btn-edit" title="Sửa bài" @click="openEditModal(post)">
+              <span class="material-icons">edit_note</span>
+            </button>
+            <button type="button" class="btn-more" title="Xóa bài" @click="confirmDelete(post)">
+              <span class="material-icons">delete_outline</span>
+            </button>
+          </div>
         </div>
 
         <div class="post-body">
@@ -113,19 +120,20 @@
       </div>
     </div>
 
-    <!-- Add Post Modal -->
+    <!-- Add / Edit Post Modal -->
     <Teleport to="body">
-      <div v-if="showAddModal" class="modal-backdrop" @click.self="showAddModal = false">
+      <div v-if="showAddModal" class="modal-backdrop" @click.self="closeModal">
         <div class="modal-content card slide-up">
           <div class="modal-header">
-            <h3>Đăng bài thông báo mới</h3>
-            <button class="btn-close" @click="showAddModal = false"><span class="material-icons">close</span></button>
+            <h3>{{ editingPostId ? 'Sửa bài đăng' : 'Đăng bài thông báo mới' }}</h3>
+            <button class="btn-close" type="button" @click="closeModal"><span class="material-icons">close</span></button>
           </div>
           <div class="modal-body">
             <div class="form-grid">
               <div class="field full">
-                <label>Tiêu đề bài đăng <span class="req">*</span></label>
-                <input v-model="form.title" placeholder="VD: Khung giờ vàng tối nay đang trống!" />
+                <label>Tiêu đề bài đăng <span class="req">*</span> (tối đa {{ POST_TITLE_MAX }} ký tự)</label>
+                <input v-model="form.title" :maxlength="POST_TITLE_MAX" placeholder="VD: Khung giờ vàng tối nay đang trống!" />
+                <span class="field-hint">{{ form.title.length }} / {{ POST_TITLE_MAX }}</span>
               </div>
 
               <div class="field">
@@ -145,13 +153,17 @@
               </div>
 
               <div class="field full">
-                <label>Nội dung chi tiết <span class="req">*</span></label>
-                <textarea v-model="form.content" rows="4" placeholder="Nhập nội dung bài đăng..."></textarea>
+                <label>Nội dung chi tiết <span class="req">*</span> (tối đa {{ POST_CONTENT_MAX }} ký tự)</label>
+                <textarea v-model="form.content" :maxlength="POST_CONTENT_MAX" rows="6" placeholder="Nhập nội dung bài đăng..."></textarea>
+                <span class="field-hint">{{ form.content.length }} / {{ POST_CONTENT_MAX }}</span>
               </div>
 
               <div class="field full">
-                <label>URL Hình ảnh (tùy chọn)</label>
-                <input v-model="form.imageUrl" placeholder="Dán link ảnh tại đây..." />
+                <label>Hình ảnh (tùy chọn)</label>
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="file-input" @change="onPickPostImage" :disabled="uploadingImage" />
+                <p v-if="uploadingImage" class="field-hint">Đang tải ảnh...</p>
+                <label class="sub-label">Hoặc dán URL</label>
+                <input v-model="form.imageUrl" maxlength="2048" placeholder="https://..." />
               </div>
 
               <div class="field">
@@ -169,10 +181,10 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button class="btn-secondary" @click="showAddModal = false">Hủy bỏ</button>
-            <button class="btn-primary" @click="submitPost" :disabled="submitting">
+            <button class="btn-secondary" type="button" @click="closeModal">Hủy bỏ</button>
+            <button class="btn-primary" type="button" @click="submitPost" :disabled="submitting">
               <span v-if="submitting" class="spinner-small"></span>
-              {{ submitting ? 'Đang đăng...' : 'Đăng bài ngay' }}
+              {{ submitLabel }}
             </button>
           </div>
         </div>
@@ -182,9 +194,10 @@
 </template>
 
 <script>
-import { postService } from '@/services/post.service';
+import { postService, unwrapPostListPayload, unwrapPostListMeta } from '@/services/post.service';
 import { dashboardService } from '@/services/dashboard.service';
 import { toast } from 'vue3-toastify';
+import api from '@/api/axios';
 
 export default {
   name: 'OwnerNewsFeedView',
@@ -197,6 +210,11 @@ export default {
       typeFilter: 'all',
       loading: false,
       submitting: false,
+      uploadingImage: false,
+      editingPostId: null,
+      totalPostsCount: null,
+      POST_TITLE_MAX: 200,
+      POST_CONTENT_MAX: 20000,
       showAddModal: false,
       form: {
         type: 'AVAILABLE_SLOT',
@@ -213,6 +231,17 @@ export default {
     filteredPosts() {
       if (this.typeFilter === 'all') return this.posts;
       return this.posts.filter(p => p.type === this.typeFilter);
+    },
+    totalPostsDisplay() {
+      if (this.totalPostsCount != null) return this.totalPostsCount;
+      return this.posts.length;
+    },
+    totalViewsSum() {
+      return this.posts.reduce((s, p) => s + (Number(p.viewCount) || 0), 0);
+    },
+    submitLabel() {
+      if (this.submitting) return this.editingPostId ? 'Đang lưu...' : 'Đang đăng...';
+      return this.editingPostId ? 'Lưu thay đổi' : 'Đăng bài ngay';
     },
     currentClubCourts() {
       const club = this.clubs.find(c => c.id === this.selectedClubId);
@@ -237,38 +266,130 @@ export default {
       if (!this.selectedClubId) return;
       this.loading = true;
       try {
-        const res = await postService.getOwnerPosts(this.selectedClubId);
-        if (res.success) this.posts = res.data || [];
+        const res = await postService.getOwnerPosts(this.selectedClubId, { limit: 200, page: 1 });
+        if (res.success) {
+          const payload = res.data;
+          this.posts = unwrapPostListPayload(payload);
+          const meta = unwrapPostListMeta(payload);
+          this.totalPostsCount = typeof meta.total === 'number' ? meta.total : this.posts.length;
+        }
       } catch (e) {
         console.error(e);
       } finally {
         this.loading = false;
       }
     },
+    openAddModal() {
+      this.editingPostId = null;
+      this.resetForm();
+      this.showAddModal = true;
+    },
+    closeModal() {
+      this.showAddModal = false;
+      this.editingPostId = null;
+      this.resetForm();
+    },
+    openEditModal(post) {
+      this.editingPostId = post.id;
+      this.form = {
+        type: post.type,
+        title: post.title || '',
+        content: post.content || '',
+        imageUrl: post.imageUrl || '',
+        linkedCourtId: post.linkedCourtId || undefined,
+        linkedDate: post.linkedDate ? String(post.linkedDate).slice(0, 10) : '',
+        expiresAt: post.expiresAt ? this.toDatetimeLocalValue(post.expiresAt) : ''
+      };
+      this.showAddModal = true;
+    },
+    toDatetimeLocalValue(iso) {
+      const d = new Date(iso);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    },
     async submitPost() {
-      if (!this.form.title || !this.form.content) {
-        alert("Vui lòng nhập tiêu đề và nội dung");
+      const t = (this.form.title || '').trim();
+      const c = (this.form.content || '').trim();
+      if (!t || !c) {
+        toast.warning('Vui lòng nhập tiêu đề và nội dung');
+        return;
+      }
+      if (t.length > this.POST_TITLE_MAX || c.length > this.POST_CONTENT_MAX) {
+        toast.warning(`Tiêu đề tối đa ${this.POST_TITLE_MAX} ký tự, nội dung tối đa ${this.POST_CONTENT_MAX} ký tự`);
         return;
       }
       this.submitting = true;
       try {
-        const payload = { ...this.form, clubId: this.selectedClubId };
-        const res = await postService.createPost(payload);
-        if (res.success) {
-          const sent = typeof res.data?.notificationsSent === 'number' ? res.data.notificationsSent : 0;
-          if (sent > 0) {
-            toast.success(`Đã gửi thông báo tới ${sent} người chơi đã đặt sân tại CLB.`);
-          } else {
-            toast.info('Chưa có người chơi nào có lịch sử đặt sân thành công tại CLB — bài vẫn hiển thị trên bảng tin công khai.');
+        const basePayload = {
+          type: this.form.type,
+          title: t,
+          content: c,
+          imageUrl: this.form.imageUrl?.trim() || undefined,
+          linkedCourtId: this.form.linkedCourtId || undefined,
+          linkedDate: this.form.linkedDate || undefined,
+          expiresAt: this.form.expiresAt || undefined,
+        };
+        if (this.editingPostId) {
+          const res = await postService.updatePost(this.editingPostId, basePayload);
+          if (res.success) {
+            toast.success('Đã cập nhật bài đăng');
+            this.closeModal();
+            await this.fetchPosts();
           }
-          this.showAddModal = false;
-          this.resetForm();
-          await this.fetchPosts();
+        } else {
+          const res = await postService.createPost({ ...basePayload, clubId: this.selectedClubId });
+          if (res.success) {
+            const sent = typeof res.data?.notificationsSent === 'number' ? res.data.notificationsSent : 0;
+            if (sent > 0) {
+              toast.success(`Đã gửi thông báo tới ${sent} người chơi đã đặt sân tại CLB.`);
+            } else {
+              toast.info('Chưa có người chơi nào có lịch sử đặt sân thành công tại CLB — bài vẫn hiển thị trên bảng tin công khai.');
+            }
+            this.closeModal();
+            await this.fetchPosts();
+          }
         }
       } catch (e) {
-        alert("Lỗi khi đăng bài");
+        toast.error(e.response?.data?.message || 'Lỗi khi lưu bài');
       } finally {
         this.submitting = false;
+      }
+    },
+    copyShareLink(post) {
+      const club = post.club || this.clubs.find((c) => c.id === post.clubId);
+      const clubSlug = club?.slug;
+      if (!clubSlug || !post.slug) {
+        toast.warning('Chưa có link chia sẻ hợp lệ cho bài này.');
+        return;
+      }
+      const url = `${window.location.origin}/find-friend?clubSlug=${encodeURIComponent(clubSlug)}&postSlug=${encodeURIComponent(post.slug)}`;
+      navigator.clipboard.writeText(url).then(() => toast.success('Đã copy link chia sẻ')).catch(() => toast.error('Không copy được'));
+    },
+    async onPickPostImage(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.warning('Ảnh không được quá 5MB');
+        event.target.value = '';
+        return;
+      }
+      this.uploadingImage = true;
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('type', 'post-image');
+        const res = await api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const url = res.data?.data?.url;
+        if (url) {
+          this.form.imageUrl = url;
+          toast.success('Đã tải ảnh lên');
+        }
+      } catch (e) {
+        toast.error(e.response?.data?.message || 'Upload thất bại');
+      } finally {
+        this.uploadingImage = false;
+        event.target.value = '';
       }
     },
     async confirmDelete(post) {
@@ -381,6 +502,7 @@ select { flex: 1; border: none; background: transparent; font-family: inherit; f
 .post-card:hover { transform: translateY(-10px); box-shadow: 0 30px 60px rgba(0,0,0,0.08); border-color: #10b981; }
 
 .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.post-actions { display: flex; align-items: center; gap: 8px; }
 .post-type-badge { display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 100px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
 .post-type-badge.DISCOUNT { background: #fdf2f8; color: #db2777; }
 .post-type-badge.AVAILABLE_SLOT { background: #ecfdf5; color: #059669; }
@@ -391,6 +513,8 @@ select { flex: 1; border: none; background: transparent; font-family: inherit; f
 
 .btn-more { width: 36px; height: 36px; border-radius: 12px; border: none; background: #f8fafc; color: #94a3b8; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
 .btn-more:hover { background: #fef2f2; color: #ef4444; }
+.btn-more.btn-edit:hover { background: #ecfdf5; color: #059669; }
+.btn-more.btn-share:hover { background: #eff6ff; color: #2563eb; }
 
 .post-title { font-size: 19px; font-weight: 800; color: #0f172a; margin: 0 0 12px; line-height: 1.4; }
 .post-content { font-size: 14px; color: #64748b; line-height: 1.6; font-weight: 500; margin-bottom: 20px; }
@@ -427,6 +551,9 @@ select { flex: 1; border: none; background: transparent; font-family: inherit; f
 .field label { font-size: 13px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
 .field input, .field select, .field textarea { padding: 14px 18px; border: 2px solid #f1f5f9; border-radius: 16px; font-family: inherit; font-size: 14px; transition: 0.2s; background: #f8fafc; font-weight: 600; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: #10b981; outline: none; background: #fff; box-shadow: 0 0 0 4px rgba(16,185,129,0.1); }
+.field-hint { font-size: 11px; font-weight: 700; color: #94a3b8; margin-top: 4px; }
+.sub-label { display: block; font-size: 11px; font-weight: 700; color: #64748b; margin: 10px 0 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+.file-input { padding: 10px 0; font-size: 13px; font-weight: 600; }
 
 .btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 0 28px; height: 52px; border-radius: 18px; font-weight: 800; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(16,185,129,0.2); }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(16,185,129,0.3); }

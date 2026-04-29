@@ -11,13 +11,23 @@
       :is-mobile-open="mobileNavOpen"
       :is-locked="isLocked"
       :is-kyc-approved="isKycApproved"
+      :pending-bookings-count="pendingPaymentTotal"
     />
     <div class="main-wrapper" :class="{ 'sidebar-collapsed': isSidebarCollapsed }">
-      <OwnerHeader :mobile-drawer-open="mobileNavOpen" @toggle-sidebar="toggleSidebar" />
+      <button
+        type="button"
+        class="owner-sidebar-toggle"
+        :aria-label="mobileNavOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'"
+        :aria-expanded="mobileNavOpen ? 'true' : 'false'"
+        @click="toggleSidebar"
+      >
+        <span class="material-icons">{{ mobileNavOpen ? 'close' : 'menu' }}</span>
+      </button>
+      <OwnerHeader />
 
       <transition name="banner-slide">
         <div v-if="pendingPaymentTotal > 0" class="owner-pending-strip" role="status">
-          <span class="material-icons-outlined owner-pending-strip-icon">notifications_active</span>
+          <span class="owner-pending-strip-badge">Thông báo</span>
           <span class="owner-pending-strip-text">
             <strong>{{ pendingPaymentTotal }}</strong> đơn chờ thanh toán / xác nhận trên các CLB của bạn — có thể có đơn mới vừa đặt.
           </span>
@@ -94,6 +104,11 @@
       @close="closeNewBookingModal"
       @view-detail="handleNewBookingModalViewDetail"
       @confirm="handleConfirmPaymentFromNewBookingModal"
+    />
+
+    <OwnerBillingIntroModal
+      :show="showBillingIntroModal"
+      @completed="onBillingIntroCompleted"
     />
 
     <transition name="fade">
@@ -178,6 +193,8 @@ import OwnerSidebar from '../components/layout/OwnerSidebar.vue';
 import OwnerHeader from '../components/layout/OwnerHeader.vue';
 import PaymentProofNotificationModal from '../components/owner/dashboard/PaymentProofNotificationModal.vue';
 import NewBookingNotificationModal from '../components/owner/dashboard/NewBookingNotificationModal.vue';
+import OwnerBillingIntroModal from '../components/owner/OwnerBillingIntroModal.vue';
+import api from '@/api/axios';
 import { useOwnerTrial } from '../composables/useOwnerTrial.js';
 import { clubService } from '@/services/club.service';
 import { bookingService } from '@/services/booking.service';
@@ -191,6 +208,7 @@ export default {
     OwnerHeader,
     PaymentProofNotificationModal,
     NewBookingNotificationModal,
+    OwnerBillingIntroModal,
   },
   setup() {
     const { isLocked, isVerified, isKycApproved, isPendingReview, isKycRejected, isTrialExpired, timeLeftFormatted, trialPercent, startTrial, refreshStatus } = useOwnerTrial();
@@ -226,6 +244,9 @@ export default {
       showNewBookingModal: false,
       newBookingModalBooking: null,
       newBookingConfirmLoading: false,
+
+      /** Modal giới thiệu phí duy trì / gói Subscription (chủ sân mới) */
+      showBillingIntroModal: false,
     }
   },
   watch: {
@@ -249,6 +270,10 @@ export default {
     this._mqMobile.addEventListener('change', this._onMqChange);
 
     this.initOwnerRealtimeHub();
+
+    this.$nextTick(() => {
+      setTimeout(() => this.checkBillingIntroModal(), 600);
+    });
   },
   beforeUnmount() {
     if (this._mqMobile && this._onMqChange) {
@@ -257,6 +282,44 @@ export default {
     socketService.disconnect();
   },
   methods: {
+    /** Chủ sân đăng ký trong ~30 ngày và chưa xử lý modal billing → hiển thị một lần */
+    async checkBillingIntroModal() {
+      try {
+        const raw = JSON.parse(localStorage.getItem('user') || '{}');
+        if (raw.role !== 'OWNER') return;
+
+        const res = await api.get('/owner/profile');
+        const profile = res.data?.data;
+        if (!profile?.createdAt) return;
+
+        const op = profile.ownerProfile;
+        if (op?.billingIntroDismissedAt || op?.subscriptionPlanKey) return;
+
+        const ageMs = Date.now() - new Date(profile.createdAt).getTime();
+        const maxNewMs = 30 * 24 * 60 * 60 * 1000;
+        if (ageMs > maxNewMs) return;
+
+        this.showBillingIntroModal = true;
+      } catch (e) {
+        console.warn('checkBillingIntroModal', e);
+      }
+    },
+
+    onBillingIntroCompleted(payload) {
+      this.showBillingIntroModal = false;
+      if (payload?.type === 'cancel') return;
+      if (payload?.type === 'subscribe') {
+        const label = {
+          starter: 'Starter',
+          growth: 'Growth',
+          pro: 'Pro',
+        }[payload.planKey] || payload.planKey;
+        toast.success(`Đã ghi nhận gói ${label}. Thanh toán định kỳ sẽ được kết nối trong bản cập nhật sau.`);
+      } else if (payload?.type === 'dismiss') {
+        toast.info('Đã ghi nhận. Bạn có thể chọn gói Subscription bất cứ lúc nào sau này.');
+      }
+    },
+
     isMobileLayout() {
       return typeof window !== 'undefined' && window.matchMedia('(max-width: 1024px)').matches;
     },
@@ -607,6 +670,7 @@ export default {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 .owner-layout {
   display: flex;
   min-height: 100vh;
@@ -630,36 +694,75 @@ export default {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   margin-left: 280px;
   min-width: 0;
+  position: relative;
 }
 
 .main-wrapper.sidebar-collapsed {
   margin-left: 80px;
 }
 
+.owner-sidebar-toggle {
+  position: absolute;
+  left: 24px;
+  top: 20px;
+  z-index: 1001;
+  background: #f1f5f9;
+  border: none;
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.owner-sidebar-toggle:hover {
+  background: #e2e8f0;
+}
+.owner-sidebar-toggle .material-icons {
+  font-size: 22px;
+  color: #334155;
+}
+
 .owner-pending-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  padding: 12px 28px;
+  gap: 12px 16px;
+  padding: 16px 28px;
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   position: sticky;
   top: 80px;
   z-index: 99;
   background: linear-gradient(135deg, #ecfdf5 0%, #eff6ff 100%);
   border-bottom: 1px solid #a7f3d0;
 }
-.owner-pending-strip-icon {
-  font-size: 22px !important;
-  color: #059669;
+.owner-pending-strip-badge {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  background: linear-gradient(135deg, #059669, #047857);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
 }
 .owner-pending-strip-text {
   color: #0f172a;
   flex: 1;
   min-width: 200px;
-  line-height: 1.45;
+  line-height: 1.5;
+  font-size: 15px;
+}
+.owner-pending-strip-text strong {
+  font-size: 1.15em;
+  font-weight: 800;
 }
 .owner-pending-strip-btn {
   display: inline-flex;
@@ -670,10 +773,10 @@ export default {
   background: #059669;
   color: #fff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 10px 18px;
+  border-radius: 12px;
   white-space: nowrap;
   transition: background 0.15s;
 }

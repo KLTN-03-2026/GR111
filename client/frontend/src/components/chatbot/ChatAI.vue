@@ -1,5 +1,6 @@
 <template>
-  <div class="courtmate-container">
+  <Teleport to="body">
+    <div class="courtmate-container">
     <!-- Floating Trigger -->
     <div v-if="!isOpen" class="trigger-stack">
       <Transition name="nudge-fade">
@@ -15,7 +16,7 @@
         >
           <div class="trigger-glow"></div>
           <div class="trigger-img-wrap">
-            <img src="/chat-bot.png" alt="Chat" class="trigger-icon-img" />
+            <img src="/bot.png" alt="Chat" class="trigger-icon-img" />
           </div>
           <!-- <span class="trigger-badge">AI</span> -->
         </button>
@@ -32,7 +33,7 @@
           <div class="header-main">
             <div class="avatar-wrap">
               <div class="avatar-ring">
-                <img src="/chat-bot.png" alt="CourtMate AI" class="avatar-img" />
+                <img src="/bot.png" alt="CourtMate AI" class="avatar-img" />
               </div>
               <span class="live-dot"></span>
             </div>
@@ -58,11 +59,8 @@
         <div class="messages-area" ref="messageContainer">
           <!-- Welcome Block -->
           <div class="welcome-block" v-if="!displayMessages.length">
-            <div class="welcome-orb">
-              <img src="/chat-bot.png" alt="CourtMate AI" />
-            </div>
-            <h2>Chào mừng đến với CourtMate!</h2>
-            <p>Tôi là trợ lý ảo giúp bạn đặt sân thể thao siêu tốc. Bạn muốn chơi môn gì hôm nay?</p>
+            <h2>Chào mừng đến với AI của CourtMate!</h2>
+            <p>Tôi là trợ lý ảo giúp bạn hỗ trợ đặt sân thể thao siêu tốc. Bạn muốn chơi môn gì hôm nay?</p>
             <div class="chip-grid">
               <button
                 v-for="chip in quickStartChips"
@@ -87,7 +85,7 @@
                 :class="msg.role === 'user' ? 'row-user' : 'row-bot'"
               >
                 <div v-if="msg.role === 'assistant'" class="bot-avatar">
-                  <img src="/chat-bot.png" alt="AI" />
+                  <img src="/bot.png" alt="AI" />
                 </div>
 
                 <div class="bubble-wrap">
@@ -113,7 +111,7 @@
             <!-- Typing Indicator -->
             <div v-if="isLoading" class="msg-row row-bot">
               <div class="bot-avatar">
-                <img src="/chat-bot.png" alt="AI" />
+                <img src="/bot.png" alt="AI" />
               </div>
               <div class="typing-wrap">
                 <div class="bubble bubble-bot typing-bubble">
@@ -158,11 +156,11 @@
               </svg>
             </button>
           </div>
-          <p class="footer-note">Gửi tin nhắn · Shift+Enter xuống dòng</p>
         </footer>
       </div>
     </Transition>
-  </div>
+    </div>
+  </Teleport>
 </template>
 
 <script setup>

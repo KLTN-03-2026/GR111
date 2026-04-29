@@ -33,7 +33,8 @@ export type UploadFolder =
   | "courts/images"       // Ảnh sân bóng
   | "documents/licenses"  // Giấy phép kinh doanh
   | "payments/proofs"     // Ảnh bằng chứng thanh toán
-  | "reviews/images";    // Ảnh đánh giá (Review)
+  | "reviews/images"    // Ảnh đánh giá (Review)
+  | "clubs/posts";      // Ảnh bài đăng / bảng tin CLB
 
 export interface UploadResult {
   url: string;           // URL công khai để hiển thị
