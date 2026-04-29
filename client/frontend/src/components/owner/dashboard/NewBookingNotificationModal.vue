@@ -60,6 +60,17 @@
           <button type="button" class="nbm-btn secondary" @click="$emit('close')">
             Đóng
           </button>
+          <button
+            v-if="canConfirmPayment"
+            type="button"
+            class="nbm-btn accent"
+            :disabled="confirmLoading"
+            @click="$emit('confirm', booking)"
+          >
+            <span v-if="confirmLoading" class="nbm-spin" aria-hidden="true"></span>
+            <span v-else class="material-icons nbm-ico">verified</span>
+            {{ confirmLoading ? 'Đang xử lý…' : 'Xác nhận thanh toán' }}
+          </button>
           <button type="button" class="nbm-btn primary" @click="$emit('view-detail', booking)">
             <span class="material-icons nbm-ico">open_in_new</span>
             Xem chi tiết đơn
@@ -76,9 +87,21 @@ export default {
   props: {
     show: { type: Boolean, default: false },
     booking: { type: Object, default: null },
+    confirmLoading: { type: Boolean, default: false },
   },
-  emits: ['close', 'view-detail'],
+  emits: ['close', 'view-detail', 'confirm'],
   computed: {
+    canConfirmPayment() {
+      const b = this.booking;
+      if (!b) return false;
+      const payMethod = b.payment?.method;
+      return (
+        b.status === 'PENDING' ||
+        (b.status === 'WAITING_PAYMENT' &&
+          payMethod === 'BANK_TRANSFER' &&
+          !!b.payment?.proofImageUrl)
+      );
+    },
     statusLabel() {
       const s = this.booking?.status;
       const map = {
@@ -312,6 +335,34 @@ export default {
 }
 .nbm-btn.primary:hover {
   transform: translateY(-1px);
+}
+
+.nbm-btn.accent {
+  background: linear-gradient(135deg, #059669, #047857);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+}
+.nbm-btn.accent:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.nbm-btn.accent:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.nbm-spin {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: nbm-spin 0.75s linear infinite;
+}
+
+@keyframes nbm-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .nbm-ico {

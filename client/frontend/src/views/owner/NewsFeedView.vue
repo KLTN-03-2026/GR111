@@ -4,7 +4,7 @@
     <header class="view-header">
       <div class="header-info">
         <h1 class="view-title">Bảng tin câu lạc bộ</h1>
-        <p class="view-subtitle">Đăng thông báo, tìm kèo ghép hoặc cập nhật khung giờ trống để thu hút người chơi.</p>
+        <p class="view-subtitle">Mỗi bài đăng sẽ đồng thời gửi thông báo trong app tới người chơi đã từng đặt sân thành công tại CLB (khuyến mãi, sự kiện, ghép kèo…).</p>
       </div>
       <button class="btn-primary" @click="showAddModal = true">
         <span class="material-icons">add_circle</span>
@@ -184,6 +184,7 @@
 <script>
 import { postService } from '@/services/post.service';
 import { dashboardService } from '@/services/dashboard.service';
+import { toast } from 'vue3-toastify';
 
 export default {
   name: 'OwnerNewsFeedView',
@@ -254,6 +255,12 @@ export default {
         const payload = { ...this.form, clubId: this.selectedClubId };
         const res = await postService.createPost(payload);
         if (res.success) {
+          const sent = typeof res.data?.notificationsSent === 'number' ? res.data.notificationsSent : 0;
+          if (sent > 0) {
+            toast.success(`Đã gửi thông báo tới ${sent} người chơi đã đặt sân tại CLB.`);
+          } else {
+            toast.info('Chưa có người chơi nào có lịch sử đặt sân thành công tại CLB — bài vẫn hiển thị trên bảng tin công khai.');
+          }
           this.showAddModal = false;
           this.resetForm();
           await this.fetchPosts();

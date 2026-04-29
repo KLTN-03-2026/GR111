@@ -65,13 +65,17 @@ export const bookingService = {
         const response = await api.delete(`/bookings/${bookingCode}`);
         return response.data;
     },
-    // 11. Tải lên minh chứng chuyển khoản (cho người dùng) 
+    /**
+     * 11. Tải lên minh chứng chuyển khoản (Cloudinary qua POST /api/upload, entityId = bookingId).
+     */
     uploadPaymentProof: async (bookingId, imageFile) => {
         const formData = new FormData();
-        formData.append('image', imageFile);
-        const response = await api.post(`/bookings/${bookingId}/payment-proof`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
+        formData.append('file', imageFile);
+        formData.append('type', 'payment-proof');
+        formData.append('entityId', bookingId);
+        const response = await api.post('/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
         });
         return response.data;
-    }
+    },
 }

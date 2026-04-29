@@ -111,9 +111,72 @@
                     <span class="fw-black text-success">{{ displayTransferContent || '—' }}</span></div>
                 </div>
                 <div v-if="bankTransferDisplay.qrUrl" class="text-center mt-3">
-                  <img :src="bankTransferDisplay.qrUrl" alt="QR chuyển khoản" class="img-fluid rounded border" style="max-width:200px" />
+                  <img :src="bankTransferDisplay.qrUrl" alt="QR chuyển khoản" class="img-fluid rounded border shadow-sm" style="max-width:220px" />
                 </div>
               </template>
+            </div>
+
+            <div
+              v-if="clubContactStrip.show"
+              class="chk-success__contact mt-4 text-start w-100"
+              style="max-width:420px;margin-left:auto;margin-right:auto"
+            >
+              <div class="fw-bold mb-2 small text-dark">Liên hệ sân</div>
+              <div class="small border rounded p-3 bg-white shadow-sm">
+                <div v-if="clubContactStrip.phone" class="d-flex flex-wrap justify-content-between gap-2 py-1 align-items-center">
+                  <span class="text-muted">Điện thoại</span>
+                  <a :href="'tel:' + clubContactStrip.phoneRaw" class="fw-bold text-success text-decoration-none">{{ clubContactStrip.phone }}</a>
+                </div>
+                <div v-if="clubContactStrip.email" class="d-flex flex-wrap justify-content-between gap-2 py-1 align-items-center">
+                  <span class="text-muted">Email</span>
+                  <a :href="'mailto:' + clubContactStrip.email" class="fw-bold small text-primary text-break text-decoration-none">{{ clubContactStrip.email }}</a>
+                </div>
+              </div>
+            </div>
+
+            <div
+              v-if="payMethod === 'bank' && !paymentConfirmed && currentBookingId"
+              class="chk-proof-upload chk-proof-upload--panel mt-4 pt-3 border-top text-start w-100"
+              style="max-width:420px;margin-left:auto;margin-right:auto;border-color:#e2e8f0!important"
+            >
+              <div class="chk-proof-header mb-3">
+                <div class="fw-bold text-dark d-flex align-items-center gap-2">
+                  <span class="material-icons text-success" style="font-size:20px">cloud_upload</span>
+                  Gửi ảnh minh chứng chuyển khoản
+                </div>
+                <p class="text-muted small mb-0">
+                  Chụp bill hoặc ảnh chuyển tiền thành công để chủ sân đối soát nhanh hơn (JPEG/PNG, tối đa 5MB).
+                </p>
+              </div>
+
+              <div v-if="paymentProofUrl" class="chk-proof-preview mb-3 position-relative">
+                <img :src="paymentProofUrl" alt="Minh chứng CK" class="rounded-3 w-100 shadow-sm border"
+                  style="max-height:220px;object-fit:cover" />
+                <button type="button" class="btn-remove-proof" @click="paymentProofUrl = ''; proofFile = null">
+                  <span class="material-icons">cancel</span>
+                </button>
+              </div>
+
+              <div v-else class="chk-upload-box" @click="$refs.proofInput.click()" :class="{ 'is-uploading': isUploadingProof }">
+                <input ref="proofInput" type="file" class="d-none" accept="image/jpeg,image/png,image/webp,image/*" @change="handleFileUpload" />
+                <div v-if="!isUploadingProof" class="text-center py-2">
+                  <span class="material-icons fs-1 text-muted">add_photo_alternate</span>
+                  <div class="fw-bold text-muted small mt-2">Chọn ảnh biên lai / bill CK</div>
+                </div>
+                <div v-else class="text-center py-3">
+                  <div class="spinner-border spinner-border-sm text-success mb-2"></div>
+                  <div class="fw-bold text-success small">Đang tải lên…</div>
+                </div>
+              </div>
+
+              <div
+                v-if="paymentProofUrl"
+                class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mt-3 mb-0 border-0 small fw-bold"
+                style="background:#f0fdf4;color:#16a34a"
+              >
+                <span class="material-icons" style="font-size:18px">check_circle</span>
+                Đã gửi minh chứng — chủ sân sẽ xác nhận sớm nhất.
+              </div>
             </div>
 
             <div class="d-flex gap-3 mt-4 flex-wrap justify-content-center">
@@ -441,51 +504,9 @@
                       toán.
                     </div>
 
-                    <!-- UPLOAD PAYMENT PROOF -->
-                    <div v-if="bookingSuccess" class="chk-proof-upload mt-4 pt-3 border-top">
-                      <div class="chk-proof-header mb-3">
-                        <div class="fw-bold text-dark d-flex align-items-center gap-2">
-                          <span class="material-icons text-success" style="font-size:20px">cloud_upload</span>
-                          Gửi minh chứng chuyển khoản
-                        </div>
-                        <p class="text-muted small mb-0">Tải lên ảnh chụp màn hình bill chuyển khoản để Admin duyệt
-                          nhanh hơn.
-                        </p>
-                      </div>
-
-                      <div v-if="paymentProofUrl" class="chk-proof-preview mb-3 position-relative">
-                        <img :src="paymentProofUrl" class="rounded-3 w-100 shadow-sm border"
-                          style="max-height:200px; object-fit:cover" />
-                        <button class="btn-remove-proof" @click="paymentProofUrl = ''; proofFile = null">
-                          <span class="material-icons">cancel</span>
-                        </button>
-                      </div>
-
-                      <div v-else class="chk-upload-box" @click="$refs.proofInput.click()"
-                        :class="{ 'is-uploading': isUploadingProof }">
-                        <input type="file" ref="proofInput" class="d-none" accept="image/*"
-                          @change="handleFileUpload" />
-                        <div v-if="!isUploadingProof" class="text-center">
-                          <span class="material-icons fs-1 text-muted">add_photo_alternate</span>
-                          <div class="fw-bold text-muted small mt-2">Nhấn để chọn ảnh Bill</div>
-                        </div>
-                        <div v-else class="text-center">
-                          <div class="spinner-border spinner-border-sm text-success mb-2"></div>
-                          <div class="fw-bold text-success small">Đang tải lên...</div>
-                        </div>
-                      </div>
-
-                      <button v-if="proofFile && !paymentProofUrl && !isUploadingProof"
-                        class="btn btn-success w-100 fw-bold mt-3" @click="uploadProof">
-                        Xác nhận gửi bill
-                      </button>
-
-                      <div v-if="paymentProofUrl"
-                        class="alert alert-success d-flex align-items-center gap-2 py-2 px-3 mt-3 border-0 small fw-bold"
-                        style="background:#f0fdf4; color:#16a34a">
-                        <span class="material-icons" style="font-size:18px">check_circle</span>
-                        Đã gửi minh chứng thành công!
-                      </div>
+                    <div class="chk-note chk-note--info mt-3">
+                      <span class="material-icons" style="font-size:16px;vertical-align:middle;color:#0369a1">info</span>
+                      Sau khi bấm <strong>Hoàn tất đặt sân</strong>, màn hình tiếp theo sẽ hiển thị đầy đủ <strong>QR / STK</strong> và cho phép bạn <strong>tải ảnh biên lai</strong> chuyển khoản.
                     </div>
                   </div>
                 </transition>
@@ -948,6 +969,7 @@ import { socketService } from '@/services/socket.service.js';
 import { voucherService } from '@/services/voucher.service.js';
 import LoadingView from "@/components/common/LoadingView.vue";
 import '@/assets/checkout.css';
+import { toast } from 'vue3-toastify';
 
 export default {
   name: 'CheckoutView',
@@ -1067,6 +1089,21 @@ export default {
       const qrUrl = p?.qrImageUrl || c.transferQrImageUrl || '';
       const hasCore = !!(bankName?.trim() && accountNumber?.trim() && beneficiaryName?.trim());
       return { bankName, accountNumber, beneficiaryName, qrUrl, hasCore };
+    },
+
+    /** Hiển thị điện thoại / email CLB trên màn hình thành công */
+    clubContactStrip() {
+      const c = this.clubTransferProfile;
+      if (!c) return { show: false, phone: '', email: '', phoneRaw: '' };
+      const phone = String(c.phone || '').trim();
+      const email = String(c.email || '').trim();
+      const phoneRaw = phone.replace(/\s/g, '');
+      return {
+        show: !!(phone || email),
+        phone,
+        email,
+        phoneRaw: phoneRaw || '',
+      };
     },
 
     bankAccountRaw() {
@@ -1233,6 +1270,9 @@ export default {
             transferAccountNumber: d.transferAccountNumber,
             transferBeneficiaryName: d.transferBeneficiaryName,
             transferQrImageUrl: d.transferQrImageUrl,
+            phone: d.phone,
+            email: d.email,
+            name: d.name,
           };
         }
       } catch (e) {
@@ -1387,9 +1427,10 @@ export default {
       const code = this.voucherInput.trim().toUpperCase();
       const clubId = this.bookingInfo.club_id;
       const baseAmount = this.courtSubtotalAll() + this.serviceTotal;
+      const courtIds = [...new Set((this.bookingInfo.courts || []).map((c) => c.id))];
 
       try {
-        const res = await voucherService.validateVoucher(code, clubId, baseAmount);
+        const res = await voucherService.validateVoucher(code, clubId, baseAmount, courtIds);
         if (res && res.data) {
           const v = res.data;
           if (v.type === 'PERCENTAGE') {
@@ -1542,9 +1583,9 @@ export default {
       this.isUploadingProof = true;
       try {
         const res = await bookingService.uploadPaymentProof(this.currentBookingId, this.proofFile);
-        if (res.success) {
-          this.paymentProofUrl = res.data.proofImageUrl;
-          toast.success("Tải minh chứng thành công! Đang chờ duyệt.");
+        if (res?.success && res.data?.url) {
+          this.paymentProofUrl = res.data.url;
+          toast.success('Đã gửi ảnh minh chứng. Chủ sân sẽ xác nhận khi nhận được.');
         }
       } catch (err) {
         console.error("Upload proof error:", err);

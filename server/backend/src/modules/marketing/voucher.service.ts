@@ -1,4 +1,14 @@
 import { prisma } from "@/infra/db/prisma";
+import { voucherAllowsBookingCourts } from "@/modules/marketing/voucher-court-rules";
+
+const voucherCourtInclude = {
+  applicableCourts: {
+    select: {
+      courtId: true,
+      court: { select: { id: true, name: true } },
+    },
+  },
+} as const;
 
 /**
  * Lấy danh sách voucher khả dụng của hệ thống và của CLB cụ thể (nếu có)
@@ -18,7 +28,8 @@ export async function getAvailableVouchers(userId: string, clubId?: string) {
     include: {
       usages: {
         where: { userId }
-      }
+      },
+      ...voucherCourtInclude,
     },
     orderBy: { endDate: 'asc' }
   });
@@ -36,12 +47,22 @@ export async function getAvailableVouchers(userId: string, clubId?: string) {
 }
 
 /**
- * Kiểm tra xem một voucher có hợp lệ cho một đơn hàng cụ thể không
+ * Kiểm tra xem một voucher có hợp lệ cho một đơn hàng cụ thể không.
+ * @param courtIds Danh sách courtId có trong giỏ (unique). Bắt buộc khi voucher giới hạn sân.
  */
-export async function validateVoucher(code: string, userId: string, clubId: string, orderAmount: number) {
+export async function validateVoucher(
+  code: string,
+  userId: string,
+  clubId: string,
+  orderAmount: number,
+  courtIds?: string[]
+) {
   const voucher = await prisma.voucher.findFirst({
     where: { code, isActive: true },
-    include: { usages: { where: { userId } } }
+    include: {
+      usages: { where: { userId } },
+      ...voucherCourtInclude,
+    },
   });
 
   if (!voucher) throw new Error("VOUCHER_NOT_FOUND");
@@ -52,9 +73,25 @@ export async function validateVoucher(code: string, userId: string, clubId: stri
     throw new Error("VOUCHER_EXPIRED");
   }
 
-  // Kiểm tra phạm vi
+  // Kiểm tra phạm vi CLB
   if (voucher.clubId && voucher.clubId !== clubId) {
     throw new Error("VOUCHER_INVALID_FOR_THIS_CLUB");
+  }
+
+  const restricted = voucher.applicableCourts;
+  if (restricted.length > 0) {
+    if (!courtIds?.length) {
+      throw new Error("VOUCHER_REQUIRES_COURT_SELECTION");
+    }
+    const n = await prisma.court.count({
+      where: { clubId, id: { in: courtIds }, deletedAt: null },
+    });
+    if (n !== courtIds.length) {
+      throw new Error("VOUCHER_INVALID_COURTS_FOR_CLUB");
+    }
+    if (!voucherAllowsBookingCourts(restricted, courtIds)) {
+      throw new Error("VOUCHER_COURT_NOT_APPLICABLE");
+    }
   }
 
   // Kiểm tra lượt dùng tổng

@@ -205,6 +205,7 @@ model Court {
   favoredBy       FavoriteCourt[]
   specialPricings SpecialDatePricing[]
   timeSlots       TimeSlot[]
+  voucherCourts   VoucherCourt[]
 
   @@index([name])
   @@map("courts")
@@ -414,8 +415,21 @@ model Voucher {
   bookings       Booking[]
   usages         VoucherUsage[]
   club           Club?          @relation(fields: [clubId], references: [id])
+  /// Nếu rỗng: áp dụng mọi sân của CLB. Nếu có bản ghi: chỉ các sân được liệt kê (chỉ dùng cho voucher của CLB).
+  applicableCourts VoucherCourt[]
 
   @@map("vouchers")
+}
+
+model VoucherCourt {
+  id        String  @id @default(cuid())
+  voucherId String
+  courtId   String
+  voucher   Voucher @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  court     Court   @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  @@unique([voucherId, courtId])
+  @@map("voucher_courts")
 }
 
 model VoucherUsage {

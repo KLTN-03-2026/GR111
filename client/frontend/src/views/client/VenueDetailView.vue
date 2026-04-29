@@ -888,9 +888,12 @@ export default {
       const code = this.form.voucher.trim().toUpperCase();
       const clubId = this.clubId;
       const orderAmount = this.courtTotal + this.serviceTotal;
+      const courtIds = [...new Set(
+        Object.keys(this.selectedSlotsByCourtId || {}).filter((cid) => (this.selectedSlotsByCourtId[cid] || []).length > 0)
+      )];
 
       try {
-        const res = await voucherService.validateVoucher(code, clubId, orderAmount);
+        const res = await voucherService.validateVoucher(code, clubId, orderAmount, courtIds);
         if (res && res.data) {
           const v = res.data;
           // Calculate discount if type is PERCENTAGE vs FIXED

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 import { prisma } from "@/infra/db/prisma";
+import { replaceVoucherApplicableCourts } from "@/modules/marketing/voucher-courts";
 
 /**
  * PATCH /api/owner/clubs/[clubId]/vouchers/[voucherId]
@@ -32,7 +33,7 @@ export async function PATCH(
     if (!existing) return errorResponse("Không tìm thấy voucher", 404);
 
     const body = await req.json();
-    const { title, description, type, value, minOrderAmount, maxDiscount, usageLimit, usagePerUser, startDate, endDate, isActive } = body;
+    const { title, description, type, value, minOrderAmount, maxDiscount, usageLimit, usagePerUser, startDate, endDate, isActive, courtIds } = body;
 
     const voucher = await prisma.voucher.update({
       where: { id: voucherId },
@@ -51,7 +52,25 @@ export async function PATCH(
       },
     });
 
-    return successResponse("Cập nhật voucher thành công", voucher);
+    if (courtIds !== undefined) {
+      try {
+        const ids = Array.isArray(courtIds) ? courtIds.filter((x: unknown) => typeof x === "string") : [];
+        await replaceVoucherApplicableCourts(voucher.id, clubId, ids);
+      } catch {
+        return errorResponse("Danh sách sân không hợp lệ hoặc không thuộc CLB này", 422);
+      }
+    }
+
+    const full = await prisma.voucher.findUnique({
+      where: { id: voucherId },
+      include: {
+        applicableCourts: {
+          include: { court: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    return successResponse("Cập nhật voucher thành công", full);
   } catch (error) {
     return serverErrorResponse(error);
   }

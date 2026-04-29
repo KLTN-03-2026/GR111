@@ -49,8 +49,11 @@ export async function POST(req: NextRequest) {
     return successResponse("Gửi đánh giá thành công", review, 201);
   } catch (error: unknown) {
     if (error instanceof Error) {
-      if (error.message === "BOOKING_NOT_FOUND_OR_NOT_COMPLETED") {
-        return errorResponse("Đơn hàng chưa hoàn thành hoặc không tồn tại", 400);
+      if (error.message === "BOOKING_NOT_FOUND_OR_NOT_ELIGIBLE") {
+        return errorResponse(
+          "Không thể đánh giá đơn này. Chỉ áp dụng cho đơn đã xác nhận đặt sân (đã thanh toán/hoàn tất), không áp dụng đơn chờ thanh toán hoặc đã huỷ.",
+          400
+        );
       }
       if (error.message === "ALREADY_REVIEWED") {
         return errorResponse("Bạn đã đánh giá đơn hàng này rồi", 409);

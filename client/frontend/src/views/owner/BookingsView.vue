@@ -378,26 +378,17 @@
       </div>
     </transition>
 
-    <NewBookingNotificationModal
-      :show="showNewBookingModal"
-      :booking="newBookingModalBooking"
-      @close="closeNewBookingModal"
-      @view-detail="onNewBookingModalViewDetail"
-    />
   </div>
 </template>
 
 <script>
-import NewBookingNotificationModal from '@/components/owner/dashboard/NewBookingNotificationModal.vue';
 import { formatYmdVietnam } from '@/utils/dateInput';
 import { bookingService } from '@/services/booking.service';
 import { dashboardService } from '@/services/dashboard.service';
-import { socketService } from '@/services/socket.service.js';
 import { toast } from 'vue3-toastify';
 
 export default {
   name: 'OwnerBookingsView',
-  components: { NewBookingNotificationModal },
   data() {
     return {
       currentView: 'calendar',
@@ -410,10 +401,6 @@ export default {
       fullBookingData: [], // Original structure from BE
       isLoading: false,
       detailBooking: null,
-
-      showNewBookingModal: false,
-      newBookingModalBooking: null,
-      activeSocketVenueId: null,
     }
   },
   computed: {
@@ -545,9 +532,6 @@ export default {
     selectedClubId(newVal, oldVal) {
       if (newVal) {
         this.fetchBookings();
-        if (String(newVal) !== String(oldVal ?? '')) {
-          this.ensureOwnerSocketRoom(newVal);
-        }
       }
     },
     currentDate() {
@@ -555,62 +539,22 @@ export default {
     }
   },
   async mounted() {
-    this.setupOwnerSocket();
+    this._onOwnerBookingRealtime = (ev) => {
+      const data = ev.detail;
+      const cid = data?.clubId ?? data?.booking?.clubId;
+      if (!this.selectedClubId || !cid || String(cid) !== String(this.selectedClubId)) return;
+      this.fetchBookings();
+    };
+    window.addEventListener('owner-booking-realtime', this._onOwnerBookingRealtime);
+
     await this.fetchClubs();
   },
   beforeUnmount() {
-    if (this.activeSocketVenueId) {
-      socketService.leaveVenue(this.activeSocketVenueId);
+    if (this._onOwnerBookingRealtime) {
+      window.removeEventListener('owner-booking-realtime', this._onOwnerBookingRealtime);
     }
-    socketService.disconnect();
   },
   methods: {
-    setupOwnerSocket() {
-      socketService.connect();
-      socketService.onBookingUpdate((data) => this.handleOwnerBookingSocket(data));
-    },
-
-    ensureOwnerSocketRoom(clubId) {
-      if (!clubId) return;
-      if (this.activeSocketVenueId && String(this.activeSocketVenueId) !== String(clubId)) {
-        socketService.leaveVenue(this.activeSocketVenueId);
-      }
-      socketService.joinVenue(clubId);
-      this.activeSocketVenueId = clubId;
-    },
-
-    async handleOwnerBookingSocket(data) {
-      const clubId = data?.booking?.clubId ?? data?.clubId;
-      if (!clubId || String(clubId) !== String(this.selectedClubId)) return;
-
-      if (data?.type === 'payment-proof-submitted') {
-        toast.info('Khách đã gửi minh chứng chuyển khoản.');
-        await this.fetchBookings();
-      } else if (data?.type === 'new-booking' || data?.type === 'manual-booking-created') {
-        toast.success(data?.type === 'manual-booking-created' ? 'Đã tạo đơn tại quầy.' : 'Có đơn đặt sân mới từ khách!');
-        this.newBookingModalBooking = data.booking || null;
-        this.showNewBookingModal = !!this.newBookingModalBooking;
-        await this.fetchBookings();
-      } else if (data?.type === 'booking-cancelled') {
-        toast.info('Một đơn đặt sân đã bị hủy.');
-        await this.fetchBookings();
-      } else {
-        toast.info('Có cập nhật đơn đặt sân.');
-        await this.fetchBookings();
-      }
-    },
-
-    closeNewBookingModal() {
-      this.showNewBookingModal = false;
-      this.newBookingModalBooking = null;
-    },
-
-    onNewBookingModalViewDetail(booking) {
-      if (!booking?.id) return;
-      this.closeNewBookingModal();
-      this.openDetailById(booking.id);
-    },
-
     async fetchClubs() {
       try {
         const response = await dashboardService.getClubs();

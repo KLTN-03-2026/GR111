@@ -178,12 +178,26 @@ async function updateEntityInDB(type: string, entityId: string, userId: string, 
         });
         break;
 
-      // Cập nhật ảnh bằng chứng thanh toán trong Payment
+      // Cập nhật ảnh bằng chứng thanh toán trong Payment + báo realtime cho chủ sân
       case "payment-proof":
         await prisma.payment.update({
           where: { bookingId: entityId },
           data: { proofImageUrl: url },
         });
+        {
+          const b = await prisma.booking.findUnique({
+            where: { id: entityId },
+            select: { id: true, clubId: true, bookingCode: true, status: true },
+          });
+          if (b?.clubId) {
+            const { notifyNewBooking } = await import("@/infra/realtime/socket");
+            await notifyNewBooking(b.clubId, {
+              clubId: b.clubId,
+              booking: b,
+              type: "payment-proof-submitted",
+            });
+          }
+        }
         break;
     }
   } catch (dbError) {

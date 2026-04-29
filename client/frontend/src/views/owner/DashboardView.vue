@@ -2,7 +2,7 @@
   <div class="dashboard-container">
     <!-- Dashboard Header with Filters -->
     <div class="dashboard-header">
-      <div class="header-left">
+        <div class="header-left">
         <h2 class="page-title">Tổng quan Dashboard</h2>
         <p class="page-subtitle">Quản lý hoạt động sân bãi và doanh thu từ câu lạc bộ của bạn.</p>
       </div>
@@ -69,20 +69,6 @@
       @submit="submitOfflineBooking"
     />
 
-    <PaymentProofNotificationModal
-      :show="showPaymentProofModal"
-      :booking="paymentProofModalBooking"
-      :confirming="paymentProofConfirmLoading"
-      @close="closePaymentProofModal"
-      @confirm="handlePaymentProofModalConfirm"
-    />
-
-    <NewBookingNotificationModal
-      :show="showNewBookingModal"
-      :booking="newBookingModalBooking"
-      @close="closeNewBookingModal"
-      @view-detail="handleNewBookingModalViewDetail"
-    />
   </div>
 </template>
 
@@ -93,13 +79,10 @@ import QuickActions       from '../../components/owner/dashboard/QuickActions.vu
 import CourtStatus        from '../../components/owner/dashboard/CourtStatus.vue';
 import VisualCalendar     from '../../components/owner/dashboard/VisualCalendar.vue';
 import OfflineBookingModal from '../../components/owner/dashboard/OfflineBookingModal.vue';
-import PaymentProofNotificationModal from '../../components/owner/dashboard/PaymentProofNotificationModal.vue';
-import NewBookingNotificationModal from '../../components/owner/dashboard/NewBookingNotificationModal.vue';
 
 import { clubService }    from '@/services/club.service';
 import { courtService }   from '@/services/court.service';
 import { bookingService } from '@/services/booking.service';
-import { socketService }  from '@/services/socket.service.js';
 import { toast }          from 'vue3-toastify';
 
 export default {
@@ -111,8 +94,6 @@ export default {
     CourtStatus,
     VisualCalendar,
     OfflineBookingModal,
-    PaymentProofNotificationModal,
-    NewBookingNotificationModal,
   },
   data() {
     return {
@@ -123,7 +104,6 @@ export default {
       selectedDate:    (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })(),
       calendarLoading: false,
       newBookingId:    null, // to pulse-highlight after create
-      activeSocketVenueId: null,
 
       summaryStats: [
         { label: 'Doanh thu hôm nay', value: '0đ',    icon: 'payments',       color: 'green',  trend: 'up', change: 0, fill: 0 },
@@ -136,73 +116,35 @@ export default {
       recentBookings: [],
       courts:         [],
       showOfflineModal: false,
-
-      showPaymentProofModal: false,
-      paymentProofModalBooking: null,
-      paymentProofConfirmLoading: false,
-
-      showNewBookingModal: false,
-      newBookingModalBooking: null,
     };
   },
 
   async mounted() {
     await this.initDashboard();
-    
-    // Connect socket and listen for updates (callback phải gán trước khi join-venue để nhận recent-notifications)
-    socketService.connect();
-    socketService.onBookingUpdate(async (data) => {
-      const clubId = data?.booking?.clubId ?? data?.clubId;
+
+    this._onOwnerBookingRealtime = (ev) => {
+      const data = ev.detail;
+      const clubId = data?.clubId ?? data?.booking?.clubId;
       if (!clubId || String(clubId) !== String(this.currentClubId)) return;
 
-      if (data?.type === 'payment-proof-submitted') {
-        toast.info('Khách đã gửi minh chứng chuyển khoản.');
-        const bid = data?.booking?.id;
-        if (bid) await this.openPaymentProofModalByBookingId(bid);
-        await this.refreshAllData();
-      } else if (data?.type === 'new-booking' || data?.type === 'manual-booking-created') {
-        toast.success(data?.type === 'manual-booking-created' ? 'Đã tạo đơn tại quầy.' : 'Có đơn đặt sân mới từ khách!');
-        this.newBookingModalBooking = data.booking || null;
-        this.showNewBookingModal = !!this.newBookingModalBooking;
+      const t = data?.type;
+      if (t === 'new-booking' || t === 'manual-booking-created') {
         const bid = data?.booking?.id;
         if (bid) {
           this.newBookingId = bid;
-          setTimeout(() => { this.newBookingId = null; }, 8000);
+          setTimeout(() => {
+            this.newBookingId = null;
+          }, 8000);
         }
-        await this.refreshAllData();
-      } else if (data?.type === 'booking-cancelled') {
-        toast.info('Một đơn đặt sân đã bị hủy.');
-        await this.refreshAllData();
-      } else {
-        toast.info('Có cập nhật đơn đặt sân.');
-        await this.refreshAllData();
       }
-    });
-
-    socketService.onRecentNotifications(async (list) => {
-      if (!Array.isArray(list) || !list.length || !this.currentClubId) return;
-      const cid = String(this.currentClubId);
-      const relevant = list.filter((n) => {
-        const id = n?.booking?.clubId ?? n?.clubId;
-        return id && String(id) === cid;
-      });
-      const proof = [...relevant].reverse().find((n) => n.type === 'payment-proof-submitted');
-      if (proof?.booking?.id && !this.showPaymentProofModal) {
-        await this.openPaymentProofModalByBookingId(proof.booking.id);
-      }
-    });
-
-    // If there's a club, join its socket room
-    if (this.currentClubId) {
-      socketService.joinVenue(this.currentClubId);
-      this.activeSocketVenueId = this.currentClubId;
-    }
+      this.refreshAllData();
+    };
+    window.addEventListener('owner-booking-realtime', this._onOwnerBookingRealtime);
   },
   beforeUnmount() {
-    if (this.activeSocketVenueId) {
-      socketService.leaveVenue(this.activeSocketVenueId);
+    if (this._onOwnerBookingRealtime) {
+      window.removeEventListener('owner-booking-realtime', this._onOwnerBookingRealtime);
     }
-    socketService.disconnect();
   },
 
   methods: {
@@ -399,19 +341,8 @@ export default {
         this.calendarDate = this.selectedDate;
       }
 
-      this.ensureSocketVenueSubscription();
       await Promise.all([this.fetchCourts(), this.fetchBookings(this.calendarDate)]);
       this.updateStats();
-    },
-
-    ensureSocketVenueSubscription() {
-      if (!this.currentClubId || this.currentClubId === this.activeSocketVenueId) return;
-
-      if (this.activeSocketVenueId) {
-        socketService.leaveVenue(this.activeSocketVenueId);
-      }
-      socketService.joinVenue(this.currentClubId);
-      this.activeSocketVenueId = this.currentClubId;
     },
 
     async handleConfirmPayment(booking) {
@@ -423,67 +354,10 @@ export default {
           return;
         }
         toast.success('Đã xác nhận thanh toán.');
-        this.closePaymentProofModal();
         await this.refreshAllData();
       } catch (err) {
         const msg = err?.response?.data?.message || 'Không thể xác nhận thanh toán.';
         toast.error(msg);
-      }
-    },
-
-    closePaymentProofModal() {
-      this.showPaymentProofModal = false;
-      this.paymentProofModalBooking = null;
-      this.paymentProofConfirmLoading = false;
-    },
-
-    closeNewBookingModal() {
-      this.showNewBookingModal = false;
-      this.newBookingModalBooking = null;
-    },
-
-    handleNewBookingModalViewDetail(booking) {
-      if (!booking?.id) return;
-      this.closeNewBookingModal();
-      try {
-        sessionStorage.setItem('owner_prefill_booking_detail', JSON.stringify(booking));
-      } catch (_) { /* ignore */ }
-      this.$router.push({ path: '/owner/bookings', query: { bookingId: String(booking.id) } });
-    },
-
-    /** Tải toàn bộ đơn CLB (không lọc ngày) để mở modal khi socket báo có proof — đơn có thể không thuộc ngày đang xem lịch */
-    async openPaymentProofModalByBookingId(bookingId) {
-      if (!this.currentClubId || !bookingId) return;
-      try {
-        const res = await bookingService.getBookingsByClub(this.currentClubId);
-        const rawList = res.data?.data || res.data || [];
-        const b = rawList.find((x) => String(x.id) === String(bookingId));
-        if (b?.payment?.proofImageUrl) {
-          this.paymentProofModalBooking = b;
-          this.showPaymentProofModal = true;
-        }
-      } catch (e) {
-        console.error('openPaymentProofModalByBookingId', e);
-      }
-    },
-
-    async handlePaymentProofModalConfirm(booking) {
-      if (!booking?.id) return;
-      this.paymentProofConfirmLoading = true;
-      try {
-        const res = await bookingService.confirmPayment(booking.id);
-        if (res?.success === false) {
-          toast.error(res?.message || 'Xác nhận thanh toán thất bại.');
-          return;
-        }
-        toast.success('Đã xác nhận thanh toán.');
-        this.closePaymentProofModal();
-        await this.refreshAllData();
-      } catch (err) {
-        const msg = err?.response?.data?.message || 'Không thể xác nhận thanh toán.';
-        toast.error(msg);
-      } finally {
-        this.paymentProofConfirmLoading = false;
       }
     },
 

@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       return errorResponse("Thiếu thông tin bắt buộc (clubId, type, title, content)", 400);
     }
 
-    const post = await createPost(clubId, user.userId, {
+    const { post, notificationsSent } = await createPost(clubId, user.userId, {
       type,
       title,
       content,
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       expiresAt: expiresAt ? new Date(expiresAt) : undefined
     });
 
-    return successResponse("Đăng bài thành công", post, 201);
+    return successResponse("Đăng bài thành công", { post, notificationsSent }, 201);
   } catch (error) {
     return serverErrorResponse(error);
   }

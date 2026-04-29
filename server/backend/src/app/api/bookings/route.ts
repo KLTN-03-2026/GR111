@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
         VOUCHER_EXHAUSTED: ["Mã giảm giá đã hết lượt sử dụng", 422],
         VOUCHER_LIMIT_EXCEEDED: ["Bạn đã hết lượt sử dụng mã này", 422],
         VOUCHER_MIN_ORDER: ["Giá trị đơn hàng chưa đạt tối thiểu để dùng voucher", 422],
+        VOUCHER_COURT_NOT_APPLICABLE: ["Mã giảm giá không áp dụng cho (một trong các) sân trong đơn này", 422],
         MOMO_GATEWAY_ERROR: ["Lỗi kết nối cổng thanh toán MoMo. Vui lòng thử lại sau.", 502],
         MOMO_CONFIG_MISSING: ["Cấu hình MoMo chưa hoàn tất. Vui lòng liên hệ Admin.", 500],
         STRIPE_CONFIG_MISSING: ["Cấu hình thanh toán thẻ chưa hoàn tất. Vui lòng liên hệ Admin.", 500],

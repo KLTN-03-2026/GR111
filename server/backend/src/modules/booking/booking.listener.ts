@@ -25,6 +25,7 @@ export const initBookingListeners = () => {
     // 1. Real-time Socket notification (cho Owner dashboard)
     if (clubId) {
       await notifyNewBooking(clubId, {
+        clubId,
         booking,
         type: type || 'new-booking'
       });
@@ -107,6 +108,7 @@ export const initBookingListeners = () => {
     // 1. Thông báo cho Owner dashboard (venue room)
     if (clubId) {
       await notifyNewBooking(clubId, {
+        clubId,
         booking,
         type: type || 'booking-status-updated'
       });
@@ -137,6 +139,7 @@ export const initBookingListeners = () => {
   eventEmitter.on('booking.cancelled', async ({ clubId, booking }) => {
       if (clubId) {
         await notifyNewBooking(clubId, {
+          clubId,
           booking,
           type: 'booking-cancelled'
         });

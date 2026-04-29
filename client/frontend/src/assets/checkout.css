@@ -106,6 +106,7 @@
 /* Notes */
 .chk-note { display:flex; align-items:flex-start; gap:8px; border-radius:10px; padding:10px 14px; font-size:12px; line-height:1.6; }
 .chk-note--amber { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+.chk-note--info  { background:#eff6ff; border:1px solid #bae6fd; color:#0c4a6e; }
 .chk-note--red   { background:#fff5f5; border:1px solid #fca5a5; color:#991b1b; }
 
 /* Card visual */

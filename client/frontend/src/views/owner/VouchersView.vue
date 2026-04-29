@@ -8,8 +8,14 @@
         </div>
         <div>
           <h1 class="page-title">Chương trình khuyến mãi</h1>
-          <p class="subtitle">Tạo và quản lý các mã giảm giá để thu hút người chơi</p>
+          <p class="subtitle">Tạo mã giảm giá — có thể giới hạn theo từng sân hoặc áp dụng toàn bộ sân của CLB.</p>
         </div>
+      </div>
+      <div v-if="clubs.length > 1" class="club-inline-select">
+        <span class="material-icons">business</span>
+        <select v-model="clubId" class="club-select" @change="fetchVouchers">
+          <option v-for="cl in clubs" :key="cl.id" :value="cl.id">{{ cl.name }}</option>
+        </select>
       </div>
       <button class="create-btn" @click="openCreateModal">
         <span class="material-icons">add</span>
@@ -105,6 +111,10 @@
 
           <!-- Details grid -->
           <div class="details-grid">
+            <div class="detail-item detail-scope">
+              <span class="material-icons">sports_soccer</span>
+              <span>{{ voucherCourtScope(v) }}</span>
+            </div>
             <div class="detail-item">
               <span class="material-icons">trending_up</span>
               <span>Đã dùng: <strong>{{ v.usedCount }}</strong>{{ v.usageLimit ? ` / ${v.usageLimit}` : '' }}</span>
@@ -259,6 +269,18 @@
                 </div>
               </div>
 
+              <div class="form-group full-width">
+                <label>Giới hạn theo sân</label>
+                <p class="form-hint hint-block">Không chọn sân nào = áp dụng <strong>tất cả sân</strong> của CLB. Chọn một hoặc nhiều sân để mã chỉ dùng được khi đặt đúng các sân đó.</p>
+                <div v-if="clubCourts.length" class="court-check-grid">
+                  <label v-for="court in clubCourts" :key="court.id" class="court-check">
+                    <input type="checkbox" :value="court.id" v-model="form.courtIds" />
+                    <span>{{ court.name }}</span>
+                  </label>
+                </div>
+                <p v-else class="form-hint muted">CLB chưa có sân nào — thêm sân trong phần quản lý sân để giới hạn theo sân.</p>
+              </div>
+
               <!-- Preview -->
               <div class="voucher-preview" v-if="form.code && form.value">
                 <div class="preview-label">Xem trước</div>
@@ -324,6 +346,7 @@ const EMPTY_FORM = () => ({
   usagePerUser:   1,
   startDate:      '',
   endDate:        '',
+  courtIds:       [],
 });
 
 export default {
@@ -332,6 +355,7 @@ export default {
   data() {
     return {
       clubId:     null,
+      clubs:      [],
       vouchers:   [],
       loading:    true,
       activeTab:  'all',
@@ -377,14 +401,20 @@ export default {
         default:         return this.vouchers;
       }
     },
+
+    clubCourts() {
+      const c = this.clubs.find((x) => x.id === this.clubId);
+      return c?.courts || [];
+    },
   },
 
   methods: {
     async init() {
       try {
         const clubRes = await clubService.getOwnerClubs();
-        if (clubRes.data?.success && clubRes.data.data.length > 0) {
-          this.clubId = clubRes.data.data[0].id;
+        if (clubRes.data?.success && clubRes.data.data?.length > 0) {
+          this.clubs = clubRes.data.data;
+          this.clubId = this.clubs[0].id;
           await this.fetchVouchers();
         }
       } catch (e) {
@@ -399,7 +429,8 @@ export default {
       if (!this.clubId) return;
       try {
         const res = await voucherService.getClubVouchers(this.clubId);
-        this.vouchers = (res.data || res || []);
+        const payload = res?.data;
+        this.vouchers = Array.isArray(payload) ? payload : [];
       } catch (e) {
         console.error(e);
         toast.error('Không thể tải danh sách voucher');
@@ -437,6 +468,13 @@ export default {
       return new Date(d).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     },
 
+    voucherCourtScope(v) {
+      const rows = v.applicableCourts || [];
+      if (!rows.length) return 'Áp dụng mọi sân của CLB';
+      const names = rows.map((r) => r.court?.name || r.courtId).filter(Boolean);
+      return names.length ? `Chỉ áp dụng: ${names.join(', ')}` : 'Giới hạn sân';
+    },
+
     // ── Modal ────────────────────────────────────────────────
     openCreateModal() {
       this.editingVoucher = null;
@@ -459,6 +497,7 @@ export default {
         usagePerUser:   v.usagePerUser,
         startDate:      v.startDate ? v.startDate.split('T')[0] : '',
         endDate:        v.endDate   ? v.endDate.split('T')[0]   : '',
+        courtIds:       (v.applicableCourts || []).map((ac) => ac.courtId),
       };
       this.formError = '';
       this.showModal = true;
@@ -492,6 +531,7 @@ export default {
           usagePerUser:   Number(this.form.usagePerUser) || 1,
           startDate:      this.form.startDate,
           endDate:        this.form.endDate,
+          courtIds:       Array.isArray(this.form.courtIds) ? this.form.courtIds : [],
         };
 
         if (this.editingVoucher) {
@@ -579,6 +619,40 @@ export default {
 .header-icon { color: #fff; font-size: 26px; }
 .page-title  { font-size: 24px; font-weight: 800; margin: 0; color: #0f1623; }
 .subtitle    { font-size: 14px; color: #64748b; margin: 4px 0 0; }
+
+.club-inline-select {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+.club-inline-select .material-icons { font-size: 20px; color: #64748b; }
+.club-select {
+  border: none; background: transparent; font-weight: 600; font-size: 14px; color: #0f1623;
+  cursor: pointer; max-width: 220px;
+}
+
+.details-grid .detail-scope span:last-child { font-size: 12px; color: #475569; line-height: 1.35; }
+
+.court-check-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;
+}
+.court-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.court-check input { accent-color: #16a34a; }
+
+.form-group.full-width { grid-column: 1 / -1; }
+.hint-block { margin-top: 4px; margin-bottom: 8px; line-height: 1.45; }
+.form-hint.muted { color: #94a3b8; font-style: italic; }
 
 .create-btn {
   display: flex; align-items: center; gap: 8px;

@@ -1,5 +1,6 @@
 import { prisma } from "@/infra/db/prisma";
 import { PostType, Prisma } from "@/generated/prisma";
+import { notifyPlayersAboutOwnerPost } from "@/modules/user/notification.service";
 
 /**
  * Tạo bài đăng mới lên Bảng tin (News Feed)
@@ -15,12 +16,13 @@ export async function createPost(clubId: string, ownerId: string, data: {
 }) {
   // 1. Kiểm tra quyền sở hữu CLB
   const club = await prisma.club.findFirst({
-    where: { id: clubId, ownerId }
+    where: { id: clubId, ownerId },
+    select: { id: true, name: true },
   });
   if (!club) throw new Error("CLUB_NOT_FOUND_OR_UNAUTHORIZED");
 
   // 2. Tạo bài đăng
-  return prisma.post.create({
+  const post = await prisma.post.create({
     data: {
       clubId,
       type: data.type,
@@ -29,9 +31,26 @@ export async function createPost(clubId: string, ownerId: string, data: {
       imageUrl: data.imageUrl,
       linkedCourtId: data.linkedCourtId,
       linkedDate: data.linkedDate,
-      expiresAt: data.expiresAt
-    }
+      expiresAt: data.expiresAt,
+    },
   });
+
+  // 3. Thông báo tới người chơi đã từng đặt sân thành công tại CLB
+  let notificationsSent = 0;
+  try {
+    const { notified } = await notifyPlayersAboutOwnerPost({
+      clubId: club.id,
+      clubName: club.name,
+      postType: data.type,
+      title: data.title,
+      content: data.content,
+    });
+    notificationsSent = notified;
+  } catch (err) {
+    console.error("notifyPlayersAboutOwnerPost failed:", err);
+  }
+
+  return { post, notificationsSent };
 }
 
 /**

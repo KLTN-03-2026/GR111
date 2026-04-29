@@ -5,9 +5,12 @@ export const voucherService = {
 
   /**
    * Kiểm tra tính hợp lệ của mã giảm giá
+   * @param {string[]} [courtIds] - Danh sách courtId unique trong giỏ (bắt buộc khi voucher giới hạn sân)
    */
-  validateVoucher: async (code, clubId, orderAmount) => {
-    const response = await api.post("/vouchers/validate", { code, clubId, orderAmount });
+  validateVoucher: async (code, clubId, orderAmount, courtIds) => {
+    const body = { code, clubId, orderAmount };
+    if (courtIds && courtIds.length) body.courtIds = courtIds;
+    const response = await api.post("/vouchers/validate", body);
     return response.data;
   },
 

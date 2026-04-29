@@ -1,7 +1,10 @@
 import { prisma } from "@/infra/db/prisma";
 
+/** Đơn đã xác nhận/thực hiện (không còn chờ thanh toán / chưa hủy) — được phép đánh giá */
+const BOOKING_STATUSES_REVIEWABLE = ["CONFIRMED", "COMPLETED"] as const;
+
 /**
- * Tạo đánh giá mới (Chỉ áp dụng cho đơn đã hoàn thành COMPLETED)
+ * Tạo đánh giá mới (đơn thuộc user và đã CONFIRMED hoặc COMPLETED — không áp dụng PENDING/WAITING_PAYMENT/CANCELLED)
  */
 export async function createReview(userId: string, data: {
   bookingId: string;
@@ -9,12 +12,12 @@ export async function createReview(userId: string, data: {
   comment?: string;
   imageUrls?: string[];
 }) {
-  // 1. Kiểm tra booking có thuộc user và đã COMPLETED chưa
+  // 1. Kiểm tra booking có thuộc user và trạng thái được phép đánh giá
   const booking = await prisma.booking.findFirst({
-    where: { 
-      id: data.bookingId, 
+    where: {
+      id: data.bookingId,
       userId,
-      status: "COMPLETED"
+      status: { in: [...BOOKING_STATUSES_REVIEWABLE] },
     },
     include: {
       items: {
@@ -24,7 +27,7 @@ export async function createReview(userId: string, data: {
   });
 
   if (!booking) {
-    throw new Error("BOOKING_NOT_FOUND_OR_NOT_COMPLETED");
+    throw new Error("BOOKING_NOT_FOUND_OR_NOT_ELIGIBLE");
   }
 
   // 2. Kiểm tra xem đã review chưa (Unique constraint bookingId)

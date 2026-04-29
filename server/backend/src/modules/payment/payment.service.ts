@@ -249,6 +249,7 @@ async function handleSuccessfulPayment(bookingId: string, transactionRef: string
 
   if (updatedBooking?.clubId) {
     notifyNewBooking(updatedBooking.clubId, {
+      clubId: updatedBooking.clubId,
       booking: updatedBooking,
       type: "payment-confirmed",
     });
@@ -276,6 +277,7 @@ async function handleFailedPayment(bookingId: string) {
 
   if (updatedBooking.clubId) {
     notifyNewBooking(updatedBooking.clubId, {
+      clubId: updatedBooking.clubId,
       booking: updatedBooking,
       type: "booking-cancelled",
     });
@@ -302,6 +304,7 @@ export async function submitPaymentProof(bookingId: string, proofImageUrl: strin
 
     if (updatedBooking.clubId) {
       notifyNewBooking(updatedBooking.clubId, {
+        clubId: updatedBooking.clubId,
         booking: updatedBooking,
         type: "payment-proof-submitted",
       });

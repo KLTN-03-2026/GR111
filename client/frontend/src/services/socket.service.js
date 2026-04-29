@@ -17,7 +17,8 @@ const API_URL = resolveSocketUrl();
 class SocketService {
   constructor() {
     this.socket = null;
-    this.currentVenueId = null;
+    /** @type {Set<string>} club ids đã join (multi-club owner session) */
+    this.joinedVenueIds = new Set();
     this.bookingUpdateCallback = null;
     this.recentNotificationsCallback = null;
     this.bookingStatusChangedCallback = null;
@@ -33,9 +34,9 @@ class SocketService {
 
       this.socket.on("connect", () => {
         console.log("Socket connected:", this.socket.id, API_URL);
-        if (this.currentVenueId) {
-          this.socket.emit("join-venue", this.currentVenueId);
-        }
+        this.joinedVenueIds.forEach((vid) => {
+          this.socket.emit("join-venue", vid);
+        });
       });
 
       this.socket.on("connect_error", (err) => {
@@ -64,7 +65,8 @@ class SocketService {
 
   joinVenue(venueId) {
     if (!venueId) return;
-    this.currentVenueId = venueId;
+    const key = String(venueId);
+    this.joinedVenueIds.add(key);
     if (this.socket) {
       this.socket.emit("join-venue", venueId);
       console.log(`Joined venue: ${venueId}`);
@@ -72,12 +74,12 @@ class SocketService {
   }
 
   leaveVenue(venueId) {
-    if (this.socket && venueId) {
+    if (!venueId) return;
+    const key = String(venueId);
+    this.joinedVenueIds.delete(key);
+    if (this.socket) {
       this.socket.emit("leave-venue", venueId);
       console.log(`Left venue: ${venueId}`);
-    }
-    if (this.currentVenueId === venueId) {
-      this.currentVenueId = null;
     }
   }
 
@@ -117,7 +119,7 @@ class SocketService {
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
-      this.currentVenueId = null;
+      this.joinedVenueIds.clear();
       console.log("Socket disconnected");
     }
   }

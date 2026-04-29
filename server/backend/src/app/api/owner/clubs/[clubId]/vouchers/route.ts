@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getAuthUser, requireRole } from "@/middleware/auth.middleware";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/response";
 import { prisma } from "@/infra/db/prisma";
+import { replaceVoucherApplicableCourts } from "@/modules/marketing/voucher-courts";
 
 /**
  * GET /api/owner/clubs/[clubId]/vouchers
@@ -28,6 +29,11 @@ export async function GET(
     const vouchers = await prisma.voucher.findMany({
       where: { clubId, deletedAt: null },
       orderBy: { createdAt: "desc" },
+      include: {
+        applicableCourts: {
+          include: { court: { select: { id: true, name: true } } },
+        },
+      },
     });
 
     return successResponse("Lấy danh sách voucher thành công", vouchers);
@@ -59,7 +65,7 @@ export async function POST(
     if (!club) return errorResponse("Không tìm thấy câu lạc bộ hoặc bạn không có quyền", 403);
 
     const body = await req.json();
-    const { code, title, description, type, value, minOrderAmount, maxDiscount, usageLimit, usagePerUser, startDate, endDate } = body;
+    const { code, title, description, type, value, minOrderAmount, maxDiscount, usageLimit, usagePerUser, startDate, endDate, courtIds } = body;
 
     if (!code || !title || !type || !value || !startDate || !endDate) {
       return errorResponse("Thiếu thông tin bắt buộc", 422);
@@ -87,7 +93,24 @@ export async function POST(
       },
     });
 
-    return successResponse("Tạo voucher thành công", voucher, 201);
+    try {
+      const ids = Array.isArray(courtIds) ? courtIds.filter((x: unknown) => typeof x === "string") : [];
+      await replaceVoucherApplicableCourts(voucher.id, clubId, ids);
+    } catch {
+      await prisma.voucher.delete({ where: { id: voucher.id } });
+      return errorResponse("Danh sách sân không hợp lệ hoặc không thuộc CLB này", 422);
+    }
+
+    const full = await prisma.voucher.findUnique({
+      where: { id: voucher.id },
+      include: {
+        applicableCourts: {
+          include: { court: { select: { id: true, name: true } } },
+        },
+      },
+    });
+
+    return successResponse("Tạo voucher thành công", full, 201);
   } catch (error) {
     return serverErrorResponse(error);
   }
