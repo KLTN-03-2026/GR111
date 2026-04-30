@@ -25,7 +25,7 @@ function addCors(response: NextResponse, origin: string): NextResponse {
   return response;
 }
 
-export default function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const origin = request.headers.get("origin") ?? "";
 
   // Handle preflight OPTIONS — must return 200 for CORS to work
