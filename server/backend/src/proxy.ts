@@ -5,7 +5,10 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5173",
   "http://localhost:3001",
   "http://127.0.0.1:5173",
-];
+  "https://gr111-frontend.vercel.app",
+  process.env.FRONTEND_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+].filter(Boolean) as string[];
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Methods":     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
