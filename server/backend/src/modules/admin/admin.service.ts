@@ -1,5 +1,5 @@
 import { prisma } from "@/infra/db/prisma";
-import { ApprovalStatus, CourtStatus } from "@/generated/prisma";
+import { ApprovalStatus, CourtStatus, PostStatus } from "@/generated/prisma";
 import { notifyNewBooking } from "@/infra/realtime/socket";
 
 /**
@@ -277,4 +277,352 @@ export async function toggleUserActiveStatus(userId: string, isActive: boolean) 
     where: { id: userId },
     data: { isActive }
   });
+}
+
+/**
+ * Lấy tất cả bài đăng (Admin)
+ */
+export async function getAllPostsAdmin() {
+  return prisma.post.findMany({
+    include: {
+      club: {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+/**
+ * Ẩn / hiện bài đăng
+ */
+export async function togglePostStatus(postId: string, status: PostStatus) {
+  return prisma.post.update({
+    where: { id: postId },
+    data: { status }
+  });
+}
+
+/**
+ * Xoá mềm bài đăng
+ */
+export async function deletePostAdmin(postId: string) {
+  return prisma.post.update({
+    where: { id: postId },
+    data: { deletedAt: new Date() }
+  });
+}
+
+/* =====================================================
+   ================= REPORT / VIOLATION
+===================================================== */
+
+/**
+ * Lấy danh sách report (vi phạm)
+ */
+export async function getAllReportsAdmin() {
+  return prisma.report.findMany({
+    include: {
+      reporter: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
+  });
+}
+
+/**
+ * Xử lý report
+ */
+export async function handleReportAdmin(
+  reportId: string,
+  status: "RESOLVED" | "REJECTED"
+) {
+  return prisma.report.update({
+    where: { id: reportId },
+    data: { status }
+  });
+}
+
+/**
+ * Lấy số lượng vi phạm
+ */
+export async function countViolations() {
+  return prisma.report.count({
+    where: { status: "PENDING" }
+  });
+}
+
+/* =====================================================
+   ================= ANALYTICS
+===================================================== */
+
+/**
+ * Thống kê user theo thời gian
+ */
+interface UserStats {
+  total: number;
+  active: number;
+  newUsers: number;
+}
+export async function getUserStatsAdmin(
+  startDate?: string,
+  endDate?: string
+): Promise<UserStats> {
+  const start = startDate ? new Date(startDate) : undefined;
+  const end = endDate ? new Date(endDate) : undefined;
+
+  const [total, active, newUsers] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({
+      where: { isActive: true }
+    }),
+    prisma.user.count({
+      where:
+        start && end
+          ? {
+              createdAt: {
+                gte: start,
+                lte: end
+              }
+            }
+          : undefined
+    })
+  ]);
+
+  return {
+    total,
+    active,
+    newUsers
+  };
+}
+
+/**
+ * Thống kê doanh thu chi tiết
+ */
+interface RevenueStats {
+  totalRevenue: number;
+  totalBookings: number;
+}
+
+export async function getRevenueStatsAdmin(
+  startDate?: string,
+  endDate?: string
+): Promise<RevenueStats> {
+  const start = startDate ? new Date(startDate) : undefined;
+  const end = endDate ? new Date(endDate) : undefined;
+
+  const result = await prisma.booking.aggregate({
+    where: {
+      status: "CONFIRMED",
+      ...(start && end
+        ? {
+            createdAt: {
+              gte: start,
+              lte: end
+            }
+          }
+        : {})
+    },
+    _sum: {
+      finalAmount: true
+    },
+    _count: {
+      _all: true
+    }
+  });
+
+  return {
+    totalRevenue: Number(result._sum.finalAmount ?? 0),
+    totalBookings: result._count._all
+  };
+}
+
+/**
+ * Thống kê sân (usage)
+ */
+// export async function getCourtStatsAdmin() {
+//   return prisma.court.groupBy({
+//     by: ["status"],
+//     _count: true
+//   });
+// }
+interface CourtStats {
+  total: number;
+  active: number;
+  suspended: number;
+  inactive: number;
+  maintenance: number;
+}
+
+export async function getCourtStatsAdmin(): Promise<CourtStats> {
+  const grouped = await prisma.court.groupBy({
+    by: ["status"],
+    _count: {
+      _all: true
+    }
+  });
+
+  // init mặc định
+  const stats: CourtStats = {
+    total: 0,
+    active: 0,
+    suspended: 0,
+    inactive: 0,
+    maintenance: 0
+  };
+
+  for (const item of grouped) {
+    const count = item._count._all;
+
+    stats.total += count;
+
+    switch (item.status) {
+      case CourtStatus.ACTIVE:
+        stats.active = count;
+        break;
+      case CourtStatus.SUSPENDED:
+        stats.suspended = count;
+        break;
+      case CourtStatus.INACTIVE:
+        stats.inactive = count;
+        break;
+      case CourtStatus.MAINTENANCE:
+        stats.maintenance = count;
+        break;
+    }
+  }
+
+  return stats;
+}
+
+/**
+ * Top sân được đặt nhiều nhất
+ */
+export async function getTopCourtsAdmin(limit = 5) {
+  return prisma.booking.groupBy({
+    by: ["courtId"],
+    _count: true,
+    orderBy: {
+      _count: {
+        courtId: "desc"
+      }
+    },
+    take: limit
+  });
+}
+
+/* =====================================================
+   ================= TRAFFIC (VISIT)
+===================================================== */
+
+/**
+ * Thống kê lượt truy cập
+ */
+interface VisitStats {
+  totalVisits: number;
+  uniqueUsers: number;
+}
+export async function getVisitStatsAdmin(
+  startDate?: string,
+  endDate?: string
+): Promise<VisitStats> {
+  const start = startDate ? new Date(startDate) : undefined;
+  const end = endDate ? new Date(endDate) : undefined;
+
+  const whereClause =
+    start && end
+      ? {
+          createdAt: {
+            gte: start,
+            lte: end
+          }
+        }
+      : {};
+
+  const [totalVisits, uniqueUsers] = await Promise.all([
+    prisma.visitLog.count({
+      where: whereClause
+    }),
+    prisma.visitLog.groupBy({
+      by: ["userId"],
+      where: {
+        ...whereClause,
+        userId: {
+          not: null
+        }
+      }
+    }).then((res) => res.length)
+  ]);
+
+  return {
+    totalVisits,
+    uniqueUsers
+  };
+}
+
+/**
+ * Top route được truy cập
+ */
+export async function getTopVisitedRoutes(limit = 10) {
+  return prisma.visitLog.groupBy({
+    by: ["path"],
+    _count: true,
+    orderBy: {
+      _count: {
+        path: "desc"
+      }
+    },
+    take: limit
+  });
+}
+
+/* =====================================================
+   ================= SYSTEM / AUDIT
+===================================================== */
+
+/**
+ * Lấy audit logs
+ */
+export async function getAuditLogsAdmin(limit = 50) {
+  return prisma.auditLog.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          fullName: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit
+  });
+}
+
+/**
+ * Báo cáo hệ thống cơ bản
+ */
+export async function getSystemReportAdmin() {
+  const [users, bookings, revenue, visits] = await Promise.all([
+    prisma.user.count(),
+    prisma.booking.count(),
+    prisma.booking.aggregate({
+      _sum: { finalAmount: true }
+    }),
+    prisma.visitLog.count()
+  ]);
+
+  return {
+    totalUsers: users,
+    totalBookings: bookings,
+    totalRevenue: Number(revenue._sum.finalAmount || 0),
+    totalVisits: visits
+  };
 }

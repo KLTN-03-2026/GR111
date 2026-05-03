@@ -43,6 +43,8 @@ model User {
   sessions             Session[]
   profile              UserProfile?
   voucherUsages        VoucherUsage[]
+  reports              Report[]
+  comments             Comment[]
 
   @@map("users")
 }
@@ -160,10 +162,10 @@ model OpeningHour {
 }
 
 model Amenity {
-  id        String        @id @default(cuid())
-  name      String        @unique
+  id        String           @id @default(cuid())
+  name      String           @unique
   icon      String?
-  createdAt DateTime      @default(now())
+  createdAt DateTime         @default(now())
   clubs     ClubAmenity[]
   services  BookingService[]
 
@@ -319,13 +321,13 @@ model BookingItem {
 }
 
 model BookingService {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   bookingId String
   amenityId String
-  price     Decimal  @db.Decimal(12, 2)
-  quantity  Int      @default(1)
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  amenity   Amenity  @relation(fields: [amenityId], references: [id])
+  price     Decimal @db.Decimal(12, 2)
+  quantity  Int     @default(1)
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  amenity   Amenity @relation(fields: [amenityId], references: [id])
 
   @@unique([bookingId, amenityId])
   @@map("booking_services")
@@ -502,6 +504,7 @@ model Post {
   updatedAt     DateTime   @updatedAt
   deletedAt     DateTime?
   club          Club       @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  comments      Comment[]
 
   @@unique([clubId, slug])
   @@map("posts")
@@ -589,6 +592,59 @@ model SystemConfig {
   updatedAt   DateTime @updatedAt
 
   @@map("system_configs")
+}
+
+model Report {
+  id         String       @id @default(cuid())
+  reporterId String
+  targetId   String
+  targetType ReportTarget
+  reason     String
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  reporter User @relation(fields: [reporterId], references: [id])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  content   String
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+}
+
+model VisitLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  path      String
+  ip        String?
+  createdAt DateTime @default(now())
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String
+  message   String
+  context   Json?
+  createdAt DateTime @default(now())
+}
+
+enum ReportTarget {
+  USER
+  POST
+  REVIEW
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  REJECTED
 }
 
 enum Role {
